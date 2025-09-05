@@ -2,6 +2,8 @@
 
 #include <SDL2/SDL.h>
 
+// TODO: ensure player stays within game window
+
 // --- Player Struct ---
 // Encapsulates all data and behavior for the player character.
 struct Player {
