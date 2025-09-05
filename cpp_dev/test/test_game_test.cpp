@@ -110,7 +110,7 @@ TEST(ObstacleTest, Creation) {
 TEST(ObstacleTest, Update) {
     Obstacle obstacle(100, 100, 50, 50, 3, ObstacleType::Hurt);
     obstacle.update();
-    EXPECT_EQ(obstacle.rect.x, 97);
+    EXPECT_EQ(obstacle.rect.x, 97); //speed = 3, 100 - 3 = 97
     obstacle.update();
     EXPECT_EQ(obstacle.rect.x, 94);
 }
