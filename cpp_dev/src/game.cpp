@@ -89,12 +89,15 @@ int main(int argc, char* argv[]) {
 
             // Randomly determine the type of obstacle to spawn
             int type_roll = rand() % 10; // 0-9
-            ObstacleType type = ObstacleType::Hurt; // Default to Hurt
-            if (type_roll < 2) { // 20% chance for Grow
+            ObstacleType type; 
+            if (type_roll < 4) { // 40% chance for Grow
                 type = ObstacleType::Grow;
-            } else if (type_roll < 4) { // 20% chance for Shrink
+            } else if (type_roll < 8) { // 40% chance for Shrink
                 type = ObstacleType::Shrink;
-            } // 60% chance for Hurt
+            } // 20% chance for Hurt
+            else {
+                type = ObstacleType::Hurt;
+            }
             obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type);
         }
 
