@@ -1,125 +1,112 @@
-#include <iostream>
-#include <cassert>
-#include <vector>
+#include <gtest/gtest.h>
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
 
-// Helper function to check rect equality
-bool rects_are_equal(const SDL_Rect& r1, const SDL_Rect& r2) {
-    return r1.x == r2.x && r1.y == r2.y && r1.w == r2.w && r1.h == r2.h;
-}
-
-void test_player_creation() {
-    std::cout << "Running test: Player Creation... ";
+// Test suite for the Player class
+TEST(PlayerTest, Creation) {
     Player player(10, 20, 30, 40, 5);
-    SDL_Rect expected = {10, 20, 30, 40};
-    assert(rects_are_equal(player.rect, expected));
-    assert(player.speed == 5);
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(player.rect.x, 10);
+    EXPECT_EQ(player.rect.y, 20);
+    EXPECT_EQ(player.rect.w, 30);
+    EXPECT_EQ(player.rect.h, 40);
+    EXPECT_EQ(player.speed, 5);
 }
 
-void test_player_movement() {
-    std::cout << "Running test: Player Movement... ";
+TEST(PlayerTest, Movement) {
     Player player(100, 100, 40, 40, 5);
-
-    // Mock keystate array
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
 
     // Test moving left
     keystate[SDL_SCANCODE_LEFT] = 1;
     player.handle_input(keystate);
-    assert(player.rect.x == 95);
-    keystate[SDL_SCANCODE_LEFT] = 0; // Reset
+    EXPECT_EQ(player.rect.x, 95);
+    keystate[SDL_SCANCODE_LEFT] = 0;
 
     // Test moving right
     keystate[SDL_SCANCODE_RIGHT] = 1;
     player.handle_input(keystate);
-    assert(player.rect.x == 100);
+    EXPECT_EQ(player.rect.x, 100);
     keystate[SDL_SCANCODE_RIGHT] = 0;
 
     // Test moving up
     keystate[SDL_SCANCODE_UP] = 1;
     player.handle_input(keystate);
-    assert(player.rect.y == 95);
+    EXPECT_EQ(player.rect.y, 95);
     keystate[SDL_SCANCODE_UP] = 0;
 
     // Test moving down
     keystate[SDL_SCANCODE_DOWN] = 1;
     player.handle_input(keystate);
-    assert(player.rect.y == 100);
-    keystate[SDL_SCANCODE_DOWN] = 0;
-
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(player.rect.y, 100);
 }
 
-void test_obstacle_creation() {
-    std::cout << "Running test: Obstacle Creation... ";
-    Obstacle obstacle(50, 60, 70, 80, 3);
-    SDL_Rect expected = {50, 60, 70, 80};
-    assert(rects_are_equal(obstacle.rect, expected));
-    assert(obstacle.speed == 3);
-    std::cout << "PASSED" << std::endl;
+// Test suite for the Obstacle class
+TEST(ObstacleTest, Creation) {
+    Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt);
+    EXPECT_EQ(obstacle.rect.x, 50);
+    EXPECT_EQ(obstacle.rect.y, 60);
+    EXPECT_EQ(obstacle.rect.w, 70);
+    EXPECT_EQ(obstacle.rect.h, 80);
+    EXPECT_EQ(obstacle.speed, 3);
+    EXPECT_EQ(obstacle.type, ObstacleType::Hurt);
 }
 
-void test_obstacle_update() {
-    std::cout << "Running test: Obstacle Update... ";
-    Obstacle obstacle(100, 100, 50, 50, 3);
+TEST(ObstacleTest, Update) {
+    Obstacle obstacle(100, 100, 50, 50, 3, ObstacleType::Hurt);
     obstacle.update();
-    assert(obstacle.rect.x == 97);
+    EXPECT_EQ(obstacle.rect.x, 97); //speed = 3, 100 - 3 = 97
     obstacle.update();
-    assert(obstacle.rect.x == 94);
-    std::cout << "PASSED" << std::endl;
+    EXPECT_EQ(obstacle.rect.x, 94);
 }
 
-void test_obstacle_offscreen() {
-    std::cout << "Running test: Obstacle Offscreen... ";
+TEST(ObstacleTest, TypeAssignment) {
+    Obstacle hurt_obstacle(0, 0, 10, 10, 1, ObstacleType::Hurt);
+    EXPECT_EQ(hurt_obstacle.type, ObstacleType::Hurt);
+
+    Obstacle grow_obstacle(0, 0, 10, 10, 1, ObstacleType::Grow);
+    EXPECT_EQ(grow_obstacle.type, ObstacleType::Grow);
+
+    Obstacle shrink_obstacle(0, 0, 10, 10, 1, ObstacleType::Shrink);
+    EXPECT_EQ(shrink_obstacle.type, ObstacleType::Shrink);
+}
+
+TEST(ObstacleTest, IsOffscreen) {
     // Obstacle fully on screen
-    assert(!Obstacle(10, 10, 20, 20, 1).is_offscreen());
+    EXPECT_FALSE(Obstacle(10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle touching left edge
-    assert(!Obstacle(0, 10, 20, 20, 1).is_offscreen());
+    EXPECT_FALSE(Obstacle(0, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle partially offscreen
-    assert(!Obstacle(-10, 10, 20, 20, 1).is_offscreen());
+    EXPECT_FALSE(Obstacle(-10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle fully offscreen (right edge at x=0)
-    assert(Obstacle(-20, 10, 20, 20, 1).is_offscreen());
-    std::cout << "PASSED" << std::endl;
+    EXPECT_TRUE(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
 }
 
-void test_collision_detection() {
-    std::cout << "Running test: Collision Detection... ";
+// A test fixture for tests that require SDL to be initialized.
+class CollisionTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // We need to initialize SDL to use its functions like SDL_HasIntersection
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
+    }
+
+    void TearDown() override {
+        SDL_Quit();
+    }
+};
+
+// Use the fixture for the collision detection test
+TEST_F(CollisionTest, Detection) {
     Player player(100, 100, 40, 40, 5);
 
     // No collision
-    Obstacle no_collision(200, 200, 20, 20, 3);
-    assert(SDL_HasIntersection(&player.rect, &no_collision.rect) == SDL_FALSE);
+    Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt);
+    EXPECT_FALSE(SDL_HasIntersection(&player.rect, &no_collision.rect));
 
     // Collision
-    Obstacle collision(110, 110, 40, 40, 3);
-    assert(SDL_HasIntersection(&player.rect, &collision.rect) == SDL_TRUE);
+    Obstacle collision(110, 110, 40, 40, 3, ObstacleType::Hurt);
+    EXPECT_TRUE(SDL_HasIntersection(&player.rect, &collision.rect));
 
     // Edge collision (intersecting by 1 pixel)
-    Obstacle edge_collision(139, 100, 20, 20, 3);
-    assert(SDL_HasIntersection(&player.rect, &edge_collision.rect) == SDL_TRUE);
-
-    std::cout << "PASSED" << std::endl;
-}
-
-
-int main(int argc, char* argv[]) {
-    // We need to initialize SDL to use its functions like SDL_HasIntersection
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        std::cerr << "Unable to initialize SDL for testing: " << SDL_GetError() << std::endl;
-        return 1;
-    }
-
-    test_player_creation();
-    test_player_movement();
-    test_obstacle_creation();
-    test_obstacle_update();
-    test_obstacle_offscreen();
-    test_collision_detection();
-
-    std::cout << "\nAll tests passed successfully!" << std::endl;
-
-    SDL_Quit();
-    return 0;
+    Obstacle edge_collision(139, 100, 20, 20, 3, ObstacleType::Hurt);
+    EXPECT_TRUE(SDL_HasIntersection(&player.rect, &edge_collision.rect));
 }
