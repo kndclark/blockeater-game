@@ -54,16 +54,17 @@ void test_player_movement() {
 
 void test_obstacle_creation() {
     std::cout << "Running test: Obstacle Creation... ";
-    Obstacle obstacle(50, 60, 70, 80, 3);
+    Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt);
     SDL_Rect expected = {50, 60, 70, 80};
     assert(rects_are_equal(obstacle.rect, expected));
     assert(obstacle.speed == 3);
+    assert(obstacle.type == ObstacleType::Hurt);
     std::cout << "PASSED" << std::endl;
 }
 
 void test_obstacle_update() {
     std::cout << "Running test: Obstacle Update... ";
-    Obstacle obstacle(100, 100, 50, 50, 3);
+    Obstacle obstacle(100, 100, 50, 50, 3, ObstacleType::Hurt);
     obstacle.update();
     assert(obstacle.rect.x == 97);
     obstacle.update();
@@ -71,16 +72,29 @@ void test_obstacle_update() {
     std::cout << "PASSED" << std::endl;
 }
 
+void test_obstacle_type_assignment() {
+    std::cout << "Running test: Obstacle Type Assignment... ";
+    Obstacle hurt_obstacle(0, 0, 10, 10, 1, ObstacleType::Hurt);
+    assert(hurt_obstacle.type == ObstacleType::Hurt);
+
+    Obstacle grow_obstacle(0, 0, 10, 10, 1, ObstacleType::Grow);
+    assert(grow_obstacle.type == ObstacleType::Grow);
+
+    Obstacle shrink_obstacle(0, 0, 10, 10, 1, ObstacleType::Shrink);
+    assert(shrink_obstacle.type == ObstacleType::Shrink);
+    std::cout << "PASSED" << std::endl;
+}
+
 void test_obstacle_offscreen() {
     std::cout << "Running test: Obstacle Offscreen... ";
     // Obstacle fully on screen
-    assert(!Obstacle(10, 10, 20, 20, 1).is_offscreen());
+    assert(!Obstacle(10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle touching left edge
-    assert(!Obstacle(0, 10, 20, 20, 1).is_offscreen());
+    assert(!Obstacle(0, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle partially offscreen
-    assert(!Obstacle(-10, 10, 20, 20, 1).is_offscreen());
+    assert(!Obstacle(-10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle fully offscreen (right edge at x=0)
-    assert(Obstacle(-20, 10, 20, 20, 1).is_offscreen());
+    assert(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     std::cout << "PASSED" << std::endl;
 }
 
@@ -89,15 +103,15 @@ void test_collision_detection() {
     Player player(100, 100, 40, 40, 5);
 
     // No collision
-    Obstacle no_collision(200, 200, 20, 20, 3);
+    Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt);
     assert(SDL_HasIntersection(&player.rect, &no_collision.rect) == SDL_FALSE);
 
     // Collision
-    Obstacle collision(110, 110, 40, 40, 3);
+    Obstacle collision(110, 110, 40, 40, 3, ObstacleType::Hurt);
     assert(SDL_HasIntersection(&player.rect, &collision.rect) == SDL_TRUE);
 
     // Edge collision (intersecting by 1 pixel)
-    Obstacle edge_collision(139, 100, 20, 20, 3);
+    Obstacle edge_collision(139, 100, 20, 20, 3, ObstacleType::Hurt);
     assert(SDL_HasIntersection(&player.rect, &edge_collision.rect) == SDL_TRUE);
 
     std::cout << "PASSED" << std::endl;
@@ -115,6 +129,7 @@ int main(int argc, char* argv[]) {
     test_player_movement();
     test_obstacle_creation();
     test_obstacle_update();
+    test_obstacle_type_assignment();
     test_obstacle_offscreen();
     test_collision_detection();
 
