@@ -17,7 +17,7 @@ include_directories(${SDL2_INCLUDE_DIRS})
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
-add_executable(test_game_test ${TEST_SOURCES})
+add_executable(test_game_test ${TEST_SOURCES} ${SOURCES})
 target_link_libraries(test_game_test PRIVATE SDL2::SDL2 GTest::gtest GTest::gtest_main)
 
 # Enable warnings
