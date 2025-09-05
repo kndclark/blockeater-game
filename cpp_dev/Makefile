@@ -4,8 +4,8 @@ CXX = g++
 CXXFLAGS = -Wall -g
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs)
-SRC = src/game_test.cpp
-BIN = build/game_test
+SRC = src/game.cpp
+BIN = build/game
 
 all: $(BIN)
 
