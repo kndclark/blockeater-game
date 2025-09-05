@@ -14,30 +14,86 @@ TEST(PlayerTest, Creation) {
 
 TEST(PlayerTest, Movement) {
     Player player(100, 100, 40, 40, 5);
+    const int screen_width = 640;
+    const int screen_height = 480;
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
 
     // Test moving left
     keystate[SDL_SCANCODE_LEFT] = 1;
-    player.handle_input(keystate);
+    player.handle_input(keystate, screen_width, screen_height);
     EXPECT_EQ(player.rect.x, 95);
     keystate[SDL_SCANCODE_LEFT] = 0;
 
     // Test moving right
     keystate[SDL_SCANCODE_RIGHT] = 1;
-    player.handle_input(keystate);
+    player.handle_input(keystate, screen_width, screen_height);
     EXPECT_EQ(player.rect.x, 100);
     keystate[SDL_SCANCODE_RIGHT] = 0;
 
     // Test moving up
     keystate[SDL_SCANCODE_UP] = 1;
-    player.handle_input(keystate);
+    player.handle_input(keystate, screen_width, screen_height);
     EXPECT_EQ(player.rect.y, 95);
     keystate[SDL_SCANCODE_UP] = 0;
 
     // Test moving down
     keystate[SDL_SCANCODE_DOWN] = 1;
-    player.handle_input(keystate);
+    player.handle_input(keystate, screen_width, screen_height);
     EXPECT_EQ(player.rect.y, 100);
+}
+
+TEST(PlayerTest, BoundaryCollision) {
+    const int screen_width = 640;
+    const int screen_height = 480;
+    const int player_size = 40;
+    const int player_speed = 5;
+    Uint8 keystate[SDL_NUM_SCANCODES] = {0};
+
+    // Test left boundary
+    Player player_left(0, 100, player_size, player_size, player_speed);
+    keystate[SDL_SCANCODE_LEFT] = 1;
+    player_left.handle_input(keystate, screen_width, screen_height);
+    EXPECT_EQ(player_left.rect.x, 0);
+    keystate[SDL_SCANCODE_LEFT] = 0;
+
+    // Test right boundary
+    Player player_right(screen_width - player_size, 100, player_size, player_size, player_speed);
+    keystate[SDL_SCANCODE_RIGHT] = 1;
+    player_right.handle_input(keystate, screen_width, screen_height);
+    EXPECT_EQ(player_right.rect.x, screen_width - player_size);
+    keystate[SDL_SCANCODE_RIGHT] = 0;
+
+    // Test top boundary
+    Player player_top(100, 0, player_size, player_size, player_speed);
+    keystate[SDL_SCANCODE_UP] = 1;
+    player_top.handle_input(keystate, screen_width, screen_height);
+    EXPECT_EQ(player_top.rect.y, 0);
+    keystate[SDL_SCANCODE_UP] = 0;
+
+    // Test bottom boundary
+    Player player_bottom(100, screen_height - player_size, player_size, player_size, player_speed);
+    keystate[SDL_SCANCODE_DOWN] = 1;
+    player_bottom.handle_input(keystate, screen_width, screen_height);
+    EXPECT_EQ(player_bottom.rect.y, screen_height - player_size);
+}
+
+TEST(PlayerTest, SizeModification) {
+    Player player(100, 100, 40, 40, 5);
+
+    // Test growing
+    player.grow(10);
+    EXPECT_EQ(player.rect.w, 50);
+    EXPECT_EQ(player.rect.h, 50);
+
+    // Test shrinking
+    player.shrink(20);
+    EXPECT_EQ(player.rect.w, 30);
+    EXPECT_EQ(player.rect.h, 30);
+
+    // Test shrinking below the minimum size (should clamp to 10)
+    player.shrink(30);
+    EXPECT_EQ(player.rect.w, 10);
+    EXPECT_EQ(player.rect.h, 10);
 }
 
 // Test suite for the Obstacle class
