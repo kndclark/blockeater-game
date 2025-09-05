@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
         // Handle player input
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
-        player.handle_input(keystate);
+        player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
 
         // Periodically spawn new obstacles
         Uint32 current_time = SDL_GetTicks();
@@ -131,17 +131,12 @@ int main(int argc, char* argv[]) {
                         break;
                     case ObstacleType::Grow:
                         SDL_Log("Collision with Grow obstacle! Player grows.");
-                        player.rect.w += 10;
-                        player.rect.h += 10;
+                        player.grow(10);
                         it = obstacles.erase(it); // Erase and get next iterator
                         break;
                     case ObstacleType::Shrink:
                         SDL_Log("Collision with Shrink obstacle! Player shrinks.");
-                        // Add a minimum size to prevent the player from disappearing
-                        if (player.rect.w > 10 && player.rect.h > 10) {
-                            player.rect.w -= 10;
-                            player.rect.h -= 10;
-                        }
+                        player.shrink(10);
                         it = obstacles.erase(it); // Erase and get next iterator
                         break;
                 }
