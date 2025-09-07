@@ -9,11 +9,6 @@
 #include "Config.h"
 #include "GameLogic.h"
 
-ObstacleType getRandomObstacleType(int percent_grow, int percent_shrink) {
-    int type_roll = rand() % 100; // Roll a number between 0 and 99
-    return determineObstacleType(percent_grow, percent_shrink, type_roll);
-}
-
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -27,7 +22,7 @@ int main(int argc, char* argv[]) {
     const int SCREEN_HEIGHT = config.getScreenHeight();
 
     SDL_Window* window = SDL_CreateWindow(
-        "Squareboi",                  // const char* title: The title of the window
+        "THE BLOCKEATER",                  // const char* title: The title of the window
         SDL_WINDOWPOS_CENTERED,       // int x: Initial x position
         SDL_WINDOWPOS_CENTERED,       // int y: Initial y position
         SCREEN_WIDTH,                 // int w: Width of the window, in pixels
@@ -117,36 +112,11 @@ int main(int argc, char* argv[]) {
         Uint32 current_time = SDL_GetTicks();
         if (current_time > last_spawn_time + spawn_interval) {
             last_spawn_time = current_time;
-
-            if ((rand() % 100) < CHECKPOINT_CHANCE_PERCENT) {
-                // Spawn a checkpoint (a wall with a gap)
-                const int gap_height = 100 + (rand() % 50); // The size of the hole
-                const int gap_y = rand() % (SCREEN_HEIGHT - gap_height);
-                const int checkpoint_width = 30;
-
-                SDL_Rect top_rect = {SCREEN_WIDTH, 0, checkpoint_width, gap_y};
-                SDL_Rect bottom_rect = {SCREEN_WIDTH, gap_y + gap_height, checkpoint_width, SCREEN_HEIGHT - (gap_y + gap_height)};
-
-                obstacles.emplace_back(top_rect, bottom_rect, obstacle_speed);
-            } else {
-                // Spawn a regular obstacle
-                int w = 20 + (rand() % 40); // random width
-                int h = 20 + (rand() % 40); // random height
-                int y = rand() % (SCREEN_HEIGHT - h); // random y position
-                ObstacleType type = getRandomObstacleType(GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
-                obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type);
-            }
+            obstacles.push_back(Obstacle::createRandom(SCREEN_WIDTH, SCREEN_HEIGHT, obstacle_speed, CHECKPOINT_CHANCE_PERCENT, GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT));
         }
 
-        // Update obstacle positions
-        for (auto& obstacle : obstacles) {
-            obstacle.update();
-        }
-        // and remove off-screen ones
-        obstacles.erase(
-            std::remove_if(obstacles.begin(), obstacles.end(),
-                [](const Obstacle& o) { return o.is_offscreen(); }),
-            obstacles.end());
+        // Update obstacle positions and remove off-screen ones
+        Obstacle::updateAndRemove(obstacles);
 
         // --- Rendering ---
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255); // Dark gray

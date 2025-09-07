@@ -319,7 +319,7 @@ TEST_P(DetermineObstacleTypeTest, CorrectlyDeterminesType) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    GameLogicTests,
+    ObstacleLogicTests,
     DetermineObstacleTypeTest,
     ::testing::Values(
         // Test cases with 40/40/20 distribution
@@ -383,6 +383,116 @@ INSTANTIATE_TEST_SUITE_P(
         FpsCalculationParams{119, 1000, 2005, true, 120.0f / 1.005f, 0, 2005, "UpdateAfterMoreThanOneSecond"}
     ),
     [](const testing::TestParamInfo<FpsCalculationTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// --- New Obstacle Creation Tests ---
+
+TEST(ObstacleCreationTest, CreateCheckpoint) {
+    // We don't need to test the randomness, just that it creates the right kind of obstacle.
+    Obstacle o = Obstacle::createCheckpoint(800, 600, 3);
+    EXPECT_EQ(o.type, ObstacleType::Checkpoint);
+    EXPECT_TRUE(o.rect2.has_value());
+    EXPECT_EQ(o.speed, 3);
+    EXPECT_EQ(o.rect.x, 800);
+}
+
+struct CreateRegularTestParams {
+    int grow_chance;
+    int shrink_chance;
+    int type_roll;
+    ObstacleType expected_type;
+    std::string description;
+};
+
+void PrintTo(const CreateRegularTestParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParams> {
+  protected:
+    // This test class can be used to test createRegular by controlling the type roll.
+    // We can't fully test createRegular without mocking rand(), but we can test the type logic.
+    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
+        ObstacleType type = determineObstacleType(grow, shrink, roll);
+        return Obstacle(0, 0, 10, 10, 1, type);
+    }
+};
+
+TEST_P(CreateRegularTest, CreatesCorrectType) {
+    auto params = GetParam();
+    Obstacle o = createRegularWithTypeRoll(params.grow_chance, params.shrink_chance, params.type_roll);
+    EXPECT_EQ(o.type, params.expected_type);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ObstacleLogicTests,
+    CreateRegularTest,
+    ::testing::Values(
+        CreateRegularTestParams{30, 30, 29, ObstacleType::Grow, "RollIsGrow"},
+        CreateRegularTestParams{30, 30, 59, ObstacleType::Shrink, "RollIsShrink"},
+        CreateRegularTestParams{30, 30, 60, ObstacleType::Hurt, "RollIsHurt"},
+        CreateRegularTestParams{100, 0, 50, ObstacleType::Grow, "AlwaysGrow"},
+        CreateRegularTestParams{0, 100, 50, ObstacleType::Shrink, "AlwaysShrink"},
+        CreateRegularTestParams{0, 0, 50, ObstacleType::Hurt, "AlwaysHurt"}
+    ),
+    [](const testing::TestParamInfo<CreateRegularTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// --- UpdateAndRemove Test ---
+struct UpdateAndRemoveParams {
+    std::vector<Obstacle> initial_obstacles;
+    size_t expected_remaining_count;
+    std::multiset<ObstacleType> expected_remaining_types;
+    long long expected_x_sum; // Sum of x-coordinates of remaining obstacles
+    std::string description;
+};
+
+void PrintTo(const UpdateAndRemoveParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class UpdateAndRemoveTest : public ::testing::TestWithParam<UpdateAndRemoveParams> {};
+
+TEST_P(UpdateAndRemoveTest, CorrectlyUpdatesAndRemoves) {
+    auto params = GetParam();
+    auto obstacles = params.initial_obstacles; // Make a copy to modify
+    Obstacle::updateAndRemove(obstacles);
+
+    ASSERT_EQ(obstacles.size(), params.expected_remaining_count);
+
+    std::multiset<ObstacleType> actual_remaining_types;
+    long long actual_x_sum = 0;
+    for (const auto& o : obstacles) {
+        actual_remaining_types.insert(o.type);
+        actual_x_sum += o.rect.x;
+    }
+    EXPECT_EQ(actual_remaining_types, params.expected_remaining_types);
+    EXPECT_EQ(actual_x_sum, params.expected_x_sum);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ObstacleLogicTests,
+    UpdateAndRemoveTest,
+    ::testing::Values(
+        UpdateAndRemoveParams{{
+                Obstacle(100, 100, 20, 20, 5, ObstacleType::Hurt),
+                Obstacle(-30, 100, 20, 20, 5, ObstacleType::Hurt),
+                // This obstacle should be removed after one update (10 - 30 = -20; -20 + 20 <= 0)
+                Obstacle(10, 100, 20, 20, 30, ObstacleType::Grow),
+                Obstacle(SDL_Rect{200, 0, 20, 200}, SDL_Rect{200, 300, 20, 300}, 2)
+            }, 2, {ObstacleType::Hurt, ObstacleType::Checkpoint}, 95 + 198, "MixedOnAndOffscreen"},
+        UpdateAndRemoveParams{{
+                Obstacle(100, 100, 20, 20, 5, ObstacleType::Hurt),
+                Obstacle(200, 100, 20, 20, 5, ObstacleType::Grow)
+            }, 2, {ObstacleType::Hurt, ObstacleType::Grow}, 95 + 195, "AllOnscreen"},
+        UpdateAndRemoveParams{{ Obstacle(-30, 100, 20, 20, 5, ObstacleType::Hurt) }, 0, {}, 0, "AllOffscreen"},
+        UpdateAndRemoveParams{{}, 0, {}, 0, "EmptyVector"}
+    ),
+    [](const testing::TestParamInfo<UpdateAndRemoveTest::ParamType>& info) {
         return info.param.description;
     }
 );
