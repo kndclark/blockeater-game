@@ -2,16 +2,19 @@
 
 #include <SDL2/SDL.h>
 #include <algorithm> // For std::max
+#include "Color.h"
 
 // --- Player Struct ---
 // Encapsulates all data and behavior for the player character.
 struct Player {
     SDL_Rect rect;
     int speed;
+    Color color;
 
-    Player(int x, int y, int w, int h, int s) {
+    Player(int x, int y, int w, int h, int s, Color c) {
         rect = {x, y, w, h};
         speed = s;
+        color = c;
     }
 
     void handle_input(const Uint8* keystate, int screen_width, int screen_height) {
@@ -32,7 +35,7 @@ struct Player {
     }
 
     void draw(SDL_Renderer* renderer) const {
-        SDL_SetRenderDrawColor(renderer, 128, 0, 128, 255); // Purple
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
         SDL_RenderFillRect(renderer, &rect);
     }
 

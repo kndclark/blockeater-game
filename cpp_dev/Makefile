@@ -1,16 +1,17 @@
 .PHONY: all clean test
 
 CXX = g++
-CXXFLAGS = -Wall -g
+CXXFLAGS = -Wall -g -Isrc -Ithird_party -O3 -DNDEBUG
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs)
-SRC = src/game.cpp
+SRC = src/game.cpp src/Config.cpp
 BIN = build/game
 
 all: $(BIN)
 
 $(BIN): $(SRC)
-	mkdir build && $(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -o $(BIN) $(SRC) $(SDL2_LIBS)
+	mkdir -p build
+	$(CXX) $(CXXFLAGS) $(SDL2_CFLAGS) -o $(BIN) $(SRC) $(SDL2_LIBS)
 
 test:
 	cmake -S test -B test/build
@@ -19,6 +20,6 @@ test:
 
 clean:
 	rm -f $(BIN) 
-	rm -rf build/
+	rm -rf build/ test/build
 
 clean_test: clean test

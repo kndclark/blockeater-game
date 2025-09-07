@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "Player.h"
 #include "Obstacle.h"
+#include "Config.h"
 
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -51,10 +52,14 @@ int main(int argc, char* argv[]) {
     // Seed for random numbers
     srand(time(NULL));
 
-    // Create the player object (defined in Player.h)
-    Player player(100, SCREEN_HEIGHT / 2 - 20, 40, 40, 5);
+    const std::string COLOR_CONFIG_PATH = "cpp_dev/config/colors.json";
+    // Load configuration from a file. Assumes executable is run from workspace root.
+    Config config(COLOR_CONFIG_PATH);
 
-    // Obstacle variables (defined in Obstacles.h)
+    // Create the player object (defined in Player.h)
+    Player player(100, SCREEN_HEIGHT / 2 - 20, 40, 40, 5, config.getPlayerColor());
+
+    // Obstacle variables
     std::vector<Obstacle> obstacles;
     int obstacle_speed = 3;
     Uint32 last_spawn_time = 0;
@@ -98,7 +103,8 @@ int main(int argc, char* argv[]) {
             else {
                 type = ObstacleType::Hurt;
             }
-            obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type);
+            Color obstacle_color = config.getObstacleColor(type);
+            obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type, obstacle_color);
         }
 
         // Update obstacle positions and remove off-screen ones
