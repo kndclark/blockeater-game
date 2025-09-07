@@ -64,9 +64,8 @@ struct Obstacle {
         return rect.x + rect.w <= 0;
     }
 
-    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed) {
+    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height) {
         // Spawn a checkpoint (a wall with a gap)
-        const int gap_height = 100 + (rand() % 50); // The size of the hole
         const int gap_y = rand() % (screen_height - gap_height);
         const int checkpoint_width = 30;
 

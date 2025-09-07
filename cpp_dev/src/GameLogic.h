@@ -3,6 +3,7 @@
 #include <vector>
 #include <SDL2/SDL.h> // For SDL_Log and Uint32
 #include <optional>   // For std::optional
+#include <numeric>    // For std::accumulate
 #include <cstdlib> // For rand()
 
 #include "Obstacle.h" // For ObstacleType
@@ -45,6 +46,9 @@ struct ObstacleSpawner {
     const int obstacle_speed;
     const int grow_chance;
     const int shrink_chance;
+    // Track the sizes of power-ups to influence checkpoint gap size.
+    std::vector<int> grow_block_sizes_since_checkpoint;
+    std::vector<int> shrink_block_sizes_since_checkpoint;
 
     ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink)
         : spawn_interval(regular_interval), checkpoint_spawn_interval(checkpoint_int),
@@ -53,16 +57,45 @@ struct ObstacleSpawner {
 
     // Checks the current time and spawns obstacles if their respective intervals have passed.
     void spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles) {
-        // Spawn regular obstacles
-        if (current_time >= last_spawn_time + spawn_interval) {
-            last_spawn_time = current_time;
-            obstacles.push_back(Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance));
-        }
-
-        // Spawn checkpoints
+        // Prioritize spawning checkpoints.
         if (current_time >= last_checkpoint_spawn_time + checkpoint_spawn_interval) {
             last_checkpoint_spawn_time = current_time;
-            obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, obstacle_speed));
+            // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
+            last_spawn_time = current_time;
+
+            int grow_sum = std::accumulate(grow_block_sizes_since_checkpoint.begin(), grow_block_sizes_since_checkpoint.end(), 0);
+            int shrink_sum = std::accumulate(shrink_block_sizes_since_checkpoint.begin(), shrink_block_sizes_since_checkpoint.end(), 0);
+
+            const int base_gap_height = 120;
+            const int min_gap_height = 60;
+
+            // The gap size is adjusted based on the net "size" of power-ups collected.
+            // A larger positive difference (more grow than shrink) results in a larger gap.
+            // The divisor acts as a scaling factor to control the sensitivity.
+            int size_diff_effect = (grow_sum - shrink_sum) / 400;
+            int calculated_gap = base_gap_height + size_diff_effect;
+
+            // Clamp the gap size to be within reasonable bounds.
+            int final_gap_height = std::max(min_gap_height, calculated_gap);
+            final_gap_height = std::min(final_gap_height, screen_height - 20); // Ensure walls are at least 10px thick.
+
+            obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, obstacle_speed, final_gap_height));
+
+            // Reset the trackers for the next interval.
+            grow_block_sizes_since_checkpoint.clear();
+            shrink_block_sizes_since_checkpoint.clear();
+        }
+        // Only spawn a regular obstacle if a checkpoint was not spawned.
+        else if (current_time >= last_spawn_time + spawn_interval) {
+            last_spawn_time = current_time;
+            Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance);
+            if (new_obstacle.type == ObstacleType::Grow) {
+                // Using area (w*h) as the "size"
+                grow_block_sizes_since_checkpoint.push_back(new_obstacle.rect.w * new_obstacle.rect.h);
+            } else if (new_obstacle.type == ObstacleType::Shrink) {
+                shrink_block_sizes_since_checkpoint.push_back(new_obstacle.rect.w * new_obstacle.rect.h);
+            }
+            obstacles.push_back(new_obstacle);
         }
     }
 };

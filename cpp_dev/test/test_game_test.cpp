@@ -391,7 +391,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(ObstacleCreationTest, CreateCheckpoint) {
     // We don't need to test the randomness, just that it creates the right kind of obstacle.
-    Obstacle o = Obstacle::createCheckpoint(800, 600, 3);
+    Obstacle o = Obstacle::createCheckpoint(800, 600, 3, 150); // Pass a fixed gap height for testing
     EXPECT_EQ(o.type, ObstacleType::Checkpoint);
     EXPECT_TRUE(o.rect2.has_value());
     EXPECT_EQ(o.speed, 3);
@@ -705,12 +705,102 @@ INSTANTIATE_TEST_SUITE_P(
     ObstacleSpawnerTest,
     ::testing::Values(
         ObstacleSpawnerParams{1500, 60000, {0, 1500, 1501, 1502, 3001, 3002}, 2, 0, "SpawnsOnlyRegular"},
-        ObstacleSpawnerParams{100, 200, {101, 201}, 2, 1, "SpawnsBothRegularAndCheckpoint"},
+        ObstacleSpawnerParams{100, 200, {101, 201}, 1, 1, "SpawnsBothRegularAndCheckpoint"},
         ObstacleSpawnerParams{100, 200, {0, 50, 99}, 0, 0, "NoSpawnsBeforeInterval"},
-        ObstacleSpawnerParams{100, 200, {100, 199, 200}, 2, 1, "SpawnsAtAndAfterInterval"},
+        ObstacleSpawnerParams{100, 200, {100, 199, 200}, 1, 1, "SpawnsAtAndAfterInterval"},
         ObstacleSpawnerParams{1000, 200, {201}, 0, 1, "SpawnsOnlyCheckpoint"}
     ),
     [](const testing::TestParamInfo<ObstacleSpawnerTest::ParamType>& info) {
         return info.param.description;
     }
 );
+
+// --- Obstacle Spawner Checkpoint Gap Test ---
+struct ObstacleSpawnerGapParams {
+    std::vector<int> grow_sizes;
+    std::vector<int> shrink_sizes;
+    int expected_gap;
+    std::string description;
+};
+
+void PrintTo(const ObstacleSpawnerGapParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+// --- Obstacle Spawner Checkpoint Gap Test ---
+class ObstacleSpawnerGapTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
+protected:
+    static const int SCREEN_WIDTH = 800;
+    static const int SCREEN_HEIGHT = 600;
+    static const int OBSTACLE_SPEED = 3;
+    static const int CHECKPOINT_INTERVAL = 1000;
+
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
+    std::vector<Obstacle> obstacles;
+};
+
+TEST_P(ObstacleSpawnerGapTest, CalculatesCorrectGapSize) {
+    auto params = GetParam();
+    spawner.grow_block_sizes_since_checkpoint = params.grow_sizes;
+    spawner.shrink_block_sizes_since_checkpoint = params.shrink_sizes;
+
+    spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
+
+    ASSERT_EQ(obstacles.size(), 1);
+    const auto& checkpoint = obstacles.back();
+    ASSERT_EQ(checkpoint.type, ObstacleType::Checkpoint);
+    ASSERT_TRUE(checkpoint.rect2.has_value());
+
+    const int actual_gap = checkpoint.rect2->y - checkpoint.rect.h;
+    EXPECT_EQ(actual_gap, params.expected_gap);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GapCalculationTests,
+    ObstacleSpawnerGapTest,
+    ::testing::Values(
+        ObstacleSpawnerGapParams{{}, {}, 120, "IsBaseWhenNoPowerups"},
+        // grow_sum = 5000, shrink_sum = 1000 -> diff = 4000 -> effect = 10 -> gap = 120 + 10 = 130
+        ObstacleSpawnerGapParams{{2000, 3000}, {1000}, 130, "IncreasesWithNetGrowBlocks"},
+        // grow_sum = 1000, shrink_sum = 5000 -> diff = -4000 -> effect = -10 -> gap = 120 - 10 = 110
+        ObstacleSpawnerGapParams{{1000}, {2000, 3000}, 110, "DecreasesWithNetShrinkBlocks"},
+        // grow_sum = 0, shrink_sum = 40000 -> diff = -40000 -> effect = -100 -> gap = 120 - 100 = 20 -> clamped to 60
+        ObstacleSpawnerGapParams{{}, {40000}, 60, "ClampsAtMinimum"}
+    ),
+    [](const testing::TestParamInfo<ObstacleSpawnerGapTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// This test is separate because it has a different structure (multiple spawns).
+class ObstacleSpawnerStateTest : public ::testing::Test {
+protected:
+    static const int SCREEN_WIDTH = 800;
+    static const int SCREEN_HEIGHT = 600;
+    static const int OBSTACLE_SPEED = 3;
+    static const int CHECKPOINT_INTERVAL = 1000;
+
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
+    std::vector<Obstacle> obstacles;
+};
+
+TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
+    spawner.grow_block_sizes_since_checkpoint.push_back(2000);
+
+    // First checkpoint spawn
+    spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
+    ASSERT_EQ(obstacles.size(), 1);
+    EXPECT_TRUE(spawner.grow_block_sizes_since_checkpoint.empty());
+    EXPECT_TRUE(spawner.shrink_block_sizes_since_checkpoint.empty());
+
+    // Second checkpoint spawn, should not be affected by the previous grow block
+    spawner.spawn_obstacles(CHECKPOINT_INTERVAL * 2, obstacles);
+    ASSERT_EQ(obstacles.size(), 2);
+    const auto& checkpoint2 = obstacles.back();
+    ASSERT_EQ(checkpoint2.type, ObstacleType::Checkpoint);
+    ASSERT_TRUE(checkpoint2.rect2.has_value());
+
+    const int expected_gap = 120; // base_gap_height
+    const int actual_gap = checkpoint2.rect2->y - checkpoint2.rect.h;
+    EXPECT_EQ(actual_gap, expected_gap);
+}
