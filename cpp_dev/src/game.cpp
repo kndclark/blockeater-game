@@ -79,14 +79,12 @@ int main(int argc, char* argv[]) {
     const int TARGET_FPS = config.getTargetFps();
     const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
     Uint32 frame_start_time;
-    Uint32 frame_count = 0;
-    Uint32 last_fps_update_time = 0;
+    Uint32 frame_count = 0; // For FPS calculation
+    Uint32 last_fps_update_time = SDL_GetTicks(); // For FPS calculation
 
     // --- Main Game Loop ---
     bool running = true; // This flag controls the main game loop.
     SDL_Event event;     // A variable to store event data (e.g., keyboard, mouse, window events).
-
-    last_fps_update_time = SDL_GetTicks();
 
     // The game will continue to run as long as this 'running' flag is true.
     while (running) {
