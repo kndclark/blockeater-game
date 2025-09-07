@@ -423,3 +423,51 @@ TEST_F(SdlTest, ConfigDefaultConstructor) {
     EXPECT_EQ(player_color.g, 0);
     EXPECT_EQ(player_color.b, 128);
 }
+
+// --- Obstacle Batching Test ---
+struct PrepareObstacleBatchesParams {
+    std::vector<ObstacleType> obstacle_types;
+    size_t expected_hurt;
+    size_t expected_grow;
+    size_t expected_shrink;
+    std::string description;
+};
+
+void PrintTo(const PrepareObstacleBatchesParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class PrepareObstacleBatchesTest : public ::testing::TestWithParam<PrepareObstacleBatchesParams> {};
+
+TEST_P(PrepareObstacleBatchesTest, CorrectlyBatchesObstacles) {
+    auto params = GetParam();
+    Color c = {0, 0, 0, 0};
+    std::vector<Obstacle> obstacles;
+    for (const auto& type : params.obstacle_types) {
+        obstacles.emplace_back(0, 0, 10, 10, 1, type, c);
+    }
+
+    std::vector<SDL_Rect> hurt_rects;
+    std::vector<SDL_Rect> grow_rects;
+    std::vector<SDL_Rect> shrink_rects;
+
+    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects);
+    EXPECT_EQ(hurt_rects.size(), params.expected_hurt);
+    EXPECT_EQ(grow_rects.size(), params.expected_grow);
+    EXPECT_EQ(shrink_rects.size(), params.expected_shrink);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    PrepareObstacleBatchesTest,
+    ::testing::Values(
+        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Grow, ObstacleType::Grow, ObstacleType::Shrink, ObstacleType::Shrink, ObstacleType::Shrink}, 1, 2, 3, "MixedObstacles"},
+        PrepareObstacleBatchesParams{{}, 0, 0, 0, "EmptyVector"},
+        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Hurt, ObstacleType::Hurt}, 3, 0, 0, "AllHurt"},
+        PrepareObstacleBatchesParams{{ObstacleType::Grow, ObstacleType::Grow}, 0, 2, 0, "AllGrow"},
+        PrepareObstacleBatchesParams{{ObstacleType::Shrink}, 0, 0, 1, "AllShrink"}
+    ),
+    [](const testing::TestParamInfo<PrepareObstacleBatchesTest::ParamType>& info) {
+        return info.param.description;
+    }
+);

@@ -55,3 +55,43 @@ inline std::optional<float> calculateFps(Uint32& frame_count, Uint32& last_fps_u
     }
     return std::nullopt;
 }
+
+// Separates obstacles into batches for efficient rendering.
+// This is a pure function that can be easily tested.
+inline void prepareObstacleBatches(const std::vector<Obstacle>& obstacles,
+                                   std::vector<SDL_Rect>& hurt_rects,
+                                   std::vector<SDL_Rect>& grow_rects,
+                                   std::vector<SDL_Rect>& shrink_rects) {
+    hurt_rects.clear();
+    grow_rects.clear();
+    shrink_rects.clear();
+    for (const auto& obstacle : obstacles) {
+        switch (obstacle.type) {
+            case ObstacleType::Hurt:   hurt_rects.push_back(obstacle.rect); break;
+            case ObstacleType::Grow:   grow_rects.push_back(obstacle.rect); break;
+            case ObstacleType::Shrink: shrink_rects.push_back(obstacle.rect); break;
+        }
+    }
+}
+
+// Renders all obstacles in batches, which is more efficient than individual draw calls.
+inline void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& obstacles, const Config& config,
+                                 std::vector<SDL_Rect>& hurt_rects, std::vector<SDL_Rect>& grow_rects, std::vector<SDL_Rect>& shrink_rects) {
+    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects);
+
+    if (!hurt_rects.empty()) {
+        Color c = config.getObstacleColor(ObstacleType::Hurt);
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderFillRects(renderer, hurt_rects.data(), static_cast<int>(hurt_rects.size()));
+    }
+    if (!grow_rects.empty()) {
+        Color c = config.getObstacleColor(ObstacleType::Grow);
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderFillRects(renderer, grow_rects.data(), static_cast<int>(grow_rects.size()));
+    }
+    if (!shrink_rects.empty()) {
+        Color c = config.getObstacleColor(ObstacleType::Shrink);
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderFillRects(renderer, shrink_rects.data(), static_cast<int>(shrink_rects.size()));
+    }
+}

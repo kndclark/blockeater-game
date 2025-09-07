@@ -67,6 +67,11 @@ int main(int argc, char* argv[]) {
     // Obstacle variables
     std::vector<Obstacle> obstacles;
     int obstacle_speed = 3;
+    // Create vectors to hold rectangles for batch drawing. Reusing these vectors
+    // each frame avoids repeated memory allocations.
+    std::vector<SDL_Rect> hurt_rects;
+    std::vector<SDL_Rect> grow_rects;
+    std::vector<SDL_Rect> shrink_rects;
     Uint32 last_spawn_time = 0;
     Uint32 spawn_interval = 1500; // milliseconds
 
@@ -117,12 +122,13 @@ int main(int argc, char* argv[]) {
             obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type, obstacle_color);
         }
 
-        // Update obstacle positions and remove off-screen ones
+        // Update obstacle positions
         for (auto& obstacle : obstacles) {
             obstacle.update();
         }
+        // and remove off-screen ones
         obstacles.erase(
-            std::remove_if(obstacles.begin(), obstacles.end(), 
+            std::remove_if(obstacles.begin(), obstacles.end(),
                 [](const Obstacle& o) { return o.is_offscreen(); }),
             obstacles.end());
 
@@ -130,10 +136,7 @@ int main(int argc, char* argv[]) {
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255); // Dark gray
         SDL_RenderClear(renderer);
 
-        // Draw all obstacles
-        for (const auto& obstacle : obstacles) {
-            obstacle.draw(renderer);
-        }
+        batchRenderObstacles(renderer, obstacles, config, hurt_rects, grow_rects, shrink_rects);
 
         // Draw player
         player.draw(renderer);
