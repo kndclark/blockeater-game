@@ -1,9 +1,15 @@
 #include <gtest/gtest.h>
 #include <fstream> // For std::ofstream in ConfigTest
+#include <vector>
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
 #include "../src/Color.h"
 #include "../src/Config.h"
+#include "../src/GameLogic.h"
+
+namespace {
+const std::string kTestColorConfigPath = "../../config/colors.json";
+} // namespace
 
 // Test suite for the Player class
 TEST(PlayerTest, Creation) {
@@ -149,10 +155,9 @@ TEST(ObstacleTest, IsOffscreen) {
 }
 
 // A test fixture for tests that require SDL to be initialized.
-class CollisionTest : public ::testing::Test {
+class SdlTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // We need to initialize SDL to use its functions like SDL_HasIntersection
         ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
     }
 
@@ -160,6 +165,9 @@ protected:
         SDL_Quit();
     }
 };
+
+// A test fixture for collision detection tests.
+class CollisionTest : public SdlTest {};
 
 // Use the fixture for the collision detection test
 TEST_F(CollisionTest, Detection) {
@@ -179,10 +187,23 @@ TEST_F(CollisionTest, Detection) {
     EXPECT_TRUE(SDL_HasIntersection(&player.rect, &edge_collision.rect));
 }
 
+// A test fixture for collision logic tests.
+class CollisionLogicTest : public SdlTest {};
+
+// A test fixture for tests that create temporary files.
+class ConfigFileTest : public ::testing::Test {
+protected:
+    const std::string malformed_filename = "malformed.json";
+
+    void TearDown() override {
+        std::remove(malformed_filename.c_str());
+    }
+};
+
 // Test suite for the Config class
 TEST(ConfigTest, LoadsColorsFromFile) {
     // The test executable runs from the `test/build` directory, so we navigate up.
-    Config config("../../config/colors.json");
+    Config config(kTestColorConfigPath);
 
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 128);
@@ -218,16 +239,103 @@ TEST(ConfigTest, FallbackOnMissingFile) {
     EXPECT_EQ(hurt_color.r, 120);
 }
 
-TEST(ConfigTest, FallbackOnMalformedFile) {
+TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     // Create a temporary malformed JSON file for the test.
     // This file will be created in the `test/build` directory.
-    std::ofstream malformed_file("malformed.json");
+    std::ofstream malformed_file(malformed_filename);
     malformed_file << "{ \"player\": { \"r\": 10, "; // Intentionally broken JSON
     malformed_file.close();
 
-    Config config("malformed.json");
+    Config config(malformed_filename);
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
     EXPECT_EQ(player_color.b, 100);
+}
+
+// Test suite for GameLogic functions
+TEST(GameLogicTest, DetermineObstacleType) {
+    const int grow_chance = 40;
+    const int shrink_chance = 40;
+    // Hurt chance is implicitly 20
+
+    // Test Grow range
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 0), ObstacleType::Grow);
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 39), ObstacleType::Grow);
+
+    // Test Shrink range
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 40), ObstacleType::Shrink);
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 79), ObstacleType::Shrink);
+
+    // Test Hurt range
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 80), ObstacleType::Hurt);
+    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 99), ObstacleType::Hurt);
+
+    // Test with different percentages
+    EXPECT_EQ(determineObstacleType(10, 10, 9), ObstacleType::Grow);
+    EXPECT_EQ(determineObstacleType(10, 10, 19), ObstacleType::Shrink);
+    EXPECT_EQ(determineObstacleType(10, 10, 20), ObstacleType::Hurt);
+}
+
+TEST_F(CollisionLogicTest, HandleHurtCollision) {
+    Color c = {0,0,0,0};
+    Player player(100, 100, 40, 40, 5, c);
+    std::vector<Obstacle> obstacles;
+    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Hurt, c);
+
+    auto it = obstacles.begin();
+    bool running = true;
+
+    handleCollision(player, it, obstacles, running);
+
+    EXPECT_FALSE(running);
+    EXPECT_EQ(obstacles.size(), 1); // Obstacle is not removed
+    EXPECT_EQ(it, obstacles.end()); // Iterator is advanced
+}
+
+TEST_F(CollisionLogicTest, HandleGrowCollision) {
+    Color c = {0,0,0,0};
+    Player player(100, 100, 40, 40, 5, c);
+    std::vector<Obstacle> obstacles;
+    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Grow, c);
+
+    auto it = obstacles.begin();
+    bool running = true;
+    int initial_width = player.rect.w;
+
+    handleCollision(player, it, obstacles, running);
+
+    EXPECT_TRUE(running);
+    EXPECT_GT(player.rect.w, initial_width);
+    EXPECT_EQ(obstacles.size(), 0); // Obstacle is removed
+    EXPECT_EQ(it, obstacles.end()); // Iterator points to end after erase
+}
+
+TEST_F(CollisionLogicTest, HandleShrinkCollision) {
+    Color c = {0,0,0,0};
+    Player player(100, 100, 40, 40, 5, c);
+    std::vector<Obstacle> obstacles;
+    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Shrink, c);
+
+    auto it = obstacles.begin();
+    bool running = true;
+    int initial_width = player.rect.w;
+
+    handleCollision(player, it, obstacles, running);
+
+    EXPECT_TRUE(running);
+    EXPECT_LT(player.rect.w, initial_width);
+    EXPECT_EQ(obstacles.size(), 0); // Obstacle is removed
+    EXPECT_EQ(it, obstacles.end()); // Iterator points to end after erase
+}
+
+TEST_F(SdlTest, ConfigDefaultConstructor) {
+    // This test relies on the IS_TEST_BUILD macro being set correctly
+    // to find the config file from the test executable's path.
+    Config config;
+
+    Color player_color = config.getPlayerColor();
+    EXPECT_EQ(player_color.r, 128);
+    EXPECT_EQ(player_color.g, 0);
+    EXPECT_EQ(player_color.b, 128);
 }
