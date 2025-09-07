@@ -1,6 +1,13 @@
 {
+  "colors": {
     "player": { "r": 128, "g": 0, "b": 128, "a": 255 },
     "obstacle_hurt": { "r": 255, "g": 50, "b": 50, "a": 255 },
     "obstacle_grow": { "r": 50, "g": 200, "b": 50, "a": 255 },
     "obstacle_shrink": { "r": 255, "g": 165, "b": 0, "a": 255 }
+  },
+  "settings": {
+    "target_fps": 60,
+    "screen_width": 640,
+    "screen_height": 480
+  }
 }

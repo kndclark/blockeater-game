@@ -20,8 +20,11 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const int SCREEN_WIDTH = 640;
-    const int SCREEN_HEIGHT = 480;
+    // Load configuration. The Config class will find the default config file.
+    Config config;
+
+    const int SCREEN_WIDTH = config.getScreenWidth();
+    const int SCREEN_HEIGHT = config.getScreenHeight();
 
     SDL_Window* window = SDL_CreateWindow(
         "Squareboi",                  // const char* title: The title of the window
@@ -58,9 +61,6 @@ int main(int argc, char* argv[]) {
     // Seed for random numbers
     srand(time(NULL));
 
-    // Load configuration. The Config class will find the default config file.
-    Config config;
-
     // Create the player object (defined in Player.h)
     Player player(100, SCREEN_HEIGHT / 2 - 20, 40, 40, 5, config.getPlayerColor());
 
@@ -75,9 +75,18 @@ int main(int argc, char* argv[]) {
     const int SHRINK_CHANCE_PERCENT = 40;
     // Hurt chance is implicitly (100 - GROW_CHANCE_PERCENT - SHRINK_CHANCE_PERCENT)
 
+    // --- Framerate Control ---
+    const int TARGET_FPS = config.getTargetFps();
+    const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
+    Uint32 frame_start_time;
+    Uint32 frame_count = 0;
+    Uint32 last_fps_update_time = 0;
+
     // --- Main Game Loop ---
     bool running = true; // This flag controls the main game loop.
     SDL_Event event;     // A variable to store event data (e.g., keyboard, mouse, window events).
+
+    last_fps_update_time = SDL_GetTicks();
 
     // The game will continue to run as long as this 'running' flag is true.
     while (running) {
@@ -89,6 +98,8 @@ int main(int argc, char* argv[]) {
                 running = false;
             }
         }
+
+        frame_start_time = SDL_GetTicks();
 
         // Handle player input
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
@@ -141,7 +152,17 @@ int main(int argc, char* argv[]) {
         }
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(16); // ~60 FPS
+
+        // --- FPS Calculation and Capping ---
+        Uint32 current_frametime = SDL_GetTicks();
+        if (auto fps_opt = calculateFps(frame_count, last_fps_update_time, current_frametime)) {
+            SDL_Log("FPS: %.2f", *fps_opt);
+        }
+
+        Uint32 frame_time = SDL_GetTicks() - frame_start_time;
+        if (frame_time < FRAME_DELAY) {
+            SDL_Delay(FRAME_DELAY - frame_time);
+        }
     }
 
     SDL_DestroyRenderer(renderer);
