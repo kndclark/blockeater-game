@@ -72,12 +72,17 @@ int main(int argc, char* argv[]) {
     std::vector<SDL_Rect> hurt_rects;
     std::vector<SDL_Rect> grow_rects;
     std::vector<SDL_Rect> shrink_rects;
+    std::vector<SDL_Rect> checkpoint_rects;
     Uint32 last_spawn_time = 0;
     Uint32 spawn_interval = 1500; // milliseconds
 
+    // --- Game State ---
+    int score = 0;
+
     // --- Obstacle Spawn Chances ---
-    const int GROW_CHANCE_PERCENT = 40;
-    const int SHRINK_CHANCE_PERCENT = 40;
+    const int GROW_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
+    const int SHRINK_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
+    const int CHECKPOINT_CHANCE_PERCENT = 20; // Overall chance of a checkpoint
     // Hurt chance is implicitly (100 - GROW_CHANCE_PERCENT - SHRINK_CHANCE_PERCENT)
 
     // --- Framerate Control ---
@@ -112,14 +117,25 @@ int main(int argc, char* argv[]) {
         Uint32 current_time = SDL_GetTicks();
         if (current_time > last_spawn_time + spawn_interval) {
             last_spawn_time = current_time;
-            int w = 20 + (rand() % 40); // random width
-            int h = 20 + (rand() % 40); // random height
-            int y = rand() % (SCREEN_HEIGHT - h); // random y position
 
-            // Randomly determine the type of obstacle to spawn
-            ObstacleType type = getRandomObstacleType(GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
-            Color obstacle_color = config.getObstacleColor(type);
-            obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type, obstacle_color);
+            if ((rand() % 100) < CHECKPOINT_CHANCE_PERCENT) {
+                // Spawn a checkpoint (a wall with a gap)
+                const int gap_height = 100 + (rand() % 50); // The size of the hole
+                const int gap_y = rand() % (SCREEN_HEIGHT - gap_height);
+                const int checkpoint_width = 30;
+
+                SDL_Rect top_rect = {SCREEN_WIDTH, 0, checkpoint_width, gap_y};
+                SDL_Rect bottom_rect = {SCREEN_WIDTH, gap_y + gap_height, checkpoint_width, SCREEN_HEIGHT - (gap_y + gap_height)};
+
+                obstacles.emplace_back(top_rect, bottom_rect, obstacle_speed);
+            } else {
+                // Spawn a regular obstacle
+                int w = 20 + (rand() % 40); // random width
+                int h = 20 + (rand() % 40); // random height
+                int y = rand() % (SCREEN_HEIGHT - h); // random y position
+                ObstacleType type = getRandomObstacleType(GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
+                obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type);
+            }
         }
 
         // Update obstacle positions
@@ -136,7 +152,7 @@ int main(int argc, char* argv[]) {
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255); // Dark gray
         SDL_RenderClear(renderer);
 
-        batchRenderObstacles(renderer, obstacles, config, hurt_rects, grow_rects, shrink_rects);
+        batchRenderObstacles(renderer, obstacles, config, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
 
         // Draw player
         player.draw(renderer);
@@ -144,9 +160,16 @@ int main(int argc, char* argv[]) {
         // Collision detection
         // We use an iterator-based loop so we can safely remove obstacles after collision.
         for (auto it = obstacles.begin(); it != obstacles.end(); ) {
-            if (SDL_HasIntersection(&player.rect, &it->rect)) {
+            bool collision_detected = SDL_HasIntersection(&player.rect, &it->rect);
+            // For checkpoints, check collision with the second rectangle as well.
+            if (it->rect2) {
+                collision_detected = collision_detected || SDL_HasIntersection(&player.rect, &*(it->rect2));
+            }
+
+            if (collision_detected) {
                 handleCollision(player, it, obstacles, running);
             } else {
+                handleCheckpointPassing(player, *it, score);
                 ++it;
             }
             if (!running) break; // Exit loop immediately if game is over

@@ -52,6 +52,7 @@ void Config::load_from_path(const std::string& filepath) {
         obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
         obstacleColors[ObstacleType::Grow] = {140, 140, 140, 255}; // Gray
         obstacleColors[ObstacleType::Shrink] = {160, 160, 160, 255}; // Gray
+        obstacleColors[ObstacleType::Checkpoint] = {100, 100, 200, 255}; // A nice blue
         target_fps = 60;
         screen_width = 640;
         screen_height = 480;
@@ -66,6 +67,7 @@ void Config::load_from_path(const std::string& filepath) {
         obstacleColors[ObstacleType::Hurt] = data.value("/colors/obstacle_hurt"_json_pointer, Color{120, 120, 120, 255});
         obstacleColors[ObstacleType::Grow] = data.value("/colors/obstacle_grow"_json_pointer, Color{140, 140, 140, 255});
         obstacleColors[ObstacleType::Shrink] = data.value("/colors/obstacle_shrink"_json_pointer, Color{160, 160, 160, 255});
+        obstacleColors[ObstacleType::Checkpoint] = data.value("/colors/obstacle_checkpoint"_json_pointer, Color{100, 100, 200, 255});
         // For new settings, use value() with a JSON pointer for safe access to nested keys.
         // This will not throw if "settings" or its sub-keys are missing, using the default instead.
         target_fps = data.value("/settings/target_fps"_json_pointer, 60);
@@ -78,6 +80,7 @@ void Config::load_from_path(const std::string& filepath) {
         obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
         obstacleColors[ObstacleType::Grow] = {140, 140, 140, 255}; // Gray
         obstacleColors[ObstacleType::Shrink] = {160, 160, 160, 255}; // Gray
+        obstacleColors[ObstacleType::Checkpoint] = {100, 100, 200, 255}; // A nice blue
         target_fps = 60;
         screen_width = 640;
         screen_height = 480;

@@ -131,19 +131,18 @@ TEST(PlayerTest, SizeModification) {
 
 // Test suite for the Obstacle class
 TEST(ObstacleTest, Creation) {
-    Color c = {0,0,0,0};
-    Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt, c);
+    Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt);
     EXPECT_EQ(obstacle.rect.x, 50);
     EXPECT_EQ(obstacle.rect.y, 60);
     EXPECT_EQ(obstacle.rect.w, 70);
     EXPECT_EQ(obstacle.rect.h, 80);
     EXPECT_EQ(obstacle.speed, 3);
     EXPECT_EQ(obstacle.type, ObstacleType::Hurt);
+    EXPECT_FALSE(obstacle.rect2.has_value());
 }
 
 TEST(ObstacleTest, Update) {
-    Color c = {0,0,0,0};
-    Obstacle obstacle(100, 100, 50, 50, 3, ObstacleType::Hurt, c);
+    Obstacle obstacle(100, 100, 50, 50, 3, ObstacleType::Hurt);
     obstacle.update();
     EXPECT_EQ(obstacle.rect.x, 97); //speed = 3, 100 - 3 = 97
     obstacle.update();
@@ -151,27 +150,28 @@ TEST(ObstacleTest, Update) {
 }
 
 TEST(ObstacleTest, TypeAssignment) {
-    Color c = {0,0,0,0};
-    Obstacle hurt_obstacle(0, 0, 10, 10, 1, ObstacleType::Hurt, c);
+    Obstacle hurt_obstacle(0, 0, 10, 10, 1, ObstacleType::Hurt);
     EXPECT_EQ(hurt_obstacle.type, ObstacleType::Hurt);
 
-    Obstacle grow_obstacle(0, 0, 10, 10, 1, ObstacleType::Grow, c);
+    Obstacle grow_obstacle(0, 0, 10, 10, 1, ObstacleType::Grow);
     EXPECT_EQ(grow_obstacle.type, ObstacleType::Grow);
 
-    Obstacle shrink_obstacle(0, 0, 10, 10, 1, ObstacleType::Shrink, c);
+    Obstacle shrink_obstacle(0, 0, 10, 10, 1, ObstacleType::Shrink);
     EXPECT_EQ(shrink_obstacle.type, ObstacleType::Shrink);
+
+    Obstacle checkpoint_obstacle({0,0,0,0}, {0,0,0,0}, 1);
+    EXPECT_EQ(checkpoint_obstacle.type, ObstacleType::Checkpoint);
 }
 
 TEST(ObstacleTest, IsOffscreen) {
-    Color c = {0,0,0,0};
     // Obstacle fully on screen
-    EXPECT_FALSE(Obstacle(10, 10, 20, 20, 1, ObstacleType::Hurt, c).is_offscreen());
+    EXPECT_FALSE(Obstacle(10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle touching left edge
-    EXPECT_FALSE(Obstacle(0, 10, 20, 20, 1, ObstacleType::Hurt, c).is_offscreen());
+    EXPECT_FALSE(Obstacle(0, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle partially offscreen
-    EXPECT_FALSE(Obstacle(-10, 10, 20, 20, 1, ObstacleType::Hurt, c).is_offscreen());
+    EXPECT_FALSE(Obstacle(-10, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
     // Obstacle fully offscreen (right edge at x=0)
-    EXPECT_TRUE(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt, c).is_offscreen());
+    EXPECT_TRUE(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
 }
 
 // A test fixture for tests that require SDL to be initialized.
@@ -188,20 +188,47 @@ protected:
 
 // Use the fixture for the collision detection test
 TEST_F(SdlTest, CollisionDetection) {
-    Color c = {0,0,0,0};
-    Player player(100, 100, 40, 40, 5, c);
+    Player player(100, 100, 40, 40, 5, {0,0,0,0});
 
     // No collision
-    Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt, c);
+    Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt);
     EXPECT_FALSE(SDL_HasIntersection(&player.rect, &no_collision.rect));
 
     // Collision
-    Obstacle collision(110, 110, 40, 40, 3, ObstacleType::Hurt, c);
+    Obstacle collision(110, 110, 40, 40, 3, ObstacleType::Hurt);
     EXPECT_TRUE(SDL_HasIntersection(&player.rect, &collision.rect));
 
     // Edge collision (intersecting by 1 pixel)
-    Obstacle edge_collision(139, 100, 20, 20, 3, ObstacleType::Hurt, c);
+    Obstacle edge_collision(139, 100, 20, 20, 3, ObstacleType::Hurt);
     EXPECT_TRUE(SDL_HasIntersection(&player.rect, &edge_collision.rect));
+}
+
+TEST_F(SdlTest, CheckpointCollisionDetection) {
+    Player player(100, 100, 40, 40, 5, {0,0,0,0});
+
+    // Checkpoint with a gap the player can fit through
+    SDL_Rect top_wall = {110, 0, 20, 90};
+    SDL_Rect bottom_wall = {110, 150, 20, 330};
+    Obstacle checkpoint_no_collide(top_wall, bottom_wall, 3);
+    EXPECT_FALSE(SDL_HasIntersection(&player.rect, &checkpoint_no_collide.rect));
+    ASSERT_TRUE(checkpoint_no_collide.rect2.has_value());
+    EXPECT_FALSE(SDL_HasIntersection(&player.rect, &*checkpoint_no_collide.rect2));
+
+    // Player collides with top wall
+    SDL_Rect top_wall_collide = {110, 0, 20, 110};
+    SDL_Rect bottom_wall_no_collide = {110, 150, 20, 330};
+    Obstacle checkpoint_collide_top(top_wall_collide, bottom_wall_no_collide, 3);
+    EXPECT_TRUE(SDL_HasIntersection(&player.rect, &checkpoint_collide_top.rect));
+    ASSERT_TRUE(checkpoint_collide_top.rect2.has_value());
+    EXPECT_FALSE(SDL_HasIntersection(&player.rect, &*checkpoint_collide_top.rect2));
+
+    // Player collides with bottom wall
+    SDL_Rect top_wall_no_collide_2 = {110, 0, 20, 90};
+    SDL_Rect bottom_wall_collide = {110, 130, 20, 350};
+    Obstacle checkpoint_collide_bottom(top_wall_no_collide_2, bottom_wall_collide, 3);
+    EXPECT_FALSE(SDL_HasIntersection(&player.rect, &checkpoint_collide_bottom.rect));
+    ASSERT_TRUE(checkpoint_collide_bottom.rect2.has_value());
+    EXPECT_TRUE(SDL_HasIntersection(&player.rect, &*checkpoint_collide_bottom.rect2));
 }
 
 // A test fixture for tests that create temporary files.
@@ -379,10 +406,9 @@ class CollisionLogicTest : public SdlTest, public ::testing::WithParamInterface<
 
 TEST_P(CollisionLogicTest, HandlesCollisions) {
     auto params = GetParam();
-    Color c = {0,0,0,0};
-    Player player(100, 100, 40, 40, 5, c);
+    Player player(100, 100, 40, 40, 5, {0,0,0,0});
     std::vector<Obstacle> obstacles;
-    obstacles.emplace_back(100, 100, 20, 20, 1, params.obstacle_type, c);
+    obstacles.emplace_back(100, 100, 20, 20, 1, params.obstacle_type);
 
     auto it = obstacles.begin();
     bool running = true;
@@ -406,7 +432,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         CollisionLogicParams{ObstacleType::Hurt, false, 1, PlayerSizeChange::EQUAL, "HurtCollision"},
         CollisionLogicParams{ObstacleType::Grow, true, 0, PlayerSizeChange::GREATER, "GrowCollision"},
-        CollisionLogicParams{ObstacleType::Shrink, true, 0, PlayerSizeChange::LESS, "ShrinkCollision"}
+        CollisionLogicParams{ObstacleType::Shrink, true, 0, PlayerSizeChange::LESS, "ShrinkCollision"},
+        CollisionLogicParams{ObstacleType::Checkpoint, false, 1, PlayerSizeChange::EQUAL, "CheckpointCollision"}
     ),
     [](const testing::TestParamInfo<CollisionLogicTest::ParamType>& info) {
         return info.param.description;
@@ -430,6 +457,7 @@ struct PrepareObstacleBatchesParams {
     size_t expected_hurt;
     size_t expected_grow;
     size_t expected_shrink;
+    size_t expected_checkpoints;
     std::string description;
 };
 
@@ -441,33 +469,91 @@ class PrepareObstacleBatchesTest : public ::testing::TestWithParam<PrepareObstac
 
 TEST_P(PrepareObstacleBatchesTest, CorrectlyBatchesObstacles) {
     auto params = GetParam();
-    Color c = {0, 0, 0, 0};
     std::vector<Obstacle> obstacles;
     for (const auto& type : params.obstacle_types) {
-        obstacles.emplace_back(0, 0, 10, 10, 1, type, c);
+        if (type == ObstacleType::Checkpoint) {
+            obstacles.emplace_back(SDL_Rect{0,0,10,10}, SDL_Rect{0,0,10,10}, 1);
+        } else {
+            obstacles.emplace_back(0, 0, 10, 10, 1, type);
+        }
     }
 
     std::vector<SDL_Rect> hurt_rects;
     std::vector<SDL_Rect> grow_rects;
     std::vector<SDL_Rect> shrink_rects;
+    std::vector<SDL_Rect> checkpoint_rects;
 
-    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects);
+    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
     EXPECT_EQ(hurt_rects.size(), params.expected_hurt);
     EXPECT_EQ(grow_rects.size(), params.expected_grow);
     EXPECT_EQ(shrink_rects.size(), params.expected_shrink);
+    // Each checkpoint obstacle consists of two rectangles
+    EXPECT_EQ(checkpoint_rects.size(), params.expected_checkpoints * 2);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     GameLogicTests,
     PrepareObstacleBatchesTest,
     ::testing::Values(
-        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Grow, ObstacleType::Grow, ObstacleType::Shrink, ObstacleType::Shrink, ObstacleType::Shrink}, 1, 2, 3, "MixedObstacles"},
-        PrepareObstacleBatchesParams{{}, 0, 0, 0, "EmptyVector"},
-        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Hurt, ObstacleType::Hurt}, 3, 0, 0, "AllHurt"},
-        PrepareObstacleBatchesParams{{ObstacleType::Grow, ObstacleType::Grow}, 0, 2, 0, "AllGrow"},
-        PrepareObstacleBatchesParams{{ObstacleType::Shrink}, 0, 0, 1, "AllShrink"}
+        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Grow, ObstacleType::Grow, ObstacleType::Shrink, ObstacleType::Shrink, ObstacleType::Shrink}, 1, 2, 3, 0, "MixedObstacles"},
+        PrepareObstacleBatchesParams{{}, 0, 0, 0, 0, "EmptyVector"},
+        PrepareObstacleBatchesParams{{ObstacleType::Hurt, ObstacleType::Hurt, ObstacleType::Hurt}, 3, 0, 0, 0, "AllHurt"},
+        PrepareObstacleBatchesParams{{ObstacleType::Grow, ObstacleType::Grow}, 0, 2, 0, 0, "AllGrow"},
+        PrepareObstacleBatchesParams{{ObstacleType::Shrink}, 0, 0, 1, 0, "AllShrink"},
+        PrepareObstacleBatchesParams{{ObstacleType::Checkpoint}, 0, 0, 0, 1, "OneCheckpoint"},
+        PrepareObstacleBatchesParams{{ObstacleType::Checkpoint, ObstacleType::Hurt, ObstacleType::Checkpoint}, 1, 0, 0, 2, "MixedWithCheckpoints"}
     ),
     [](const testing::TestParamInfo<PrepareObstacleBatchesTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// --- Checkpoint Passing Logic Test ---
+struct CheckpointPassingParams {
+    int player_x;
+    int obstacle_x;
+    bool obstacle_initially_passed;
+    int initial_score;
+    int expected_score;
+    bool expected_passed_state;
+    ObstacleType obstacle_type;
+    std::string description;
+};
+
+void PrintTo(const CheckpointPassingParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingParams> {};
+
+TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
+    auto params = GetParam();
+    Player player(params.player_x, 100, 40, 40, 5, {0,0,0,0});
+    Obstacle obstacle(params.obstacle_x, 100, 20, 20, 3, params.obstacle_type);
+    if (params.obstacle_type == ObstacleType::Checkpoint) {
+        obstacle = Obstacle({params.obstacle_x, 0, 20, 100}, {params.obstacle_x, 200, 20, 100}, 3);
+    }
+    obstacle.passed = params.obstacle_initially_passed;
+    int score = params.initial_score;
+
+    handleCheckpointPassing(player, obstacle, score);
+
+    EXPECT_EQ(score, params.expected_score);
+    EXPECT_EQ(obstacle.passed, params.expected_passed_state);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    CheckpointPassingTest,
+    ::testing::Values(
+        CheckpointPassingParams{100, 121, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerBeforeCheckpoint"},
+        CheckpointPassingParams{121, 100, false, 0, 10, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"},
+        CheckpointPassingParams{122, 100, false, 10, 20, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
+        CheckpointPassingParams{121, 100, true, 10, 10, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
+        CheckpointPassingParams{100, 100, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerAtCheckpointEdge"},
+        CheckpointPassingParams{121, 100, false, 0, 0, false, ObstacleType::Hurt, "DoesNotAffectNonCheckpoints"}
+    ),
+    [](const testing::TestParamInfo<CheckpointPassingTest::ParamType>& info) {
         return info.param.description;
     }
 );

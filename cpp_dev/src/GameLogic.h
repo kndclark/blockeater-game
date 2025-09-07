@@ -24,6 +24,8 @@ inline ObstacleType determineObstacleType(int percent_grow, int percent_shrink, 
 // Modifies the player, the list of obstacles, and the game's running state by reference.
 inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it, std::vector<Obstacle>& obstacles, bool& running) {
     switch (it->type) {
+        case ObstacleType::Checkpoint:
+            // fallthrough
         case ObstacleType::Hurt:
             SDL_Log("Collision with Hurt obstacle! Game Over.");
             running = false; // End the game
@@ -39,6 +41,18 @@ inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it,
             player.shrink(10);
             it = obstacles.erase(it); // Erase and get next valid iterator
             break;
+    }
+}
+
+// Handles scoring when a player passes a checkpoint.
+inline void handleCheckpointPassing(const Player& player, Obstacle& obstacle, int& score) {
+    if (obstacle.type == ObstacleType::Checkpoint && !obstacle.passed) {
+        // Check if the player's front has passed the obstacle's back
+        if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
+            obstacle.passed = true;
+            score += 10;
+            SDL_Log("Checkpoint passed! Score: %d", score);
+        }
     }
 }
 
@@ -61,23 +75,32 @@ inline std::optional<float> calculateFps(Uint32& frame_count, Uint32& last_fps_u
 inline void prepareObstacleBatches(const std::vector<Obstacle>& obstacles,
                                    std::vector<SDL_Rect>& hurt_rects,
                                    std::vector<SDL_Rect>& grow_rects,
-                                   std::vector<SDL_Rect>& shrink_rects) {
+                                   std::vector<SDL_Rect>& shrink_rects,
+                                   std::vector<SDL_Rect>& checkpoint_rects) {
     hurt_rects.clear();
     grow_rects.clear();
     shrink_rects.clear();
+    checkpoint_rects.clear();
     for (const auto& obstacle : obstacles) {
         switch (obstacle.type) {
             case ObstacleType::Hurt:   hurt_rects.push_back(obstacle.rect); break;
             case ObstacleType::Grow:   grow_rects.push_back(obstacle.rect); break;
             case ObstacleType::Shrink: shrink_rects.push_back(obstacle.rect); break;
+            case ObstacleType::Checkpoint:
+                checkpoint_rects.push_back(obstacle.rect);
+                if (obstacle.rect2) {
+                    checkpoint_rects.push_back(*obstacle.rect2);
+                }
+                break;
         }
     }
 }
 
 // Renders all obstacles in batches, which is more efficient than individual draw calls.
 inline void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& obstacles, const Config& config,
-                                 std::vector<SDL_Rect>& hurt_rects, std::vector<SDL_Rect>& grow_rects, std::vector<SDL_Rect>& shrink_rects) {
-    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects);
+                                 std::vector<SDL_Rect>& hurt_rects, std::vector<SDL_Rect>& grow_rects, std::vector<SDL_Rect>& shrink_rects,
+                                 std::vector<SDL_Rect>& checkpoint_rects) {
+    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
 
     if (!hurt_rects.empty()) {
         Color c = config.getObstacleColor(ObstacleType::Hurt);
@@ -93,5 +116,10 @@ inline void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obsta
         Color c = config.getObstacleColor(ObstacleType::Shrink);
         SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
         SDL_RenderFillRects(renderer, shrink_rects.data(), static_cast<int>(shrink_rects.size()));
+    }
+    if (!checkpoint_rects.empty()) {
+        Color c = config.getObstacleColor(ObstacleType::Checkpoint);
+        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+        SDL_RenderFillRects(renderer, checkpoint_rects.data(), static_cast<int>(checkpoint_rects.size()));
     }
 }
