@@ -1,6 +1,7 @@
 #include "Config.h"
 #include <fstream>
 #include <iostream>
+#include <SDL2/SDL.h>
 #include "nlohmann/json.hpp"
 #include "Color.h"
 
@@ -15,7 +16,34 @@ void from_json(const json& j, Color& c) {
     j.at("a").get_to(c.a);
 }
 
+Config::Config() {
+    // Construct a path to the config file relative to the executable's location.
+    // This makes the game runnable from any working directory.
+    std::string config_path;
+    char* base_path = SDL_GetBasePath();
+    if (base_path) {
+#ifdef IS_TEST_BUILD
+        // The test executable is in test/build/, so we go up two directories.
+        config_path = std::string(base_path) + "../../config/colors.json";
+#else
+        // The game executable is in build/, so we go up one directory.
+        config_path = std::string(base_path) + "../config/colors.json";
+#endif
+        SDL_free(base_path);
+    } else {
+        // Fallback for when the base path can't be determined.
+        // Assumes the executable is run from the `cpp_dev` directory.
+        SDL_Log("Warning: Could not get application base path. Using relative path 'config/colors.json'");
+        config_path = "config/colors.json";
+    }
+    load_from_path(config_path);
+}
+
 Config::Config(const std::string& filepath) {
+    load_from_path(filepath);
+}
+
+void Config::load_from_path(const std::string& filepath) {
     std::ifstream f(filepath);
     if (!f.is_open()) {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default colors." << std::endl;

@@ -1,0 +1,42 @@
+#pragma once
+
+#include <vector>
+#include <SDL2/SDL.h> // For SDL_Log
+#include "Obstacle.h" // For ObstacleType
+#include "Player.h"   // For Player
+
+// This function is deterministic and easily testable.
+// It takes a roll (0-99) and returns an obstacle type based on percentages.
+inline ObstacleType determineObstacleType(int percent_grow, int percent_shrink, int roll) {
+    // Assumes the sum of percentages is <= 100.
+    // The remainder is the chance for the Hurt obstacle.
+    if (roll < percent_grow) {
+        return ObstacleType::Grow;
+    } else if (roll < percent_grow + percent_shrink) {
+        return ObstacleType::Shrink;
+    } else {
+        return ObstacleType::Hurt;
+    }
+}
+
+// Handles the game logic for a collision between the player and an obstacle.
+// Modifies the player, the list of obstacles, and the game's running state by reference.
+inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it, std::vector<Obstacle>& obstacles, bool& running) {
+    switch (it->type) {
+        case ObstacleType::Hurt:
+            SDL_Log("Collision with Hurt obstacle! Game Over.");
+            running = false; // End the game
+            ++it; // Advance iterator to avoid re-processing in the game loop
+            break;
+        case ObstacleType::Grow:
+            SDL_Log("Collision with Grow obstacle! Player grows.");
+            player.grow(10);
+            it = obstacles.erase(it); // Erase and get next valid iterator
+            break;
+        case ObstacleType::Shrink:
+            SDL_Log("Collision with Shrink obstacle! Player shrinks.");
+            player.shrink(10);
+            it = obstacles.erase(it); // Erase and get next valid iterator
+            break;
+    }
+}

@@ -27,6 +27,9 @@ include_directories(${GTEST_INCLUDE_DIRS})
 add_executable(test_game_test ${TEST_SOURCES} ${SOURCES})
 target_link_libraries(test_game_test PRIVATE SDL2::SDL2 GTest::gtest GTest::gtest_main)
 
+# Add a compile definition to identify test builds
+target_compile_definitions(test_game_test PRIVATE IS_TEST_BUILD)
+
 # Enable warnings
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(test_game_test PRIVATE -Wall -Wextra -pedantic)

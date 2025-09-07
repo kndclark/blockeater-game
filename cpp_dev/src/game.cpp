@@ -7,6 +7,12 @@
 #include "Player.h"
 #include "Obstacle.h"
 #include "Config.h"
+#include "GameLogic.h"
+
+ObstacleType getRandomObstacleType(int percent_grow, int percent_shrink) {
+    int type_roll = rand() % 100; // Roll a number between 0 and 99
+    return determineObstacleType(percent_grow, percent_shrink, type_roll);
+}
 
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -52,9 +58,8 @@ int main(int argc, char* argv[]) {
     // Seed for random numbers
     srand(time(NULL));
 
-    const std::string COLOR_CONFIG_PATH = "cpp_dev/config/colors.json";
-    // Load configuration from a file. Assumes executable is run from workspace root.
-    Config config(COLOR_CONFIG_PATH);
+    // Load configuration. The Config class will find the default config file.
+    Config config;
 
     // Create the player object (defined in Player.h)
     Player player(100, SCREEN_HEIGHT / 2 - 20, 40, 40, 5, config.getPlayerColor());
@@ -64,6 +69,11 @@ int main(int argc, char* argv[]) {
     int obstacle_speed = 3;
     Uint32 last_spawn_time = 0;
     Uint32 spawn_interval = 1500; // milliseconds
+
+    // --- Obstacle Spawn Chances ---
+    const int GROW_CHANCE_PERCENT = 40;
+    const int SHRINK_CHANCE_PERCENT = 40;
+    // Hurt chance is implicitly (100 - GROW_CHANCE_PERCENT - SHRINK_CHANCE_PERCENT)
 
     // --- Main Game Loop ---
     bool running = true; // This flag controls the main game loop.
@@ -93,16 +103,7 @@ int main(int argc, char* argv[]) {
             int y = rand() % (SCREEN_HEIGHT - h); // random y position
 
             // Randomly determine the type of obstacle to spawn
-            int type_roll = rand() % 10; // 0-9
-            ObstacleType type; 
-            if (type_roll < 4) { // 40% chance for Grow
-                type = ObstacleType::Grow;
-            } else if (type_roll < 8) { // 40% chance for Shrink
-                type = ObstacleType::Shrink;
-            } // 20% chance for Hurt
-            else {
-                type = ObstacleType::Hurt;
-            }
+            ObstacleType type = getRandomObstacleType(GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
             Color obstacle_color = config.getObstacleColor(type);
             obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type, obstacle_color);
         }
@@ -132,23 +133,7 @@ int main(int argc, char* argv[]) {
         // We use an iterator-based loop so we can safely remove obstacles after collision.
         for (auto it = obstacles.begin(); it != obstacles.end(); ) {
             if (SDL_HasIntersection(&player.rect, &it->rect)) {
-                switch (it->type) {
-                    case ObstacleType::Hurt:
-                        SDL_Log("Collision with Hurt obstacle! Game Over.");
-                        running = false; // End the game
-                        ++it; // Advance iterator before breaking the outer loop
-                        break;
-                    case ObstacleType::Grow:
-                        SDL_Log("Collision with Grow obstacle! Player grows.");
-                        player.grow(10);
-                        it = obstacles.erase(it); // Erase and get next iterator
-                        break;
-                    case ObstacleType::Shrink:
-                        SDL_Log("Collision with Shrink obstacle! Player shrinks.");
-                        player.shrink(10);
-                        it = obstacles.erase(it); // Erase and get next iterator
-                        break;
-                }
+                handleCollision(player, it, obstacles, running);
             } else {
                 ++it;
             }
