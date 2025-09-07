@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include "Color.h"
 
 // Define the different types of obstacles that can exist in the game.
 enum class ObstacleType {
@@ -14,12 +15,14 @@ enum class ObstacleType {
 struct Obstacle {
     SDL_Rect rect;
     int speed;
+    Color color;
     ObstacleType type;
 
-    Obstacle(int x, int y, int w, int h, int s, ObstacleType t) {
+    Obstacle(int x, int y, int w, int h, int s, ObstacleType t, Color c) {
         rect = {x, y, w, h};
         speed = s;
         type = t;
+        color = c;
     }
 
     void update() {
@@ -28,17 +31,7 @@ struct Obstacle {
 
     // Draws the obstacle with a color corresponding to its type.
     void draw(SDL_Renderer* renderer) const {
-        switch (type) {
-            case ObstacleType::Hurt:
-                SDL_SetRenderDrawColor(renderer, 255, 50, 50, 255); // Red for Hurt
-                break;
-            case ObstacleType::Grow:
-                SDL_SetRenderDrawColor(renderer, 50, 200, 50, 255); // Green for Grow
-                break;
-            case ObstacleType::Shrink:
-                SDL_SetRenderDrawColor(renderer, 255, 165, 0, 255); // Orange for Shrink
-                break;
-        }
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
         SDL_RenderFillRect(renderer, &rect);
     }
 
