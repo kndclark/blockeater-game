@@ -68,8 +68,6 @@ int main(int argc, char* argv[]) {
     std::vector<SDL_Rect> grow_rects;
     std::vector<SDL_Rect> shrink_rects;
     std::vector<SDL_Rect> checkpoint_rects;
-    Uint32 last_spawn_time = 0;
-    Uint32 spawn_interval = 1500; // milliseconds
 
     // --- Game State ---
     int score = 0;
@@ -77,8 +75,11 @@ int main(int argc, char* argv[]) {
     // --- Obstacle Spawn Chances ---
     const int GROW_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
     const int SHRINK_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
-    const int CHECKPOINT_CHANCE_PERCENT = 20; // Overall chance of a checkpoint
-    // Hurt chance is implicitly (100 - GROW_CHANCE_PERCENT - SHRINK_CHANCE_PERCENT)
+
+    // --- Spawner Setup ---
+    const Uint32 SPAWN_INTERVAL = 1500; // milliseconds for regular obstacles
+    const Uint32 CHECKPOINT_SPAWN_INTERVAL = 30000; // 60 seconds
+    ObstacleSpawner spawner(SPAWN_INTERVAL, CHECKPOINT_SPAWN_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, obstacle_speed, GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
 
     // --- Framerate Control ---
     const int TARGET_FPS = config.getTargetFps();
@@ -108,12 +109,9 @@ int main(int argc, char* argv[]) {
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
         player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Periodically spawn new obstacles
+        // Spawn new obstacles based on time
         Uint32 current_time = SDL_GetTicks();
-        if (current_time > last_spawn_time + spawn_interval) {
-            last_spawn_time = current_time;
-            obstacles.push_back(Obstacle::createRandom(SCREEN_WIDTH, SCREEN_HEIGHT, obstacle_speed, CHECKPOINT_CHANCE_PERCENT, GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT));
-        }
+        spawner.spawn_obstacles(current_time, obstacles);
 
         // Update obstacle positions and remove off-screen ones
         Obstacle::updateAndRemove(obstacles);

@@ -667,3 +667,50 @@ INSTANTIATE_TEST_SUITE_P(
         return info.param.description;
     }
 );
+
+// --- Obstacle Spawner Test ---
+struct ObstacleSpawnerParams {
+    Uint32 regular_interval;
+    Uint32 checkpoint_interval;
+    std::vector<Uint32> spawn_times;
+    size_t expected_regular;
+    size_t expected_checkpoints;
+    std::string description;
+};
+
+void PrintTo(const ObstacleSpawnerParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class ObstacleSpawnerTest : public ::testing::TestWithParam<ObstacleSpawnerParams> {};
+
+TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
+    auto params = GetParam();
+    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50);
+    std::vector<Obstacle> obstacles;
+
+    for (const auto& time : params.spawn_times) {
+        spawner.spawn_obstacles(time, obstacles);
+    }
+
+    size_t regular_count = std::count_if(obstacles.begin(), obstacles.end(), [](const Obstacle& o){ return o.type != ObstacleType::Checkpoint; });
+    size_t checkpoint_count = obstacles.size() - regular_count;
+
+    EXPECT_EQ(regular_count, params.expected_regular) << "Mismatch in regular obstacle count";
+    EXPECT_EQ(checkpoint_count, params.expected_checkpoints) << "Mismatch in checkpoint count";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    ObstacleSpawnerTest,
+    ::testing::Values(
+        ObstacleSpawnerParams{1500, 60000, {0, 1500, 1501, 1502, 3001, 3002}, 2, 0, "SpawnsOnlyRegular"},
+        ObstacleSpawnerParams{100, 200, {101, 201}, 2, 1, "SpawnsBothRegularAndCheckpoint"},
+        ObstacleSpawnerParams{100, 200, {0, 50, 99}, 0, 0, "NoSpawnsBeforeInterval"},
+        ObstacleSpawnerParams{100, 200, {100, 199, 200}, 2, 1, "SpawnsAtAndAfterInterval"},
+        ObstacleSpawnerParams{1000, 200, {201}, 0, 1, "SpawnsOnlyCheckpoint"}
+    ),
+    [](const testing::TestParamInfo<ObstacleSpawnerTest::ParamType>& info) {
+        return info.param.description;
+    }
+);

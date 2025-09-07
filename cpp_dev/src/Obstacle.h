@@ -86,14 +86,6 @@ struct Obstacle {
         return Obstacle(screen_width, y, w, h, speed, type);
     }
 
-    static Obstacle createRandom(int screen_width, int screen_height, int speed, int checkpoint_chance, int grow_chance, int shrink_chance) {
-        if ((rand() % 100) < checkpoint_chance) {
-            return createCheckpoint(screen_width, screen_height, speed);
-        } else {
-            return createRegular(screen_width, screen_height, speed, grow_chance, shrink_chance);
-        }
-    }
-
     static void updateAndRemove(std::vector<Obstacle>& obstacles) {
         // This is more efficient than the erase-remove idiom as it avoids
         // shifting elements in the vector. It has O(N) complexity for one

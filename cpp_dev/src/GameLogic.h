@@ -1,8 +1,10 @@
 #pragma once
 
 #include <vector>
-#include <SDL2/SDL.h> // For SDL_Log
+#include <SDL2/SDL.h> // For SDL_Log and Uint32
 #include <optional>   // For std::optional
+#include <cstdlib> // For rand()
+
 #include "Obstacle.h" // For ObstacleType
 #include "Player.h"   // For Player
 
@@ -29,6 +31,41 @@ inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it,
             break;
     }
 }
+
+// --- Obstacle Spawner ---
+// Manages the logic and state for spawning obstacles over time.
+struct ObstacleSpawner {
+    Uint32 last_spawn_time = 0;
+    const Uint32 spawn_interval;
+    Uint32 last_checkpoint_spawn_time = 0;
+    const Uint32 checkpoint_spawn_interval;
+
+    const int screen_width;
+    const int screen_height;
+    const int obstacle_speed;
+    const int grow_chance;
+    const int shrink_chance;
+
+    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink)
+        : spawn_interval(regular_interval), checkpoint_spawn_interval(checkpoint_int),
+          screen_width(width), screen_height(height), obstacle_speed(speed),
+          grow_chance(grow), shrink_chance(shrink) {}
+
+    // Checks the current time and spawns obstacles if their respective intervals have passed.
+    void spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles) {
+        // Spawn regular obstacles
+        if (current_time >= last_spawn_time + spawn_interval) {
+            last_spawn_time = current_time;
+            obstacles.push_back(Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance));
+        }
+
+        // Spawn checkpoints
+        if (current_time >= last_checkpoint_spawn_time + checkpoint_spawn_interval) {
+            last_checkpoint_spawn_time = current_time;
+            obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, obstacle_speed));
+        }
+    }
+};
 
 // Handles scoring when a player passes a checkpoint.
 inline void handleCheckpointPassing(const Player& player, Obstacle& obstacle, int& score) {
