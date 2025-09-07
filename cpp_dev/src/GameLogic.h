@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <SDL2/SDL.h> // For SDL_Log
+#include <optional>   // For std::optional
 #include "Obstacle.h" // For ObstacleType
 #include "Player.h"   // For Player
 
@@ -39,4 +40,18 @@ inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it,
             it = obstacles.erase(it); // Erase and get next valid iterator
             break;
     }
+}
+
+// Calculates FPS when a second has passed.
+// Returns the FPS value if an update is due, otherwise returns std::nullopt.
+// Manages frame_count and last_fps_update_time by reference.
+inline std::optional<float> calculateFps(Uint32& frame_count, Uint32& last_fps_update_time, Uint32 current_time) {
+    frame_count++;
+    if (current_time - last_fps_update_time >= 1000) {
+        float fps = static_cast<float>(frame_count) / ((current_time - last_fps_update_time) / 1000.0f);
+        frame_count = 0;
+        last_fps_update_time = current_time;
+        return fps;
+    }
+    return std::nullopt;
 }

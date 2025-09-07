@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream> // For std::ofstream in ConfigTest
 #include <vector>
+#include <optional>
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
 #include "../src/Color.h"
@@ -8,7 +9,7 @@
 #include "../src/GameLogic.h"
 
 namespace {
-const std::string kTestColorConfigPath = "../../config/colors.json";
+const std::string kTestConfigPath = "../../config/config.json";
 } // namespace
 
 // Test suite for the Player class
@@ -22,38 +23,64 @@ TEST(PlayerTest, Creation) {
     EXPECT_EQ(player.speed, 5);
 }
 
-TEST(PlayerTest, Movement) {
+// --- Player Movement Test ---
+struct PlayerMovementParams {
+    SDL_Scancode key;
+    int expected_x;
+    int expected_y;
+    std::string description;
+};
+
+void PrintTo(const PlayerMovementParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class PlayerMovementTest : public ::testing::TestWithParam<PlayerMovementParams> {};
+
+TEST_P(PlayerMovementTest, HandlesMovementCorrectly) {
+    auto params = GetParam();
     Color c = {0,0,0,0};
     Player player(100, 100, 40, 40, 5, c);
     const int screen_width = 640;
     const int screen_height = 480;
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
 
-    // Test moving left
-    keystate[SDL_SCANCODE_LEFT] = 1;
+    keystate[params.key] = 1;
     player.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player.rect.x, 95);
-    keystate[SDL_SCANCODE_LEFT] = 0;
-
-    // Test moving right
-    keystate[SDL_SCANCODE_RIGHT] = 1;
-    player.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player.rect.x, 100);
-    keystate[SDL_SCANCODE_RIGHT] = 0;
-
-    // Test moving up
-    keystate[SDL_SCANCODE_UP] = 1;
-    player.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player.rect.y, 95);
-    keystate[SDL_SCANCODE_UP] = 0;
-
-    // Test moving down
-    keystate[SDL_SCANCODE_DOWN] = 1;
-    player.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player.rect.y, 100);
+    EXPECT_EQ(player.rect.x, params.expected_x);
+    EXPECT_EQ(player.rect.y, params.expected_y);
 }
 
-TEST(PlayerTest, BoundaryCollision) {
+INSTANTIATE_TEST_SUITE_P(
+    PlayerTests,
+    PlayerMovementTest,
+    ::testing::Values(
+        PlayerMovementParams{SDL_SCANCODE_LEFT, 95, 100, "MovesLeft"},
+        PlayerMovementParams{SDL_SCANCODE_RIGHT, 105, 100, "MovesRight"},
+        PlayerMovementParams{SDL_SCANCODE_UP, 100, 95, "MovesUp"},
+        PlayerMovementParams{SDL_SCANCODE_DOWN, 100, 105, "MovesDown"}
+    ),
+    [](const testing::TestParamInfo<PlayerMovementTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// --- Player Boundary Test ---
+struct PlayerBoundaryParams {
+    int start_x;
+    int start_y;
+    SDL_Scancode key;
+    std::string description;
+};
+
+void PrintTo(const PlayerBoundaryParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class PlayerBoundaryTest : public ::testing::TestWithParam<PlayerBoundaryParams> {};
+
+TEST_P(PlayerBoundaryTest, StopsAtBoundaries) {
+    auto params = GetParam();
     const int screen_width = 640;
     const int screen_height = 480;
     const int player_size = 40;
@@ -61,33 +88,26 @@ TEST(PlayerTest, BoundaryCollision) {
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
     Color c = {0,0,0,0};
 
-    // Test left boundary
-    Player player_left(0, 100, player_size, player_size, player_speed, c);
-    keystate[SDL_SCANCODE_LEFT] = 1;
-    player_left.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player_left.rect.x, 0);
-    keystate[SDL_SCANCODE_LEFT] = 0;
-
-    // Test right boundary
-    Player player_right(screen_width - player_size, 100, player_size, player_size, player_speed, c);
-    keystate[SDL_SCANCODE_RIGHT] = 1;
-    player_right.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player_right.rect.x, screen_width - player_size);
-    keystate[SDL_SCANCODE_RIGHT] = 0;
-
-    // Test top boundary
-    Player player_top(100, 0, player_size, player_size, player_speed, c);
-    keystate[SDL_SCANCODE_UP] = 1;
-    player_top.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player_top.rect.y, 0);
-    keystate[SDL_SCANCODE_UP] = 0;
-
-    // Test bottom boundary
-    Player player_bottom(100, screen_height - player_size, player_size, player_size, player_speed, c);
-    keystate[SDL_SCANCODE_DOWN] = 1;
-    player_bottom.handle_input(keystate, screen_width, screen_height);
-    EXPECT_EQ(player_bottom.rect.y, screen_height - player_size);
+    Player player(params.start_x, params.start_y, player_size, player_size, player_speed, c);
+    keystate[params.key] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    EXPECT_EQ(player.rect.x, params.start_x);
+    EXPECT_EQ(player.rect.y, params.start_y);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    PlayerTests,
+    PlayerBoundaryTest,
+    ::testing::Values(
+        PlayerBoundaryParams{0, 100, SDL_SCANCODE_LEFT, "LeftBoundary"},
+        PlayerBoundaryParams{640 - 40, 100, SDL_SCANCODE_RIGHT, "RightBoundary"},
+        PlayerBoundaryParams{100, 0, SDL_SCANCODE_UP, "TopBoundary"},
+        PlayerBoundaryParams{100, 480 - 40, SDL_SCANCODE_DOWN, "BottomBoundary"}
+    ),
+    [](const testing::TestParamInfo<PlayerBoundaryTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
 
 TEST(PlayerTest, SizeModification) {
     Color c = {0,0,0,0};
@@ -166,11 +186,8 @@ protected:
     }
 };
 
-// A test fixture for collision detection tests.
-class CollisionTest : public SdlTest {};
-
 // Use the fixture for the collision detection test
-TEST_F(CollisionTest, Detection) {
+TEST_F(SdlTest, CollisionDetection) {
     Color c = {0,0,0,0};
     Player player(100, 100, 40, 40, 5, c);
 
@@ -187,9 +204,6 @@ TEST_F(CollisionTest, Detection) {
     EXPECT_TRUE(SDL_HasIntersection(&player.rect, &edge_collision.rect));
 }
 
-// A test fixture for collision logic tests.
-class CollisionLogicTest : public SdlTest {};
-
 // A test fixture for tests that create temporary files.
 class ConfigFileTest : public ::testing::Test {
 protected:
@@ -201,9 +215,9 @@ protected:
 };
 
 // Test suite for the Config class
-TEST(ConfigTest, LoadsColorsFromFile) {
+TEST(ConfigTest, LoadsConfigFromFile) {
     // The test executable runs from the `test/build` directory, so we navigate up.
-    Config config(kTestColorConfigPath);
+    Config config(kTestConfigPath);
 
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 128);
@@ -229,7 +243,7 @@ TEST(ConfigTest, LoadsColorsFromFile) {
 TEST(ConfigTest, FallbackOnMissingFile) {
     Config config("nonexistent_file.json");
 
-    // Should fall back to the hardcoded gray defaults defined in Config.cpp
+    // Should fall back to the hardcoded defaults defined in Config.cpp
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 100);
     EXPECT_EQ(player_color.g, 100);
@@ -253,51 +267,122 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.b, 100);
 }
 
+// A helper struct for our parameterized test for determineObstacleType.
+struct DetermineObstacleTypeParams {
+    int grow_chance;
+    int shrink_chance;
+    int roll;
+    ObstacleType expected_type;
+};
+
+// A custom printer for the test parameters to make test output more readable.
+void PrintTo(const DetermineObstacleTypeParams& params, std::ostream* os) {
+    *os << "grow_chance: " << params.grow_chance
+        << ", shrink_chance: " << params.shrink_chance
+        << ", roll: " << params.roll
+        << ", expected_type: " << static_cast<int>(params.expected_type);
+}
+
 // Test suite for GameLogic functions
-TEST(GameLogicTest, DetermineObstacleType) {
-    const int grow_chance = 40;
-    const int shrink_chance = 40;
-    // Hurt chance is implicitly 20
+class DetermineObstacleTypeTest : public ::testing::TestWithParam<DetermineObstacleTypeParams> {};
 
-    // Test Grow range
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 0), ObstacleType::Grow);
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 39), ObstacleType::Grow);
-
-    // Test Shrink range
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 40), ObstacleType::Shrink);
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 79), ObstacleType::Shrink);
-
-    // Test Hurt range
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 80), ObstacleType::Hurt);
-    EXPECT_EQ(determineObstacleType(grow_chance, shrink_chance, 99), ObstacleType::Hurt);
-
-    // Test with different percentages
-    EXPECT_EQ(determineObstacleType(10, 10, 9), ObstacleType::Grow);
-    EXPECT_EQ(determineObstacleType(10, 10, 19), ObstacleType::Shrink);
-    EXPECT_EQ(determineObstacleType(10, 10, 20), ObstacleType::Hurt);
+TEST_P(DetermineObstacleTypeTest, CorrectlyDeterminesType) {
+    auto params = GetParam();
+    EXPECT_EQ(determineObstacleType(params.grow_chance, params.shrink_chance, params.roll), params.expected_type);
 }
 
-TEST_F(CollisionLogicTest, HandleHurtCollision) {
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    DetermineObstacleTypeTest,
+    ::testing::Values(
+        // Test cases with 40/40/20 distribution
+        DetermineObstacleTypeParams{40, 40, 0, ObstacleType::Grow},   // Lower bound for Grow
+        DetermineObstacleTypeParams{40, 40, 39, ObstacleType::Grow},  // Upper bound for Grow
+        DetermineObstacleTypeParams{40, 40, 40, ObstacleType::Shrink},// Lower bound for Shrink
+        DetermineObstacleTypeParams{40, 40, 79, ObstacleType::Shrink},// Upper bound for Shrink
+        DetermineObstacleTypeParams{40, 40, 80, ObstacleType::Hurt},  // Lower bound for Hurt
+        DetermineObstacleTypeParams{40, 40, 99, ObstacleType::Hurt},  // Upper bound for Hurt
+        // Test cases with 10/10/80 distribution
+        DetermineObstacleTypeParams{10, 10, 9, ObstacleType::Grow},
+        DetermineObstacleTypeParams{10, 10, 19, ObstacleType::Shrink},
+        DetermineObstacleTypeParams{10, 10, 20, ObstacleType::Hurt}
+    )
+);
+
+// --- FPS Calculation Test ---
+struct FpsCalculationParams {
+    // Inputs
+    Uint32 initial_frame_count;
+    Uint32 initial_last_fps_update_time;
+    Uint32 current_time;
+
+    // Expected outputs
+    bool expect_update;
+    std::optional<float> expected_fps;
+    Uint32 expected_final_frame_count;
+    Uint32 expected_final_last_fps_update_time;
+    std::string description;
+};
+
+void PrintTo(const FpsCalculationParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class FpsCalculationTest : public ::testing::TestWithParam<FpsCalculationParams> {};
+
+TEST_P(FpsCalculationTest, CorrectlyCalculatesFps) {
+    auto params = GetParam();
+    Uint32 frame_count = params.initial_frame_count;
+    Uint32 last_fps_update_time = params.initial_last_fps_update_time;
+
+    auto fps_opt = calculateFps(frame_count, last_fps_update_time, params.current_time);
+
+    EXPECT_EQ(fps_opt.has_value(), params.expect_update);
+    if (params.expected_fps.has_value()) {
+        ASSERT_TRUE(fps_opt.has_value());
+        EXPECT_NEAR(*fps_opt, *params.expected_fps, 0.01f);
+    }
+
+    EXPECT_EQ(frame_count, params.expected_final_frame_count);
+    EXPECT_EQ(last_fps_update_time, params.expected_final_last_fps_update_time);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    FpsCalculationTest,
+    ::testing::Values(
+        FpsCalculationParams{0, 0, 999, false, std::nullopt, 1, 0, "NoUpdateBeforeOneSecond"},
+        FpsCalculationParams{59, 0, 1000, true, 60.0f, 0, 1000, "UpdateAfterExactlyOneSecond"},
+        FpsCalculationParams{119, 1000, 2005, true, 120.0f / 1.005f, 0, 2005, "UpdateAfterMoreThanOneSecond"}
+    ),
+    [](const testing::TestParamInfo<FpsCalculationTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
+// --- Collision Logic Test ---
+enum class PlayerSizeChange { EQUAL, GREATER, LESS };
+
+struct CollisionLogicParams {
+    ObstacleType obstacle_type;
+    bool expected_running;
+    size_t expected_obstacle_count;
+    PlayerSizeChange player_size_change;
+    std::string description;
+};
+
+void PrintTo(const CollisionLogicParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class CollisionLogicTest : public SdlTest, public ::testing::WithParamInterface<CollisionLogicParams> {};
+
+TEST_P(CollisionLogicTest, HandlesCollisions) {
+    auto params = GetParam();
     Color c = {0,0,0,0};
     Player player(100, 100, 40, 40, 5, c);
     std::vector<Obstacle> obstacles;
-    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Hurt, c);
-
-    auto it = obstacles.begin();
-    bool running = true;
-
-    handleCollision(player, it, obstacles, running);
-
-    EXPECT_FALSE(running);
-    EXPECT_EQ(obstacles.size(), 1); // Obstacle is not removed
-    EXPECT_EQ(it, obstacles.end()); // Iterator is advanced
-}
-
-TEST_F(CollisionLogicTest, HandleGrowCollision) {
-    Color c = {0,0,0,0};
-    Player player(100, 100, 40, 40, 5, c);
-    std::vector<Obstacle> obstacles;
-    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Grow, c);
+    obstacles.emplace_back(100, 100, 20, 20, 1, params.obstacle_type, c);
 
     auto it = obstacles.begin();
     bool running = true;
@@ -305,29 +390,28 @@ TEST_F(CollisionLogicTest, HandleGrowCollision) {
 
     handleCollision(player, it, obstacles, running);
 
-    EXPECT_TRUE(running);
-    EXPECT_GT(player.rect.w, initial_width);
-    EXPECT_EQ(obstacles.size(), 0); // Obstacle is removed
-    EXPECT_EQ(it, obstacles.end()); // Iterator points to end after erase
+    EXPECT_EQ(running, params.expected_running);
+    EXPECT_EQ(obstacles.size(), params.expected_obstacle_count);
+
+    switch (params.player_size_change) {
+        case PlayerSizeChange::EQUAL:   EXPECT_EQ(player.rect.w, initial_width); break;
+        case PlayerSizeChange::GREATER: EXPECT_GT(player.rect.w, initial_width); break;
+        case PlayerSizeChange::LESS:    EXPECT_LT(player.rect.w, initial_width); break;
+    }
 }
 
-TEST_F(CollisionLogicTest, HandleShrinkCollision) {
-    Color c = {0,0,0,0};
-    Player player(100, 100, 40, 40, 5, c);
-    std::vector<Obstacle> obstacles;
-    obstacles.emplace_back(100, 100, 20, 20, 1, ObstacleType::Shrink, c);
-
-    auto it = obstacles.begin();
-    bool running = true;
-    int initial_width = player.rect.w;
-
-    handleCollision(player, it, obstacles, running);
-
-    EXPECT_TRUE(running);
-    EXPECT_LT(player.rect.w, initial_width);
-    EXPECT_EQ(obstacles.size(), 0); // Obstacle is removed
-    EXPECT_EQ(it, obstacles.end()); // Iterator points to end after erase
-}
+INSTANTIATE_TEST_SUITE_P(
+    CollisionTests,
+    CollisionLogicTest,
+    ::testing::Values(
+        CollisionLogicParams{ObstacleType::Hurt, false, 1, PlayerSizeChange::EQUAL, "HurtCollision"},
+        CollisionLogicParams{ObstacleType::Grow, true, 0, PlayerSizeChange::GREATER, "GrowCollision"},
+        CollisionLogicParams{ObstacleType::Shrink, true, 0, PlayerSizeChange::LESS, "ShrinkCollision"}
+    ),
+    [](const testing::TestParamInfo<CollisionLogicTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
 
 TEST_F(SdlTest, ConfigDefaultConstructor) {
     // This test relies on the IS_TEST_BUILD macro being set correctly

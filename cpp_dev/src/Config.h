@@ -16,10 +16,16 @@ public:
 
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
+    int getTargetFps() const;
+    int getScreenWidth() const;
+    int getScreenHeight() const;
 
 private:
     void load_from_path(const std::string& filepath);
 
     Color playerColor;
     std::map<ObstacleType, Color> obstacleColors;
+    int target_fps;
+    int screen_width;
+    int screen_height;
 };
