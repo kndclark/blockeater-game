@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
 
     // --- Spawner Setup ---
     const Uint32 SPAWN_INTERVAL = 1500; // milliseconds for regular obstacles
-    const Uint32 CHECKPOINT_SPAWN_INTERVAL = 30000; // 60 seconds
+    const Uint32 CHECKPOINT_SPAWN_INTERVAL = 30000; // 30 seconds
     ObstacleSpawner spawner(SPAWN_INTERVAL, CHECKPOINT_SPAWN_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, obstacle_speed, GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
 
     // --- Framerate Control ---
