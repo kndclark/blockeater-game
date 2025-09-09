@@ -9,11 +9,6 @@
 #include "Config.h"
 #include "GameLogic.h"
 
-ObstacleType getRandomObstacleType(int percent_grow, int percent_shrink) {
-    int type_roll = rand() % 100; // Roll a number between 0 and 99
-    return determineObstacleType(percent_grow, percent_shrink, type_roll);
-}
-
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -27,7 +22,7 @@ int main(int argc, char* argv[]) {
     const int SCREEN_HEIGHT = config.getScreenHeight();
 
     SDL_Window* window = SDL_CreateWindow(
-        "Squareboi",                  // const char* title: The title of the window
+        "THE BLOCKEATER",                  // const char* title: The title of the window
         SDL_WINDOWPOS_CENTERED,       // int x: Initial x position
         SDL_WINDOWPOS_CENTERED,       // int y: Initial y position
         SCREEN_WIDTH,                 // int w: Width of the window, in pixels
@@ -67,26 +62,35 @@ int main(int argc, char* argv[]) {
     // Obstacle variables
     std::vector<Obstacle> obstacles;
     int obstacle_speed = 3;
-    Uint32 last_spawn_time = 0;
-    Uint32 spawn_interval = 1500; // milliseconds
+    // Create vectors to hold rectangles for batch drawing. Reusing these vectors
+    // each frame avoids repeated memory allocations.
+    std::vector<SDL_Rect> hurt_rects;
+    std::vector<SDL_Rect> grow_rects;
+    std::vector<SDL_Rect> shrink_rects;
+    std::vector<SDL_Rect> checkpoint_rects;
+
+    // --- Game State ---
+    int score = 0;
 
     // --- Obstacle Spawn Chances ---
-    const int GROW_CHANCE_PERCENT = 40;
-    const int SHRINK_CHANCE_PERCENT = 40;
-    // Hurt chance is implicitly (100 - GROW_CHANCE_PERCENT - SHRINK_CHANCE_PERCENT)
+    const int GROW_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
+    const int SHRINK_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
+
+    // --- Spawner Setup ---
+    const Uint32 SPAWN_INTERVAL = 1500; // milliseconds for regular obstacles
+    const Uint32 CHECKPOINT_SPAWN_INTERVAL = 10000; // 10 seconds
+    ObstacleSpawner spawner(SPAWN_INTERVAL, CHECKPOINT_SPAWN_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, obstacle_speed, GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
 
     // --- Framerate Control ---
     const int TARGET_FPS = config.getTargetFps();
     const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
     Uint32 frame_start_time;
-    Uint32 frame_count = 0;
-    Uint32 last_fps_update_time = 0;
+    Uint32 frame_count = 0; // For FPS calculation
+    Uint32 last_fps_update_time = SDL_GetTicks(); // For FPS calculation
 
     // --- Main Game Loop ---
     bool running = true; // This flag controls the main game loop.
     SDL_Event event;     // A variable to store event data (e.g., keyboard, mouse, window events).
-
-    last_fps_update_time = SDL_GetTicks();
 
     // The game will continue to run as long as this 'running' flag is true.
     while (running) {
@@ -105,37 +109,18 @@ int main(int argc, char* argv[]) {
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
         player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Periodically spawn new obstacles
+        // Spawn new obstacles based on time
         Uint32 current_time = SDL_GetTicks();
-        if (current_time > last_spawn_time + spawn_interval) {
-            last_spawn_time = current_time;
-            int w = 20 + (rand() % 40); // random width
-            int h = 20 + (rand() % 40); // random height
-            int y = rand() % (SCREEN_HEIGHT - h); // random y position
-
-            // Randomly determine the type of obstacle to spawn
-            ObstacleType type = getRandomObstacleType(GROW_CHANCE_PERCENT, SHRINK_CHANCE_PERCENT);
-            Color obstacle_color = config.getObstacleColor(type);
-            obstacles.emplace_back(SCREEN_WIDTH, y, w, h, obstacle_speed, type, obstacle_color);
-        }
+        spawner.spawn_obstacles(current_time, obstacles);
 
         // Update obstacle positions and remove off-screen ones
-        for (auto& obstacle : obstacles) {
-            obstacle.update();
-        }
-        obstacles.erase(
-            std::remove_if(obstacles.begin(), obstacles.end(), 
-                [](const Obstacle& o) { return o.is_offscreen(); }),
-            obstacles.end());
+        Obstacle::updateAndRemove(obstacles);
 
         // --- Rendering ---
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255); // Dark gray
         SDL_RenderClear(renderer);
 
-        // Draw all obstacles
-        for (const auto& obstacle : obstacles) {
-            obstacle.draw(renderer);
-        }
+        batchRenderObstacles(renderer, obstacles, config, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
 
         // Draw player
         player.draw(renderer);
@@ -143,9 +128,16 @@ int main(int argc, char* argv[]) {
         // Collision detection
         // We use an iterator-based loop so we can safely remove obstacles after collision.
         for (auto it = obstacles.begin(); it != obstacles.end(); ) {
-            if (SDL_HasIntersection(&player.rect, &it->rect)) {
+            bool collision_detected = SDL_HasIntersection(&player.rect, &it->rect);
+            // For checkpoints, check collision with the second rectangle as well.
+            if (it->rect2) {
+                collision_detected = collision_detected || SDL_HasIntersection(&player.rect, &*(it->rect2));
+            }
+
+            if (collision_detected) {
                 handleCollision(player, it, obstacles, running);
             } else {
+                handleCheckpointPassing(player, *it, score);
                 ++it;
             }
             if (!running) break; // Exit loop immediately if game is over
