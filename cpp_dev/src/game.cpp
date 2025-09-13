@@ -1,14 +1,25 @@
 // Simple 2D game window using SDL2
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdexcept> // For std::runtime_error
+#include <memory>  // For std::unique_ptr
 #include <cstdlib> // For rand() and srand()
 #include <ctime>   // For time()
+#include <string>
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "Scoreboard.h"
 
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
+        return 1;
+    }
+
+    if (TTF_Init() == -1) {
+        SDL_Log("Unable to initialize SDL_ttf: %s", TTF_GetError());
+        SDL_Quit();
         return 1;
     }
 
@@ -50,6 +61,28 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    std::unique_ptr<Scoreboard> scoreboard;
+    try {
+        // Construct a path to the font file relative to the executable's location.
+        std::string font_path;
+        char* base_path = SDL_GetBasePath();
+        if (base_path) {
+            font_path = std::string(base_path) + "../assets/font.ttf";
+            SDL_free(base_path);
+        } else {
+            // Fallback for when the base path can't be determined.
+            SDL_Log("Warning: Could not get application base path. Using relative path '../assets/font.ttf'");
+            font_path = "../assets/font.ttf";
+        }
+        scoreboard = std::make_unique<Scoreboard>(renderer, font_path, 24);
+    } catch (const std::exception& e) {
+        SDL_Log("Error creating scoreboard: %s", e.what());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        TTF_Quit();
+        SDL_Quit();
+        return 1;
+    }
     // Seed for random numbers
     srand(time(NULL));
 
@@ -97,6 +130,9 @@ int main(int argc, char* argv[]) {
         // Draw player
         game_state.player.draw(renderer);
 
+        // Draw score
+        scoreboard->render(game_state.score);
+
         // Collision detection
         // We use an iterator-based loop so we can safely remove obstacles after collision.
         for (auto it = game_state.obstacles.begin(); it != game_state.obstacles.end(); ) {
@@ -131,6 +167,7 @@ int main(int argc, char* argv[]) {
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
     return 0;
 }

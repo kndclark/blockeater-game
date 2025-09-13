@@ -23,18 +23,19 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../third_party)
 
 # Find GoogleTest
 find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+find_package(SDL2_ttf REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
 
-add_executable(test_game_test ${TEST_SOURCES} ${SOURCES})
-target_link_libraries(test_game_test PRIVATE SDL2::SDL2 GTest::gtest GTest::gtest_main)
+add_executable(blockeater_tests test_game_test.cpp test_ui_test.cpp ${SOURCES})
+target_link_libraries(blockeater_tests PRIVATE GTest::gtest GTest::gtest_main SDL2::SDL2 SDL2_ttf::SDL2_ttf)
 
 # Add a compile definition to identify test builds
-target_compile_definitions(test_game_test PRIVATE IS_TEST_BUILD)
+target_compile_definitions(blockeater_tests PRIVATE IS_TEST_BUILD)
 
 # Enable warnings
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(test_game_test PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(blockeater_tests PRIVATE -Wall -Wextra -pedantic)
 endif()
 
 enable_testing()
-add_test(NAME GameTest COMMAND test_game_test)
+add_test(NAME GameTest COMMAND blockeater_tests)
