@@ -10,5 +10,10 @@
     "target_fps": 60,
     "screen_width": 640,
     "screen_height": 480
+  },
+  "game": {
+    "base_checkpoint_gap": 80,
+    "spawn_interval_ms": 1500,
+    "checkpoint_interval_ms": 10000
   }
 }

@@ -55,6 +55,9 @@ void Config::load_from_path(const std::string& filepath) {
         target_fps = 60;
         screen_width = 640;
         screen_height = 480;
+        base_checkpoint_gap = 120;
+        spawn_interval_ms = 1500;
+        checkpoint_interval_ms = 10000;
         return;
     }
 
@@ -72,6 +75,10 @@ void Config::load_from_path(const std::string& filepath) {
         target_fps = data.value("/settings/target_fps"_json_pointer, 60);
         screen_width = data.value("/settings/screen_width"_json_pointer, 640);
         screen_height = data.value("/settings/screen_height"_json_pointer, 480);
+        // Game config-related (i.e. difficulty, saved state, etc.)
+        base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
+        spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
+        checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
     } catch (const std::exception& e) {
         std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
         // Use default configuration as a fallback
@@ -83,6 +90,9 @@ void Config::load_from_path(const std::string& filepath) {
         target_fps = 60;
         screen_width = 640;
         screen_height = 480;
+        base_checkpoint_gap = 120;
+        spawn_interval_ms = 1500;
+        checkpoint_interval_ms = 10000;
     }
 }
 
@@ -105,4 +115,16 @@ int Config::getScreenWidth() const {
 
 int Config::getScreenHeight() const {
     return screen_height;
+}
+
+int Config::getBaseCheckpointGap() const {
+    return base_checkpoint_gap;
+}
+
+Uint32 Config::getSpawnInterval() const {
+    return spawn_interval_ms;
+}
+
+Uint32 Config::getCheckpointInterval() const {
+    return checkpoint_interval_ms;
 }

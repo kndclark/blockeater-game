@@ -12,6 +12,7 @@ struct Player {
     Color color;
     const int default_w;
     const int default_h;
+    static constexpr int MIN_SIZE = 10;
 
     Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
 
@@ -45,9 +46,8 @@ struct Player {
 
     // Decreases the player's size, but not below a minimum threshold.
     void shrink(int amount) {
-        const int min_size = 10;
-        rect.w = std::max(min_size, rect.w - amount);
-        rect.h = std::max(min_size, rect.h - amount);
+        rect.w = std::max(MIN_SIZE, rect.w - amount);
+        rect.h = std::max(MIN_SIZE, rect.h - amount);
     }
 
     // Resets the player to its original size.

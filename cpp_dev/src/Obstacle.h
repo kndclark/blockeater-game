@@ -76,15 +76,15 @@ struct Obstacle {
     }
 
     static Obstacle createGrowBlock(int screen_width, int screen_height, int speed) {
-        int w = 20 + (rand() % 40); // random width
-        int h = 20 + (rand() % 40); // random height
+        int w = 40; // random width
+        int h = 40; // random height
         int y = rand() % (screen_height - h); // random y position
         return Obstacle(screen_width, y, w, h, speed, ObstacleType::Grow);
     }
 
     static Obstacle createShrinkBlock(int screen_width, int screen_height, int speed) {
-        int w = 20 + (rand() % 40); // random width
-        int h = 20 + (rand() % 40); // random height
+        int w = 20; // random width
+        int h = 20; // random height
         int y = rand() % (screen_height - h); // random y position
         return Obstacle(screen_width, y, w, h, speed, ObstacleType::Shrink);
     }
