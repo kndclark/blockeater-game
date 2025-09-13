@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include "../src/Color.h"
-#include "../src/Obstacle.h" // For ObstacleType
+#include "../src/Obstacle.h" // For ObstacleType, and dimension structs
 
 class Config {
 public:
@@ -23,6 +23,12 @@ public:
     int getBaseCheckpointGap() const;
     Uint32 getSpawnInterval() const;
     Uint32 getCheckpointInterval() const;
+    int getGrowChance() const;
+    int getShrinkChance() const;
+    int getHurtChance() const;
+    ObstacleSize getGrowDimensions() const;
+    ObstacleSize getShrinkDimensions() const;
+    ObstacleSize getHurtDimensions() const;
 
 private:
     void load_from_path(const std::string& filepath);
@@ -35,4 +41,10 @@ private:
     int base_checkpoint_gap;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
+    int grow_chance_percent;
+    int shrink_chance_percent;
+    int hurt_chance_percent;
+    ObstacleSize grow_dims;
+    ObstacleSize shrink_dims;
+    ObstacleSize hurt_dims;
 };

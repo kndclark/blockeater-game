@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <SDL2/SDL.h>
+#include "../src/Obstacle.h"
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -13,6 +14,11 @@ void from_json(const json& j, Color& c) {
     j.at("g").get_to(c.g);
     j.at("b").get_to(c.b);
     j.at("a").get_to(c.a);
+}
+
+void from_json(const json& j, ObstacleSize& dims) {
+    j.at("w").get_to(dims.w);
+    j.at("h").get_to(dims.h);
 }
 
 Config::Config() {
@@ -58,6 +64,12 @@ void Config::load_from_path(const std::string& filepath) {
         base_checkpoint_gap = 120;
         spawn_interval_ms = 1500;
         checkpoint_interval_ms = 10000;
+        grow_chance_percent = 40;
+        shrink_chance_percent = 40;
+        hurt_chance_percent = 20;
+        grow_dims = {40, 40};
+        shrink_dims = {20, 20};
+        hurt_dims = {30, 30};
         return;
     }
 
@@ -79,6 +91,17 @@ void Config::load_from_path(const std::string& filepath) {
         base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
         spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
         checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
+        grow_chance_percent = data.value("/game/obstacle_spawn_chances/grow"_json_pointer, 40);
+        shrink_chance_percent = data.value("/game/obstacle_spawn_chances/shrink"_json_pointer, 40);
+        hurt_chance_percent = data.value("/game/obstacle_spawn_chances/hurt"_json_pointer, 20);
+        grow_dims = data.value("/game/obstacle_dimensions/grow"_json_pointer, ObstacleSize{40, 40});
+        shrink_dims = data.value("/game/obstacle_dimensions/shrink"_json_pointer, ObstacleSize{20, 20});
+        hurt_dims = data.value("/game/obstacle_dimensions/hurt"_json_pointer, ObstacleSize{30, 30});
+
+        if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
+            throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
+        }
+
     } catch (const std::exception& e) {
         std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
         // Use default configuration as a fallback
@@ -93,6 +116,12 @@ void Config::load_from_path(const std::string& filepath) {
         base_checkpoint_gap = 120;
         spawn_interval_ms = 1500;
         checkpoint_interval_ms = 10000;
+        grow_chance_percent = 40;
+        shrink_chance_percent = 40;
+        hurt_chance_percent = 20;
+        grow_dims = {40, 40};
+        shrink_dims = {20, 20};
+        hurt_dims = {30, 30};
     }
 }
 
@@ -127,4 +156,28 @@ Uint32 Config::getSpawnInterval() const {
 
 Uint32 Config::getCheckpointInterval() const {
     return checkpoint_interval_ms;
+}
+
+int Config::getGrowChance() const {
+    return grow_chance_percent;
+}
+
+int Config::getShrinkChance() const {
+    return shrink_chance_percent;
+}
+
+int Config::getHurtChance() const {
+    return hurt_chance_percent;
+}
+
+ObstacleSize Config::getGrowDimensions() const {
+    return grow_dims;
+}
+
+ObstacleSize Config::getShrinkDimensions() const {
+    return shrink_dims;
+}
+
+ObstacleSize Config::getHurtDimensions() const {
+    return hurt_dims;
 }

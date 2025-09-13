@@ -6,6 +6,13 @@
 #include <cstdlib> // For rand()
 #include <algorithm> // For std::remove_if
 
+struct ObstacleSize {
+    int w, h;
+    bool operator==(const ObstacleSize& other) const {
+        return w == other.w && h == other.h;
+    }
+};
+
 // Define the different types of obstacles that can exist in the game.
 enum class ObstacleType {
     Hurt,   // Standard obstacle that ends the game on collision.
@@ -75,35 +82,38 @@ struct Obstacle {
         return Obstacle(top_rect, bottom_rect, speed);
     }
 
-    static Obstacle createGrowBlock(int screen_width, int screen_height, int speed) {
-        int w = 40; // random width
-        int h = 40; // random height
+    static Obstacle createGrowBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
+        // TODO: add more unique characteristics of grow blocks
+        int w = dims.w;
+        int h = dims.h;
         int y = rand() % (screen_height - h); // random y position
         return Obstacle(screen_width, y, w, h, speed, ObstacleType::Grow);
     }
 
-    static Obstacle createShrinkBlock(int screen_width, int screen_height, int speed) {
-        int w = 20; // random width
-        int h = 20; // random height
+    static Obstacle createShrinkBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
+        // TODO: add more unique characteristics of shrink blocks
+        int w = dims.w;
+        int h = dims.h;
         int y = rand() % (screen_height - h); // random y position
         return Obstacle(screen_width, y, w, h, speed, ObstacleType::Shrink);
     }
 
-    static Obstacle createHurtBlock(int screen_width, int screen_height, int speed) {
-        int w = 20 + (rand() % 40); // random width
-        int h = 20 + (rand() % 40); // random height
+    static Obstacle createHurtBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
+        // TODO: add more unique characteristics of hurt blocks
+        int w = dims.w;
+        int h = dims.h;
         int y = rand() % (screen_height - h); // random y position
         return Obstacle(screen_width, y, w, h, speed, ObstacleType::Hurt);
     }
 
-    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance) {
+    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance, ObstacleSize grow_dims, ObstacleSize shrink_dims, ObstacleSize hurt_dims) {
         int type_roll = rand() % 100; // Roll a number between 0 and 99
         ObstacleType type = determineObstacleType(grow_chance, shrink_chance, type_roll);
 
         switch (type) {
-            case ObstacleType::Grow:   return createGrowBlock(screen_width, screen_height, speed);
-            case ObstacleType::Shrink: return createShrinkBlock(screen_width, screen_height, speed);
-            default:                   return createHurtBlock(screen_width, screen_height, speed);
+            case ObstacleType::Grow:   return createGrowBlock(screen_width, screen_height, speed, grow_dims);
+            case ObstacleType::Shrink: return createShrinkBlock(screen_width, screen_height, speed, shrink_dims);
+            default:                   return createHurtBlock(screen_width, screen_height, speed, hurt_dims);
         }
     }
 

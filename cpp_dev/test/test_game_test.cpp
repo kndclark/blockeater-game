@@ -6,6 +6,7 @@
 #include "../src/Obstacle.h"
 #include "../src/Color.h"
 #include "../config/Config.h"
+#include "../src/GameState.h"
 #include "../src/GameLogic.h"
 
 namespace {
@@ -306,6 +307,62 @@ TEST(ConfigTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getBaseCheckpointGap(), 80);
     EXPECT_EQ(config.getSpawnInterval(), 1500);
     EXPECT_EQ(config.getCheckpointInterval(), 10000);
+    EXPECT_EQ(config.getGrowChance(), 40);
+    EXPECT_EQ(config.getShrinkChance(), 40);
+    EXPECT_EQ(config.getHurtChance(), 20);
+
+    ObstacleSize grow_dims = config.getGrowDimensions();
+    EXPECT_EQ(grow_dims.w, 40);
+    EXPECT_EQ(grow_dims.h, 40);
+
+    ObstacleSize shrink_dims = config.getShrinkDimensions();
+    EXPECT_EQ(shrink_dims.w, 20);
+    EXPECT_EQ(shrink_dims.h, 20);
+
+    ObstacleSize hurt_dims = config.getHurtDimensions();
+    EXPECT_EQ(hurt_dims.w, 30);
+    EXPECT_EQ(hurt_dims.h, 30);
+}
+
+// Test suite for the GameState struct
+class GameStateTest : public SdlTest {};
+
+TEST_F(GameStateTest, Initialization) {
+    const int screen_width = 800;
+    const int screen_height = 600;
+    Config config(kTestConfigPath);
+
+    GameState game_state(config, screen_width, screen_height);
+
+    // Check player initialization
+    EXPECT_EQ(game_state.player.rect.x, 100);
+    EXPECT_EQ(game_state.player.rect.y, screen_height / 2 - 20);
+    EXPECT_EQ(game_state.player.rect.w, 40);
+    EXPECT_EQ(game_state.player.rect.h, 40);
+    EXPECT_EQ(game_state.player.speed, 5);
+    Color expected_player_color = config.getPlayerColor();
+    EXPECT_EQ(game_state.player.color.r, expected_player_color.r);
+    EXPECT_EQ(game_state.player.color.g, expected_player_color.g);
+    EXPECT_EQ(game_state.player.color.b, expected_player_color.b);
+
+    // Check initial state variables
+    EXPECT_TRUE(game_state.obstacles.empty());
+    EXPECT_EQ(game_state.score, 0);
+    EXPECT_TRUE(game_state.running);
+    EXPECT_EQ(game_state.frame_count, 0);
+    EXPECT_NE(game_state.last_fps_update_time, 0);
+
+    // Check spawner initialization
+    EXPECT_EQ(game_state.spawner.spawn_interval, config.getSpawnInterval());
+    EXPECT_EQ(game_state.spawner.checkpoint_spawn_interval, config.getCheckpointInterval());
+    EXPECT_EQ(game_state.spawner.screen_width, screen_width);
+    EXPECT_EQ(game_state.spawner.screen_height, screen_height);
+    EXPECT_EQ(game_state.spawner.obstacle_speed, OBSTACLE_SPEED);
+    EXPECT_EQ(game_state.spawner.grow_chance, config.getGrowChance());
+    EXPECT_EQ(game_state.spawner.shrink_chance, config.getShrinkChance());
+    EXPECT_EQ(game_state.spawner.base_checkpoint_gap, config.getBaseCheckpointGap());
+    EXPECT_EQ(game_state.spawner.grow_dims, config.getGrowDimensions());
+    EXPECT_EQ(game_state.spawner.shrink_dims, config.getShrinkDimensions());
 }
 
 // A helper struct for our parameterized test for determineObstacleType.
@@ -430,11 +487,13 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
     // We can't fully test createRegular without mocking rand(), but we can test the type logic.
     static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
         ObstacleType type = determineObstacleType(grow, shrink, roll);
+        ObstacleSize grow_dims{0,0};
+        ObstacleSize shrink_dims{0,0};
+        ObstacleSize hurt_dims{0,0};
         switch (type) {
-            case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 0, 1);
-            case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 0, 1);
-            case ObstacleType::Hurt:
-            default:                   return Obstacle::createHurtBlock(0, 0, 1);
+            case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 100, 1, grow_dims);
+            case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 100, 1, shrink_dims);
+            default:                   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
         }
     }
 };
@@ -717,7 +776,7 @@ class ObstacleSpawnerTest : public ::testing::TestWithParam<ObstacleSpawnerParam
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50, 120);
+    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50, 120, {40,40}, {20,20}, {30,30});
     std::vector<Obstacle> obstacles;
 
     for (const auto& time : params.spawn_times) {
@@ -767,7 +826,7 @@ protected:
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120, {40,40}, {20,20}, {30,30}};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
@@ -803,7 +862,7 @@ protected:
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120, {40,40}, {20,20}, {30,30}};
     std::vector<Obstacle> obstacles;
 };
 
