@@ -49,14 +49,19 @@ struct ObstacleSpawner {
     const int grow_chance;
     const int shrink_chance;
     const int base_checkpoint_gap;
+    const ObstacleSize grow_dims;
+    const ObstacleSize shrink_dims;
+    const ObstacleSize hurt_dims;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
 
-    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink, int base_gap)
+    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink, int base_gap,
+                      ObstacleSize gd, ObstacleSize sd, ObstacleSize hd)
         : spawn_interval(regular_interval), checkpoint_spawn_interval(checkpoint_int),
           screen_width(width), screen_height(height), obstacle_speed(speed),
-          grow_chance(grow), shrink_chance(shrink), base_checkpoint_gap(base_gap) {}
+          grow_chance(grow), shrink_chance(shrink), base_checkpoint_gap(base_gap),
+          grow_dims(gd), shrink_dims(sd), hurt_dims(hd) {}
 
     // Calculates the gap size for the next checkpoint based on power-ups collected.
     int calculateCheckpointGapSize() const {
@@ -96,7 +101,7 @@ struct ObstacleSpawner {
         // Only spawn a regular obstacle if a checkpoint was not spawned.
         else if (current_time >= last_spawn_time + spawn_interval) {
             last_spawn_time = current_time;
-            Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance);
+            Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance, grow_dims, shrink_dims, hurt_dims);
             if (new_obstacle.type == ObstacleType::Shrink) {
                 shrink_powerups_since_checkpoint.push_back(1);
             }

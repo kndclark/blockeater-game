@@ -14,6 +14,16 @@
   "game": {
     "base_checkpoint_gap": 80,
     "spawn_interval_ms": 1500,
-    "checkpoint_interval_ms": 10000
+    "checkpoint_interval_ms": 10000,
+    "obstacle_spawn_chances": {
+      "grow": 40,
+      "shrink": 40,
+      "hurt": 20
+    },
+    "obstacle_dimensions": {
+      "grow": { "w": 40, "h": 40 },
+      "shrink": { "w": 20, "h": 20 },
+      "hurt": { "w": 30, "h": 30 }
+    }
   }
 }
