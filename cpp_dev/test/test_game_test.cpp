@@ -301,6 +301,13 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.b, 100);
 }
 
+TEST(ConfigTest, LoadsGameConfigFromFile) {
+    Config config(kTestConfigPath);
+    EXPECT_EQ(config.getBaseCheckpointGap(), 80);
+    EXPECT_EQ(config.getSpawnInterval(), 1500);
+    EXPECT_EQ(config.getCheckpointInterval(), 10000);
+}
+
 // A helper struct for our parameterized test for determineObstacleType.
 struct DetermineObstacleTypeParams {
     int grow_chance;
@@ -710,7 +717,7 @@ class ObstacleSpawnerTest : public ::testing::TestWithParam<ObstacleSpawnerParam
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50);
+    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50, 120);
     std::vector<Obstacle> obstacles;
 
     for (const auto& time : params.spawn_times) {
@@ -760,7 +767,7 @@ protected:
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
@@ -776,12 +783,12 @@ INSTANTIATE_TEST_SUITE_P(
     CheckpointGapCalculationTest,
     ::testing::Values(
         ObstacleSpawnerGapParams{{}, 120, "IsBaseWhenNoPowerups"},
-        // 1 shrink -> 120 - 1*5 = 115
-        ObstacleSpawnerGapParams{{1}, 115, "DecreasesWithOneShrinkBlock"},
-        // 2 shrinks -> 120 - 2*5 = 110
-        ObstacleSpawnerGapParams{{1, 1}, 110, "DecreasesWithTwoShrinkBlocks"},
-        // 19 shrinks -> 120 - 19*5 = 25. Clamped to min_gap_height (30), so 30.
-        ObstacleSpawnerGapParams{std::vector<int>(19), 30, "ClampsAtMinimum"}
+        // 1 shrink -> 120 - 1*10 = 110
+        ObstacleSpawnerGapParams{{1}, 110, "DecreasesWithOneShrinkBlock"},
+        // 2 shrinks -> 120 - 2*10 = 100
+        ObstacleSpawnerGapParams{{1, 1}, 100, "DecreasesWithTwoShrinkBlocks"},
+        // 11 shrinks -> 120 - 11*10 = 10. Clamped to min_gap_height (15), so 15.
+        ObstacleSpawnerGapParams{std::vector<int>(11), 15, "ClampsAtMinimum"}
     ),
     [](const testing::TestParamInfo<CheckpointGapCalculationTest::ParamType>& info) {
         return info.param.description;
@@ -796,7 +803,7 @@ protected:
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, 120};
     std::vector<Obstacle> obstacles;
 };
 

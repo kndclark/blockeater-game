@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SDL2/SDL_stdinc.h> // For Uint32
 #include <string>
 #include <map>
 #include "../src/Color.h"
@@ -19,6 +20,9 @@ public:
     int getTargetFps() const;
     int getScreenWidth() const;
     int getScreenHeight() const;
+    int getBaseCheckpointGap() const;
+    Uint32 getSpawnInterval() const;
+    Uint32 getCheckpointInterval() const;
 
 private:
     void load_from_path(const std::string& filepath);
@@ -28,4 +32,7 @@ private:
     int target_fps;
     int screen_width;
     int screen_height;
+    int base_checkpoint_gap;
+    Uint32 spawn_interval_ms;
+    Uint32 checkpoint_interval_ms;
 };

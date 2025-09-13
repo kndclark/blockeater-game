@@ -48,20 +48,21 @@ struct ObstacleSpawner {
     const int obstacle_speed;
     const int grow_chance;
     const int shrink_chance;
+    const int base_checkpoint_gap;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
 
-    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink)
+    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink, int base_gap)
         : spawn_interval(regular_interval), checkpoint_spawn_interval(checkpoint_int),
           screen_width(width), screen_height(height), obstacle_speed(speed),
-          grow_chance(grow), shrink_chance(shrink) {}
+          grow_chance(grow), shrink_chance(shrink), base_checkpoint_gap(base_gap) {}
 
     // Calculates the gap size for the next checkpoint based on power-ups collected.
     int calculateCheckpointGapSize() const {
         size_t shrink_count = shrink_powerups_since_checkpoint.size();
 
-        const int base_gap_height = 80;
+        const int base_gap_height = base_checkpoint_gap;
         // The minimum gap should be the player's smallest possible size plus a margin.
         const int min_gap_height = Player::MIN_SIZE + 5;
         // Adjust the gap based on how much the player's size changes.
@@ -70,12 +71,10 @@ struct ObstacleSpawner {
         // The gap size is only decreased by shrink blocks collected. Grow blocks have no effect.
         int shrink_effect = -static_cast<int>(shrink_count) * gap_adjustment_per_powerup;
         int calculated_gap = base_gap_height + shrink_effect;
-        SDL_Log("Calculated gap: %.2d", calculated_gap);
 
         // Clamp the gap size to be within reasonable bounds.
         int final_gap_height = std::max(min_gap_height, calculated_gap);
         final_gap_height = std::min(final_gap_height, screen_height - 20); // Ensure walls are at least 10px thick.
-        SDL_Log("Final gap: %.2d", final_gap_height);
 
         return final_gap_height;
     }
