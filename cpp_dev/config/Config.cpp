@@ -21,6 +21,30 @@ void from_json(const json& j, ObstacleSize& dims) {
     j.at("h").get_to(dims.h);
 }
 
+void Config::load_defaults() {
+    playerColor = {100, 100, 100, 255}; // Gray
+    obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
+    obstacleColors[ObstacleType::Grow] = {140, 140, 140, 255}; // Gray
+    obstacleColors[ObstacleType::Shrink] = {160, 160, 160, 255}; // Gray
+    obstacleColors[ObstacleType::Checkpoint] = {100, 100, 200, 255}; // A nice blue
+    target_fps = 60;
+    screen_width = 640;
+    screen_height = 480;
+    base_checkpoint_gap = 120;
+    spawn_interval_ms = 1500;
+    checkpoint_interval_ms = 10000;
+    grow_chance_percent = 40;
+    shrink_chance_percent = 40;
+    hurt_chance_percent = 20;
+    grow_dims = {40, 40};
+    shrink_dims = {20, 20};
+    hurt_dims = {30, 30};
+    player_initial_x = 100;
+    player_width = 40;
+    player_height = 40;
+    player_speed = 5;
+}
+
 Config::Config() {
     // Construct a path to the config file relative to the executable's location.
     // This makes the game runnable from any working directory.
@@ -51,25 +75,8 @@ Config::Config(const std::string& filepath) {
 void Config::load_from_path(const std::string& filepath) {
     std::ifstream f(filepath);
     if (!f.is_open()) {
-        std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default colors." << std::endl;
-        // Use default colors as a fallback
-        playerColor = {100, 100, 100, 255}; // Gray
-        obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
-        obstacleColors[ObstacleType::Grow] = {140, 140, 140, 255}; // Gray
-        obstacleColors[ObstacleType::Shrink] = {160, 160, 160, 255}; // Gray
-        obstacleColors[ObstacleType::Checkpoint] = {100, 100, 200, 255}; // A nice blue
-        target_fps = 60;
-        screen_width = 640;
-        screen_height = 480;
-        base_checkpoint_gap = 120;
-        spawn_interval_ms = 1500;
-        checkpoint_interval_ms = 10000;
-        grow_chance_percent = 40;
-        shrink_chance_percent = 40;
-        hurt_chance_percent = 20;
-        grow_dims = {40, 40};
-        shrink_dims = {20, 20};
-        hurt_dims = {30, 30};
+        std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
+        load_defaults();
         return;
     }
 
@@ -97,6 +104,10 @@ void Config::load_from_path(const std::string& filepath) {
         grow_dims = data.value("/game/obstacle_dimensions/grow"_json_pointer, ObstacleSize{40, 40});
         shrink_dims = data.value("/game/obstacle_dimensions/shrink"_json_pointer, ObstacleSize{20, 20});
         hurt_dims = data.value("/game/obstacle_dimensions/hurt"_json_pointer, ObstacleSize{30, 30});
+        player_initial_x = data.value("/game/player/initial_x"_json_pointer, 100);
+        player_width = data.value("/game/player/width"_json_pointer, 40);
+        player_height = data.value("/game/player/height"_json_pointer, 40);
+        player_speed = data.value("/game/player/speed"_json_pointer, 5);
 
         if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
             throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
@@ -104,24 +115,7 @@ void Config::load_from_path(const std::string& filepath) {
 
     } catch (const std::exception& e) {
         std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
-        // Use default configuration as a fallback
-        playerColor = {100, 100, 100, 255}; // Gray
-        obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
-        obstacleColors[ObstacleType::Grow] = {140, 140, 140, 255}; // Gray
-        obstacleColors[ObstacleType::Shrink] = {160, 160, 160, 255}; // Gray
-        obstacleColors[ObstacleType::Checkpoint] = {100, 100, 200, 255}; // A nice blue
-        target_fps = 60;
-        screen_width = 640;
-        screen_height = 480;
-        base_checkpoint_gap = 120;
-        spawn_interval_ms = 1500;
-        checkpoint_interval_ms = 10000;
-        grow_chance_percent = 40;
-        shrink_chance_percent = 40;
-        hurt_chance_percent = 20;
-        grow_dims = {40, 40};
-        shrink_dims = {20, 20};
-        hurt_dims = {30, 30};
+        load_defaults();
     }
 }
 
@@ -180,4 +174,20 @@ ObstacleSize Config::getShrinkDimensions() const {
 
 ObstacleSize Config::getHurtDimensions() const {
     return hurt_dims;
+}
+
+int Config::getPlayerInitialX() const {
+    return player_initial_x;
+}
+
+int Config::getPlayerWidth() const {
+    return player_width;
+}
+
+int Config::getPlayerHeight() const {
+    return player_height;
+}
+
+int Config::getPlayerSpeed() const {
+    return player_speed;
 }

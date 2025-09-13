@@ -21,9 +21,15 @@
       "hurt": 20
     },
     "obstacle_dimensions": {
-      "grow": { "w": 40, "h": 40 },
-      "shrink": { "w": 20, "h": 20 },
+      "grow": { "w": 50, "h": 50 },
+      "shrink": { "w": 10, "h": 10 },
       "hurt": { "w": 30, "h": 30 }
+    },
+    "player": {
+      "initial_x": 100,
+      "width": 40,
+      "height": 40,
+      "speed": 5
     }
   }
 }

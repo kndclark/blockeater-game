@@ -4,6 +4,8 @@
 #include <algorithm> // For std::max
 #include "Color.h"
 
+// TODO: give ability to deflect blocks (do this in a separate feature)
+
 // --- Player Struct ---
 // Encapsulates all data and behavior for the player character.
 struct Player {
@@ -12,7 +14,7 @@ struct Player {
     Color color;
     const int default_w;
     const int default_h;
-    static constexpr int MIN_SIZE = 10;
+    static constexpr int MIN_SIZE = 20;
 
     Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
 

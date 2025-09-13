@@ -30,9 +30,23 @@ struct GameState {
     Uint32 last_fps_update_time = 0;
 
     GameState(const Config& config, int screen_width, int screen_height)
-        : player(100, screen_height / 2 - 20, 40, 40, 5, config.getPlayerColor()),
-          spawner(config.getSpawnInterval(), config.getCheckpointInterval(), screen_width, screen_height, OBSTACLE_SPEED, config.getGrowChance(), config.getShrinkChance(), config.getBaseCheckpointGap(),
-                  config.getGrowDimensions(), config.getShrinkDimensions(), config.getHurtDimensions()),
-          last_fps_update_time(SDL_GetTicks())
+        : player(config.getPlayerInitialX(),                               // initial x position
+                 screen_height / 2 - config.getPlayerHeight() / 2,         // initial y position (centered)
+                 config.getPlayerWidth(),                                  // width
+                 config.getPlayerHeight(),                                 // height
+                 config.getPlayerSpeed(),                                  // speed
+                 config.getPlayerColor()),                                 // color
+          spawner(config.getSpawnInterval(),                               // interval for regular obstacles
+                  config.getCheckpointInterval(),                         // interval for checkpoints
+                  screen_width,                                           // screen width
+                  screen_height,                                          // screen height
+                  OBSTACLE_SPEED,                                         // speed of obstacles
+                  config.getGrowChance(),                                 // chance for a grow block
+                  config.getShrinkChance(),                               // chance for a shrink block
+                  config.getBaseCheckpointGap(),                          // base gap size for checkpoints
+                  config.getGrowDimensions(),                             // dimensions for grow blocks
+                  config.getShrinkDimensions(),                           // dimensions for shrink blocks
+                  config.getHurtDimensions()),                            // dimensions for hurt blocks
+          last_fps_update_time(SDL_GetTicks())                            // initialize FPS timer
     {}
 };
