@@ -29,9 +29,14 @@ public:
     ObstacleSize getGrowDimensions() const;
     ObstacleSize getShrinkDimensions() const;
     ObstacleSize getHurtDimensions() const;
+    int getPlayerInitialX() const;
+    int getPlayerWidth() const;
+    int getPlayerHeight() const;
+    int getPlayerSpeed() const;
 
 private:
     void load_from_path(const std::string& filepath);
+    void load_defaults();
 
     Color playerColor;
     std::map<ObstacleType, Color> obstacleColors;
@@ -47,4 +52,8 @@ private:
     ObstacleSize grow_dims;
     ObstacleSize shrink_dims;
     ObstacleSize hurt_dims;
+    int player_initial_x;
+    int player_width;
+    int player_height;
+    int player_speed;
 };
