@@ -73,8 +73,11 @@ int main(int argc, char* argv[]) {
     int score = 0;
 
     // --- Obstacle Spawn Chances ---
-    const int GROW_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
-    const int SHRINK_CHANCE_PERCENT = 40; // of non-checkpoint obstacles
+    const int GROW_CHANCE_PERCENT = 40; 
+    const int SHRINK_CHANCE_PERCENT = 40; 
+    const int HURT_CHANCE_PERCENT = 20; 
+    // Ensure that the chances for all obstacle types sum to 100%.
+    static_assert(GROW_CHANCE_PERCENT + SHRINK_CHANCE_PERCENT + HURT_CHANCE_PERCENT == 100, "The sum of obstacle spawn chances must be 100.");
 
     // --- Spawner Setup ---
     const Uint32 SPAWN_INTERVAL = 1500; // milliseconds for regular obstacles
