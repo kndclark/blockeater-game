@@ -5,7 +5,8 @@
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
 #include "../src/Color.h"
-#include "../src/Config.h"
+#include "../config/Config.h"
+#include "../src/GameState.h"
 #include "../src/GameLogic.h"
 
 namespace {
@@ -21,6 +22,8 @@ TEST(PlayerTest, Creation) {
     EXPECT_EQ(player.rect.w, 30);
     EXPECT_EQ(player.rect.h, 40);
     EXPECT_EQ(player.speed, 5);
+    EXPECT_EQ(player.default_w, 30);
+    EXPECT_EQ(player.default_h, 40);
 }
 
 // --- Player Movement Test ---
@@ -118,15 +121,20 @@ TEST(PlayerTest, SizeModification) {
     EXPECT_EQ(player.rect.w, 50);
     EXPECT_EQ(player.rect.h, 50);
 
-    // Test shrinking
+    // Test shrinking from grown state
     player.shrink(20);
     EXPECT_EQ(player.rect.w, 30);
     EXPECT_EQ(player.rect.h, 30);
 
-    // Test shrinking below the minimum size (should clamp to 10)
-    player.shrink(30);
-    EXPECT_EQ(player.rect.w, 10);
-    EXPECT_EQ(player.rect.h, 10);
+    // Test resetting size
+    player.resetSize();
+    EXPECT_EQ(player.rect.w, 40);
+    EXPECT_EQ(player.rect.h, 40);
+
+    // Test shrinking below the minimum size (should clamp to 20)
+    player.shrink(40);
+    EXPECT_EQ(player.rect.w, Player::MIN_SIZE);
+    EXPECT_EQ(player.rect.h, Player::MIN_SIZE);
 }
 
 // Test suite for the Obstacle class
@@ -235,9 +243,11 @@ TEST_F(SdlTest, CheckpointCollisionDetection) {
 class ConfigFileTest : public ::testing::Test {
 protected:
     const std::string malformed_filename = "malformed.json";
+    const std::string partial_filename = "partial.json";
 
     void TearDown() override {
         std::remove(malformed_filename.c_str());
+        std::remove(partial_filename.c_str());
     }
 };
 
@@ -292,6 +302,100 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
     EXPECT_EQ(player_color.b, 100);
+}
+
+TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
+    std::ofstream partial_file(partial_filename);
+    partial_file << R"({
+        "colors": {
+            "player": { "r": 1, "g": 2, "b": 3, "a": 255 }
+        },
+        "game": {
+            "base_checkpoint_gap": 99
+        }
+    })";
+    partial_file.close();
+
+    Config config(partial_filename);
+
+    // Check that the specified values are loaded
+    Color player_color = config.getPlayerColor();
+    EXPECT_EQ(player_color.r, 1);
+    EXPECT_EQ(config.getBaseCheckpointGap(), 99);
+
+    // Check that other values fall back to defaults
+    Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
+    EXPECT_EQ(hurt_color.r, 120); // Default value
+    EXPECT_EQ(config.getSpawnInterval(), 1500); // Default value
+}
+
+TEST(ConfigTest, LoadsGameConfigFromFile) {
+    Config config(kTestConfigPath);
+    EXPECT_EQ(config.getBaseCheckpointGap(), 80);
+    EXPECT_EQ(config.getSpawnInterval(), 1500);
+    EXPECT_EQ(config.getCheckpointInterval(), 10000);
+    EXPECT_EQ(config.getGrowChance(), 40);
+    EXPECT_EQ(config.getShrinkChance(), 40);
+    EXPECT_EQ(config.getHurtChance(), 20);
+
+    ObstacleSize grow_dims = config.getGrowDimensions();
+    EXPECT_EQ(grow_dims.w, 50);
+    EXPECT_EQ(grow_dims.h, 50);
+
+    ObstacleSize shrink_dims = config.getShrinkDimensions();
+    EXPECT_EQ(shrink_dims.w, 10);
+    EXPECT_EQ(shrink_dims.h, 10);
+
+    ObstacleSize hurt_dims = config.getHurtDimensions();
+    EXPECT_EQ(hurt_dims.w, 30);
+    EXPECT_EQ(hurt_dims.h, 30);
+
+    EXPECT_EQ(config.getPlayerInitialX(), 100);
+    EXPECT_EQ(config.getPlayerWidth(), 40);
+    EXPECT_EQ(config.getPlayerHeight(), 40);
+    EXPECT_EQ(config.getPlayerSpeed(), 5);
+}
+
+// Test suite for the GameState struct
+class GameStateTest : public SdlTest {};
+
+TEST_F(GameStateTest, Initialization) {
+    const int screen_width = 800;
+    const int screen_height = 600;
+    Config config(kTestConfigPath);
+
+    GameState game_state(config, screen_width, screen_height);
+
+    // Check player initialization
+    EXPECT_EQ(game_state.player.rect.x, config.getPlayerInitialX());
+    EXPECT_EQ(game_state.player.rect.y, screen_height / 2 - config.getPlayerHeight() / 2);
+    EXPECT_EQ(game_state.player.rect.w, config.getPlayerWidth());
+    EXPECT_EQ(game_state.player.rect.h, config.getPlayerHeight());
+    EXPECT_EQ(game_state.player.speed, config.getPlayerSpeed());
+    Color expected_player_color = config.getPlayerColor();
+    EXPECT_EQ(game_state.player.color.r, expected_player_color.r);
+    EXPECT_EQ(game_state.player.color.g, expected_player_color.g);
+    EXPECT_EQ(game_state.player.color.b, expected_player_color.b);
+
+    // Check initial state variables
+    EXPECT_TRUE(game_state.obstacles.empty());
+    EXPECT_EQ(game_state.score, 0);
+    EXPECT_TRUE(game_state.running);
+    EXPECT_EQ(game_state.frame_count, 0);
+    EXPECT_NE(game_state.last_fps_update_time, 0);
+
+    // Check spawner initialization
+    EXPECT_EQ(game_state.spawner.spawn_interval, config.getSpawnInterval());
+    EXPECT_EQ(game_state.spawner.checkpoint_spawn_interval, config.getCheckpointInterval());
+    EXPECT_EQ(game_state.spawner.screen_width, screen_width);
+    EXPECT_EQ(game_state.spawner.screen_height, screen_height);
+    EXPECT_EQ(game_state.spawner.obstacle_speed, OBSTACLE_SPEED);
+    EXPECT_EQ(game_state.spawner.grow_chance, config.getGrowChance());
+    EXPECT_EQ(game_state.spawner.shrink_chance, config.getShrinkChance());
+    EXPECT_EQ(game_state.spawner.base_checkpoint_gap, config.getBaseCheckpointGap());
+    EXPECT_EQ(game_state.spawner.grow_dims, config.getGrowDimensions());
+    EXPECT_EQ(game_state.spawner.shrink_dims, config.getShrinkDimensions());
+    EXPECT_EQ(game_state.spawner.hurt_dims, config.getHurtDimensions());
 }
 
 // A helper struct for our parameterized test for determineObstacleType.
@@ -416,7 +520,14 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
     // We can't fully test createRegular without mocking rand(), but we can test the type logic.
     static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
         ObstacleType type = determineObstacleType(grow, shrink, roll);
-        return Obstacle(0, 0, 10, 10, 1, type);
+        ObstacleSize grow_dims{0,0};
+        ObstacleSize shrink_dims{0,0};
+        ObstacleSize hurt_dims{0,0};
+        switch (type) {
+            case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 100, 1, grow_dims);
+            case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 100, 1, shrink_dims);
+            default:                   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
+        }
     }
 };
 
@@ -489,7 +600,8 @@ INSTANTIATE_TEST_SUITE_P(
                 Obstacle(100, 100, 20, 20, 5, ObstacleType::Hurt),
                 Obstacle(200, 100, 20, 20, 5, ObstacleType::Grow)
             }, 2, {ObstacleType::Hurt, ObstacleType::Grow}, 95 + 195, "AllOnscreen"},
-        UpdateAndRemoveParams{{ Obstacle(-30, 100, 20, 20, 5, ObstacleType::Hurt) }, 0, {}, 0, "AllOffscreen"},
+        UpdateAndRemoveParams{{Obstacle(-30, 100, 20, 20, 5, ObstacleType::Hurt)}, 0, {}, 0, "AllOffscreen"},
+        UpdateAndRemoveParams{{Obstacle(100, 100, 20, 20, 5, ObstacleType::Hurt), Obstacle(10, 100, 20, 20, 30, ObstacleType::Grow)}, 1, {ObstacleType::Hurt}, 95, "RemoveLastElement"},
         UpdateAndRemoveParams{{}, 0, {}, 0, "EmptyVector"}
     ),
     [](const testing::TestParamInfo<UpdateAndRemoveTest::ParamType>& info) {
@@ -638,7 +750,13 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
-    Player player(params.player_x, 100, 40, 40, 5, {0,0,0,0});
+    const int initial_w = 40;
+    const int initial_h = 40;
+    Player player(params.player_x, 100, initial_w, initial_h, 5, {0,0,0,0});
+    // Grow the player to check if size is reset on checkpoint pass
+    player.grow(20);
+    ASSERT_EQ(player.rect.w, initial_w + 20);
+
     Obstacle obstacle(params.obstacle_x, 100, 20, 20, 3, params.obstacle_type);
     if (params.obstacle_type == ObstacleType::Checkpoint) {
         obstacle = Obstacle({params.obstacle_x, 0, 20, 100}, {params.obstacle_x, 200, 20, 100}, 3);
@@ -650,6 +768,12 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
 
     EXPECT_EQ(score, params.expected_score);
     EXPECT_EQ(obstacle.passed, params.expected_passed_state);
+
+    bool should_reset = params.obstacle_type == ObstacleType::Checkpoint &&
+                        !params.obstacle_initially_passed &&
+                        player.rect.x > obstacle.rect.x + obstacle.rect.w;
+
+    EXPECT_EQ(player.rect.w, should_reset ? initial_w : initial_w + 20);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -686,7 +810,7 @@ class ObstacleSpawnerTest : public ::testing::TestWithParam<ObstacleSpawnerParam
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50);
+    ObstacleSpawner spawner(params.regular_interval, params.checkpoint_interval, 800, 600, 3, 50, 50, 120, {40,40}, {20,20}, {30,30});
     std::vector<Obstacle> obstacles;
 
     for (const auto& time : params.spawn_times) {
@@ -717,8 +841,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --- Obstacle Spawner Checkpoint Gap Test ---
 struct ObstacleSpawnerGapParams {
-    std::vector<int> grow_sizes;
-    std::vector<int> shrink_sizes;
+    // These vectors represent the history of power-ups collected. The values
+    // within are ignored; only the number of elements matters.
+    std::vector<int> shrink_block_history;
     int expected_gap;
     std::string description;
 };
@@ -728,46 +853,40 @@ void PrintTo(const ObstacleSpawnerGapParams& params, std::ostream* os) {
 }
 
 // --- Obstacle Spawner Checkpoint Gap Test ---
-class ObstacleSpawnerGapTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
+class CheckpointGapCalculationTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
 protected:
     static const int SCREEN_WIDTH = 800;
     static const int SCREEN_HEIGHT = 600;
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
-    std::vector<Obstacle> obstacles;
+    Config config{kTestConfigPath};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, config.getBaseCheckpointGap(), {40,40}, {20,20}, {30,30}};
 };
 
-TEST_P(ObstacleSpawnerGapTest, CalculatesCorrectGapSize) {
+TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
     auto params = GetParam();
-    spawner.grow_block_sizes_since_checkpoint = params.grow_sizes;
-    spawner.shrink_block_sizes_since_checkpoint = params.shrink_sizes;
+    spawner.shrink_powerups_since_checkpoint = params.shrink_block_history;
 
-    spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
-
-    ASSERT_EQ(obstacles.size(), 1);
-    const auto& checkpoint = obstacles.back();
-    ASSERT_EQ(checkpoint.type, ObstacleType::Checkpoint);
-    ASSERT_TRUE(checkpoint.rect2.has_value());
-
-    const int actual_gap = checkpoint.rect2->y - checkpoint.rect.h;
+    // The gap calculation is based on the base_checkpoint_gap from the config.
+    const int actual_gap = spawner.calculateCheckpointGapSize();
     EXPECT_EQ(actual_gap, params.expected_gap);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     GapCalculationTests,
-    ObstacleSpawnerGapTest,
+    CheckpointGapCalculationTest,
     ::testing::Values(
-        ObstacleSpawnerGapParams{{}, {}, 120, "IsBaseWhenNoPowerups"},
-        // grow_sum = 5000, shrink_sum = 1000 -> diff = 4000 -> effect = 10 -> gap = 120 + 10 = 130
-        ObstacleSpawnerGapParams{{2000, 3000}, {1000}, 130, "IncreasesWithNetGrowBlocks"},
-        // grow_sum = 1000, shrink_sum = 5000 -> diff = -4000 -> effect = -10 -> gap = 120 - 10 = 110
-        ObstacleSpawnerGapParams{{1000}, {2000, 3000}, 110, "DecreasesWithNetShrinkBlocks"},
-        // grow_sum = 0, shrink_sum = 40000 -> diff = -40000 -> effect = -100 -> gap = 120 - 100 = 20 -> clamped to 60
-        ObstacleSpawnerGapParams{{}, {40000}, 60, "ClampsAtMinimum"}
+        // base_gap is 80 from config.json. gap_adjustment is 10. min_gap is 25.
+        ObstacleSpawnerGapParams{{}, 80, "IsBaseWhenNoPowerups"},
+        // 1 shrink -> 80 - 1*10 = 70
+        ObstacleSpawnerGapParams{{1}, 70, "DecreasesWithOneShrinkBlock"},
+        // 2 shrinks -> 80 - 2*10 = 60
+        ObstacleSpawnerGapParams{{1, 1}, 60, "DecreasesWithTwoShrinkBlocks"},
+        // 7 shrinks -> 80 - 7*10 = 10. Clamped to min_gap_height (25), so 25.
+        ObstacleSpawnerGapParams{std::vector<int>(7), 25, "ClampsAtMinimum"}
     ),
-    [](const testing::TestParamInfo<ObstacleSpawnerGapTest::ParamType>& info) {
+    [](const testing::TestParamInfo<CheckpointGapCalculationTest::ParamType>& info) {
         return info.param.description;
     }
 );
@@ -780,18 +899,18 @@ protected:
     static const int OBSTACLE_SPEED = 3;
     static const int CHECKPOINT_INTERVAL = 1000;
 
-    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
+    Config config{kTestConfigPath};
+    ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50, config.getBaseCheckpointGap(), {40,40}, {20,20}, {30,30}};
     std::vector<Obstacle> obstacles;
 };
 
 TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
-    spawner.grow_block_sizes_since_checkpoint.push_back(2000);
+    spawner.shrink_powerups_since_checkpoint.push_back(1);
 
     // First checkpoint spawn
     spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
     ASSERT_EQ(obstacles.size(), 1);
-    EXPECT_TRUE(spawner.grow_block_sizes_since_checkpoint.empty());
-    EXPECT_TRUE(spawner.shrink_block_sizes_since_checkpoint.empty());
+    EXPECT_TRUE(spawner.shrink_powerups_since_checkpoint.empty());
 
     // Second checkpoint spawn, should not be affected by the previous grow block
     spawner.spawn_obstacles(CHECKPOINT_INTERVAL * 2, obstacles);
@@ -800,7 +919,7 @@ TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
     ASSERT_EQ(checkpoint2.type, ObstacleType::Checkpoint);
     ASSERT_TRUE(checkpoint2.rect2.has_value());
 
-    const int expected_gap = 120; // base_gap_height
+    const int expected_gap = config.getBaseCheckpointGap();
     const int actual_gap = checkpoint2.rect2->y - checkpoint2.rect.h;
     EXPECT_EQ(actual_gap, expected_gap);
 }

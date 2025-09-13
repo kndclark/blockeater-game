@@ -10,5 +10,26 @@
     "target_fps": 60,
     "screen_width": 640,
     "screen_height": 480
+  },
+  "game": {
+    "base_checkpoint_gap": 80,
+    "spawn_interval_ms": 1500,
+    "checkpoint_interval_ms": 10000,
+    "obstacle_spawn_chances": {
+      "grow": 40,
+      "shrink": 40,
+      "hurt": 20
+    },
+    "obstacle_dimensions": {
+      "grow": { "w": 50, "h": 50 },
+      "shrink": { "w": 10, "h": 10 },
+      "hurt": { "w": 30, "h": 30 }
+    },
+    "player": {
+      "initial_x": 100,
+      "width": 40,
+      "height": 40,
+      "speed": 5
+    }
   }
 }
