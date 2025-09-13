@@ -131,7 +131,7 @@ TEST(PlayerTest, SizeModification) {
     EXPECT_EQ(player.rect.w, 40);
     EXPECT_EQ(player.rect.h, 40);
 
-    // Test shrinking below the minimum size (should clamp to 10)
+    // Test shrinking below the minimum size (should clamp to 20)
     player.shrink(40);
     EXPECT_EQ(player.rect.w, Player::MIN_SIZE);
     EXPECT_EQ(player.rect.h, Player::MIN_SIZE);
@@ -339,12 +339,12 @@ TEST(ConfigTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getHurtChance(), 20);
 
     ObstacleSize grow_dims = config.getGrowDimensions();
-    EXPECT_EQ(grow_dims.w, 40);
-    EXPECT_EQ(grow_dims.h, 40);
+    EXPECT_EQ(grow_dims.w, 50);
+    EXPECT_EQ(grow_dims.h, 50);
 
     ObstacleSize shrink_dims = config.getShrinkDimensions();
-    EXPECT_EQ(shrink_dims.w, 20);
-    EXPECT_EQ(shrink_dims.h, 20);
+    EXPECT_EQ(shrink_dims.w, 10);
+    EXPECT_EQ(shrink_dims.h, 10);
 
     ObstacleSize hurt_dims = config.getHurtDimensions();
     EXPECT_EQ(hurt_dims.w, 30);
