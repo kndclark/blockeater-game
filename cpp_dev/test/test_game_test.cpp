@@ -5,7 +5,7 @@
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
 #include "../src/Color.h"
-#include "../src/Config.h"
+#include "../config/Config.h"
 #include "../src/GameLogic.h"
 
 namespace {

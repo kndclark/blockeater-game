@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Add source files
-file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp")
+file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../config/*.cpp")
 file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 # Exclude the main game entry point from the test build to avoid a "multiple definition of main" error.
@@ -18,6 +18,7 @@ include_directories(${SDL2_INCLUDE_DIRS})
 
 # Add path for project headers and third-party libraries
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../config)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../third_party)
 
 # Find GoogleTest

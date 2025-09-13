@@ -3,8 +3,6 @@
 #include <iostream>
 #include <SDL2/SDL.h>
 #include "nlohmann/json.hpp"
-#include "Color.h"
-//TODO: move Config.cpp/h into config/ directory above
 
 using json = nlohmann::json;
 

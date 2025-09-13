@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "Player.h"
 #include "Obstacle.h"
-#include "Config.h"
+#include "../config/Config.h"
 #include "GameLogic.h"
 
 int main(int argc, char* argv[]) {

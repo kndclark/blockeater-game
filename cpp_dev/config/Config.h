@@ -2,8 +2,8 @@
 
 #include <string>
 #include <map>
-#include "Color.h"
-#include "Obstacle.h" // For ObstacleType
+#include "../src/Color.h"
+#include "../src/Obstacle.h" // For ObstacleType
 
 class Config {
 public:
