@@ -75,14 +75,36 @@ struct Obstacle {
         return Obstacle(top_rect, bottom_rect, speed);
     }
 
-    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance) {
-        // Spawn a regular obstacle
+    static Obstacle createGrowBlock(int screen_width, int screen_height, int speed) {
         int w = 20 + (rand() % 40); // random width
         int h = 20 + (rand() % 40); // random height
         int y = rand() % (screen_height - h); // random y position
+        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Grow);
+    }
+
+    static Obstacle createShrinkBlock(int screen_width, int screen_height, int speed) {
+        int w = 20 + (rand() % 40); // random width
+        int h = 20 + (rand() % 40); // random height
+        int y = rand() % (screen_height - h); // random y position
+        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Shrink);
+    }
+
+    static Obstacle createHurtBlock(int screen_width, int screen_height, int speed) {
+        int w = 20 + (rand() % 40); // random width
+        int h = 20 + (rand() % 40); // random height
+        int y = rand() % (screen_height - h); // random y position
+        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Hurt);
+    }
+
+    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance) {
         int type_roll = rand() % 100; // Roll a number between 0 and 99
         ObstacleType type = determineObstacleType(grow_chance, shrink_chance, type_roll);
-        return Obstacle(screen_width, y, w, h, speed, type);
+
+        switch (type) {
+            case ObstacleType::Grow:   return createGrowBlock(screen_width, screen_height, speed);
+            case ObstacleType::Shrink: return createShrinkBlock(screen_width, screen_height, speed);
+            default:                   return createHurtBlock(screen_width, screen_height, speed);
+        }
     }
 
     static void updateAndRemove(std::vector<Obstacle>& obstacles) {

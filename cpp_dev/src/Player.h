@@ -10,12 +10,10 @@ struct Player {
     SDL_Rect rect;
     int speed;
     Color color;
+    const int default_w;
+    const int default_h;
 
-    Player(int x, int y, int w, int h, int s, Color c) {
-        rect = {x, y, w, h};
-        speed = s;
-        color = c;
-    }
+    Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
 
     void handle_input(const Uint8* keystate, int screen_width, int screen_height) {
         if (keystate[SDL_SCANCODE_LEFT])  rect.x -= speed;
@@ -50,5 +48,11 @@ struct Player {
         const int min_size = 10;
         rect.w = std::max(min_size, rect.w - amount);
         rect.h = std::max(min_size, rect.h - amount);
+    }
+
+    // Resets the player to its original size.
+    void resetSize() {
+        rect.w = default_w;
+        rect.h = default_h;
     }
 };

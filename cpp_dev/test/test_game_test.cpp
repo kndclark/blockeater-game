@@ -21,6 +21,8 @@ TEST(PlayerTest, Creation) {
     EXPECT_EQ(player.rect.w, 30);
     EXPECT_EQ(player.rect.h, 40);
     EXPECT_EQ(player.speed, 5);
+    EXPECT_EQ(player.default_w, 30);
+    EXPECT_EQ(player.default_h, 40);
 }
 
 // --- Player Movement Test ---
@@ -118,13 +120,18 @@ TEST(PlayerTest, SizeModification) {
     EXPECT_EQ(player.rect.w, 50);
     EXPECT_EQ(player.rect.h, 50);
 
-    // Test shrinking
+    // Test shrinking from grown state
     player.shrink(20);
     EXPECT_EQ(player.rect.w, 30);
     EXPECT_EQ(player.rect.h, 30);
 
+    // Test resetting size
+    player.resetSize();
+    EXPECT_EQ(player.rect.w, 40);
+    EXPECT_EQ(player.rect.h, 40);
+
     // Test shrinking below the minimum size (should clamp to 10)
-    player.shrink(30);
+    player.shrink(40);
     EXPECT_EQ(player.rect.w, 10);
     EXPECT_EQ(player.rect.h, 10);
 }
@@ -416,7 +423,12 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
     // We can't fully test createRegular without mocking rand(), but we can test the type logic.
     static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
         ObstacleType type = determineObstacleType(grow, shrink, roll);
-        return Obstacle(0, 0, 10, 10, 1, type);
+        switch (type) {
+            case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 0, 1);
+            case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 0, 1);
+            case ObstacleType::Hurt:
+            default:                   return Obstacle::createHurtBlock(0, 0, 1);
+        }
     }
 };
 
@@ -638,7 +650,13 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
-    Player player(params.player_x, 100, 40, 40, 5, {0,0,0,0});
+    const int initial_w = 40;
+    const int initial_h = 40;
+    Player player(params.player_x, 100, initial_w, initial_h, 5, {0,0,0,0});
+    // Grow the player to check if size is reset on checkpoint pass
+    player.grow(20);
+    ASSERT_EQ(player.rect.w, initial_w + 20);
+
     Obstacle obstacle(params.obstacle_x, 100, 20, 20, 3, params.obstacle_type);
     if (params.obstacle_type == ObstacleType::Checkpoint) {
         obstacle = Obstacle({params.obstacle_x, 0, 20, 100}, {params.obstacle_x, 200, 20, 100}, 3);
@@ -650,6 +668,12 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
 
     EXPECT_EQ(score, params.expected_score);
     EXPECT_EQ(obstacle.passed, params.expected_passed_state);
+
+    bool should_reset = params.obstacle_type == ObstacleType::Checkpoint &&
+                        !params.obstacle_initially_passed &&
+                        player.rect.x > obstacle.rect.x + obstacle.rect.w;
+
+    EXPECT_EQ(player.rect.w, should_reset ? initial_w : initial_w + 20);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -728,7 +752,7 @@ void PrintTo(const ObstacleSpawnerGapParams& params, std::ostream* os) {
 }
 
 // --- Obstacle Spawner Checkpoint Gap Test ---
-class ObstacleSpawnerGapTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
+class CheckpointGapCalculationTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
 protected:
     static const int SCREEN_WIDTH = 800;
     static const int SCREEN_HEIGHT = 600;
@@ -736,28 +760,20 @@ protected:
     static const int CHECKPOINT_INTERVAL = 1000;
 
     ObstacleSpawner spawner{500, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, OBSTACLE_SPEED, 50, 50};
-    std::vector<Obstacle> obstacles;
 };
 
-TEST_P(ObstacleSpawnerGapTest, CalculatesCorrectGapSize) {
+TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
     auto params = GetParam();
     spawner.grow_block_sizes_since_checkpoint = params.grow_sizes;
     spawner.shrink_block_sizes_since_checkpoint = params.shrink_sizes;
 
-    spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
-
-    ASSERT_EQ(obstacles.size(), 1);
-    const auto& checkpoint = obstacles.back();
-    ASSERT_EQ(checkpoint.type, ObstacleType::Checkpoint);
-    ASSERT_TRUE(checkpoint.rect2.has_value());
-
-    const int actual_gap = checkpoint.rect2->y - checkpoint.rect.h;
+    const int actual_gap = spawner.calculateCheckpointGapSize();
     EXPECT_EQ(actual_gap, params.expected_gap);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     GapCalculationTests,
-    ObstacleSpawnerGapTest,
+    CheckpointGapCalculationTest,
     ::testing::Values(
         ObstacleSpawnerGapParams{{}, {}, 120, "IsBaseWhenNoPowerups"},
         // grow_sum = 5000, shrink_sum = 1000 -> diff = 4000 -> effect = 10 -> gap = 120 + 10 = 130
@@ -767,7 +783,7 @@ INSTANTIATE_TEST_SUITE_P(
         // grow_sum = 0, shrink_sum = 40000 -> diff = -40000 -> effect = -100 -> gap = 120 - 100 = 20 -> clamped to 60
         ObstacleSpawnerGapParams{{}, {40000}, 60, "ClampsAtMinimum"}
     ),
-    [](const testing::TestParamInfo<ObstacleSpawnerGapTest::ParamType>& info) {
+    [](const testing::TestParamInfo<CheckpointGapCalculationTest::ParamType>& info) {
         return info.param.description;
     }
 );
