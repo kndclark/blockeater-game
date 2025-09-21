@@ -1,5 +1,6 @@
 // Simple 2D game window using SDL2
 #include <SDL2/SDL.h>
+#include <memory>  // For std::unique_ptr
 #include <cstdlib> // For rand() and srand()
 #include <ctime>   // For time()
 #include "../config/Config.h"
@@ -7,6 +8,11 @@
 #include "GameLogic.h"
 
 int main(int argc, char* argv[]) {
+    struct SdlDeleter {
+        void operator()(SDL_Window* w) const { SDL_DestroyWindow(w); }
+        void operator()(SDL_Renderer* r) const { SDL_DestroyRenderer(r); }
+    };
+
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return 1;
@@ -18,14 +24,14 @@ int main(int argc, char* argv[]) {
     const int SCREEN_WIDTH = config.getScreenWidth();
     const int SCREEN_HEIGHT = config.getScreenHeight();
 
-    SDL_Window* window = SDL_CreateWindow(
+    std::unique_ptr<SDL_Window, SdlDeleter> window(SDL_CreateWindow(
         "THE BLOCKEATER",                  // const char* title: The title of the window
         SDL_WINDOWPOS_CENTERED,       // int x: Initial x position
         SDL_WINDOWPOS_CENTERED,       // int y: Initial y position
         SCREEN_WIDTH,                 // int w: Width of the window, in pixels
         SCREEN_HEIGHT,                // int h: Height of the window, in pixels
         SDL_WINDOW_SHOWN              // Uint32 flags: Window state flags (e.g., shown, fullscreen)
-    );
+    ));
     if (!window) {
         SDL_Log("Unable to create window: %s", SDL_GetError());
         SDL_Quit();
@@ -35,17 +41,15 @@ int main(int argc, char* argv[]) {
     // Creates context for 2D drawing operations (renderer) to be shown in the window.
     // Uses a back-buffer system: clear the screen, draw all your objects to a hidden
     // buffer, then "present" that buffer to the screen all at once to prevent flickering.
-    SDL_Renderer* renderer = SDL_CreateRenderer(
-        window,                       // The window to render to.
+    std::unique_ptr<SDL_Renderer, SdlDeleter> renderer(SDL_CreateRenderer(
+        window.get(),                 // The window to render to.
         -1,                           // The index of the rendering driver to initialize. -1 means to use the first one supporting the requested flags.
         SDL_RENDERER_ACCELERATED      // Flags: Use hardware-accelerated rendering (the GPU), which is much faster.
-    );
+    ));
 
     // Check if the renderer was created successfully.
     if (!renderer) {
         SDL_Log("Unable to create renderer: %s", SDL_GetError());
-        // If renderer creation fails, clean up the window we already created before quitting.
-        SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
@@ -89,13 +93,13 @@ int main(int argc, char* argv[]) {
         Obstacle::updateAndRemove(game_state.obstacles);
 
         // --- Rendering ---
-        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255); // Dark gray
-        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer.get(), 30, 30, 30, 255); // Dark gray
+        SDL_RenderClear(renderer.get());
 
-        batchRenderObstacles(renderer, game_state.obstacles, config, game_state.hurt_rects, game_state.grow_rects, game_state.shrink_rects, game_state.checkpoint_rects);
+        batchRenderObstacles(renderer.get(), game_state.obstacles, config, game_state.hurt_rects, game_state.grow_rects, game_state.shrink_rects, game_state.checkpoint_rects);
 
         // Draw player
-        game_state.player.draw(renderer);
+        game_state.player.draw(renderer.get());
 
         // Collision detection
         // We use an iterator-based loop so we can safely remove obstacles after collision.
@@ -107,7 +111,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (collision_detected) {
-                handleCollision(game_state.player, it, game_state.obstacles, game_state.running);
+                it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running);
             } else {
                 handleCheckpointPassing(game_state.player, *it, game_state.score);
                 ++it;
@@ -115,7 +119,7 @@ int main(int argc, char* argv[]) {
             if (!game_state.running) break; // Exit loop immediately if game is over
         }
 
-        SDL_RenderPresent(renderer);
+        SDL_RenderPresent(renderer.get());
 
         // --- FPS Calculation and Capping ---
         Uint32 current_frametime = SDL_GetTicks();
@@ -129,8 +133,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }

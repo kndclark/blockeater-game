@@ -118,10 +118,11 @@ struct Obstacle {
     }
 
     static void updateAndRemove(std::vector<Obstacle>& obstacles) {
-        // This is more efficient than the erase-remove idiom as it avoids
-        // shifting elements in the vector. It has O(N) complexity for one
-        // pass, whereas erase-remove can be O(N^2) in the worst case if
-        // many elements are removed.
+        // This is an efficient way to remove items from a vector when the
+        // order of elements does not need to be preserved. It avoids shifting
+        // all subsequent elements on each removal by swapping the element to
+        // be removed with the last element and then popping from the back.
+        // This is an O(N) operation.
         for (size_t i = 0; i < obstacles.size();) {
             obstacles[i].update();
             if (obstacles[i].is_offscreen()) {

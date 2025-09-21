@@ -518,7 +518,7 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
   protected:
     // This test class can be used to test createRegular by controlling the type roll.
     // We can't fully test createRegular without mocking rand(), but we can test the type logic.
-    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
+    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) { // NOLINT(readability-function-cognitive-complexity)
         ObstacleType type = determineObstacleType(grow, shrink, roll);
         ObstacleSize grow_dims{0,0};
         ObstacleSize shrink_dims{0,0};
@@ -526,7 +526,12 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
         switch (type) {
             case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 100, 1, grow_dims);
             case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 100, 1, shrink_dims);
-            default:                   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
+            case ObstacleType::Hurt:   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
+            default:
+                ADD_FAILURE() << "Unexpected obstacle type in test helper";
+                // This line is needed to satisfy the compiler's need for a return value,
+                // but the test will have already failed.
+                return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
         }
     }
 };
@@ -636,7 +641,7 @@ TEST_P(CollisionLogicTest, HandlesCollisions) {
     bool running = true;
     int initial_width = player.rect.w;
 
-    handleCollision(player, it, obstacles, running);
+    it = handleCollision(player, it, obstacles, running);
 
     EXPECT_EQ(running, params.expected_running);
     EXPECT_EQ(obstacles.size(), params.expected_obstacle_count);
