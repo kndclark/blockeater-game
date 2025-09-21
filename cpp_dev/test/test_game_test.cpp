@@ -11,6 +11,21 @@
 
 namespace {
 const std::string kTestConfigPath = "../../config/config.json";
+
+// Helper to check that the Config class correctly overrides screen dimensions
+// with the native resolution when available, or falls back to the default.
+void checkConfigScreenResolution(const Config& config) {
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0) {
+        // If we can get the display mode, the config should have used it.
+        EXPECT_EQ(config.getScreenWidth(), dm.w);
+        EXPECT_EQ(config.getScreenHeight(), dm.h);
+    } else {
+        // If we can't, it should have fallen back to the default/file values (640x480).
+        EXPECT_EQ(config.getScreenWidth(), 640);
+        EXPECT_EQ(config.getScreenHeight(), 480);
+    }
+}
 } // namespace
 
 // Test suite for the Player class
@@ -240,7 +255,7 @@ TEST_F(SdlTest, CheckpointCollisionDetection) {
 }
 
 // A test fixture for tests that create temporary files.
-class ConfigFileTest : public ::testing::Test {
+class ConfigFileTest : public SdlTest {
 protected:
     const std::string malformed_filename = "malformed.json";
     const std::string partial_filename = "partial.json";
@@ -248,11 +263,12 @@ protected:
     void TearDown() override {
         std::remove(malformed_filename.c_str());
         std::remove(partial_filename.c_str());
+        SdlTest::TearDown();
     }
 };
 
 // Test suite for the Config class
-TEST(ConfigTest, LoadsConfigFromFile) {
+TEST_F(SdlTest, LoadsConfigFromFile) {
     // The test executable runs from the `test/build` directory, so we navigate up.
     Config config(kTestConfigPath);
 
@@ -275,9 +291,11 @@ TEST(ConfigTest, LoadsConfigFromFile) {
     EXPECT_EQ(shrink_color.r, 255);
     EXPECT_EQ(shrink_color.g, 165);
     EXPECT_EQ(shrink_color.b, 0);
+
+    checkConfigScreenResolution(config);
 }
 
-TEST(ConfigTest, FallbackOnMissingFile) {
+TEST_F(SdlTest, FallbackOnMissingFile) {
     Config config("nonexistent_file.json");
 
     // Should fall back to the hardcoded defaults defined in Config.cpp
@@ -288,6 +306,8 @@ TEST(ConfigTest, FallbackOnMissingFile) {
 
     Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
     EXPECT_EQ(hurt_color.r, 120);
+
+    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
@@ -302,6 +322,8 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
     EXPECT_EQ(player_color.b, 100);
+
+    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
@@ -327,9 +349,11 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
     Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
     EXPECT_EQ(hurt_color.r, 120); // Default value
     EXPECT_EQ(config.getSpawnInterval(), 1500); // Default value
+
+    checkConfigScreenResolution(config);
 }
 
-TEST(ConfigTest, LoadsGameConfigFromFile) {
+TEST_F(SdlTest, LoadsGameConfigFromFile) {
     Config config(kTestConfigPath);
     EXPECT_EQ(config.getBaseCheckpointGap(), 80);
     EXPECT_EQ(config.getSpawnInterval(), 1500);
@@ -354,6 +378,8 @@ TEST(ConfigTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getPlayerWidth(), 40);
     EXPECT_EQ(config.getPlayerHeight(), 40);
     EXPECT_EQ(config.getPlayerSpeed(), 5);
+
+    checkConfigScreenResolution(config);
 }
 
 // Test suite for the GameState struct
@@ -676,6 +702,8 @@ TEST_F(SdlTest, ConfigDefaultConstructor) {
     EXPECT_EQ(player_color.r, 128);
     EXPECT_EQ(player_color.g, 0);
     EXPECT_EQ(player_color.b, 128);
+
+    checkConfigScreenResolution(config);
 }
 
 // --- Obstacle Batching Test ---

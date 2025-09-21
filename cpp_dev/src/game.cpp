@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
         SDL_WINDOWPOS_CENTERED,       // int y: Initial y position
         SCREEN_WIDTH,                 // int w: Width of the window, in pixels
         SCREEN_HEIGHT,                // int h: Height of the window, in pixels
-        SDL_WINDOW_SHOWN              // Uint32 flags: Window state flags (e.g., shown, fullscreen)
+        SDL_WINDOW_FULLSCREEN_DESKTOP // Create a fullscreen window at the desktop resolution
     ));
     if (!window) {
         SDL_Log("Unable to create window: %s", SDL_GetError());
