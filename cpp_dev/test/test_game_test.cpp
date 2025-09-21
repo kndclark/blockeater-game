@@ -28,6 +28,19 @@ void checkConfigScreenResolution(const Config& config) {
 }
 } // namespace
 
+// A test fixture for tests that require SDL to be initialized.
+class SdlTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
+    }
+
+    void TearDown() override {
+        SDL_Quit();
+    }
+};
+
+
 // Test suite for the Player class
 TEST(PlayerTest, Creation) {
     Color c = {0,0,0,0};
@@ -152,6 +165,108 @@ TEST(PlayerTest, SizeModification) {
     EXPECT_EQ(player.rect.h, Player::MIN_SIZE);
 }
 
+// --- Player Dash Test ---
+class PlayerDashTest : public SdlTest {
+protected:
+    // Use a speed of 10 for easier math in tests
+    Player player{100, 100, 40, 40, 10, {0,0,0,0}};
+    const int screen_width = 640;
+    const int screen_height = 480;
+    Uint8 keystate[SDL_NUM_SCANCODES] = {0};
+};
+
+TEST_F(PlayerDashTest, DashActivatesAndIncreasesSpeed) {
+    ASSERT_FALSE(player.is_dashing);
+    ASSERT_FALSE(player.on_cooldown);
+
+    // Press Shift and Right arrow to dash right
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    keystate[SDL_SCANCODE_RIGHT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    // Check state
+    EXPECT_TRUE(player.is_dashing);
+    EXPECT_FALSE(player.on_cooldown);
+
+    // Check position change
+    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    EXPECT_EQ(player.rect.x, expected_x);
+}
+
+TEST_F(PlayerDashTest, DashEndsAndEntersCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    ASSERT_TRUE(player.is_dashing);
+
+    // Wait for dash to end
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+
+    EXPECT_FALSE(player.is_dashing);
+    EXPECT_TRUE(player.on_cooldown);
+}
+
+TEST_F(PlayerDashTest, CannotDashWhileDashing) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    ASSERT_TRUE(player.is_dashing);
+    Uint32 dash_start_time = player.dash_start_time;
+
+    // Try to dash again immediately while holding the key
+    player.handle_input(keystate, screen_width, screen_height);
+    EXPECT_TRUE(player.is_dashing);
+    // The dash start time should not have been reset
+    EXPECT_EQ(player.dash_start_time, dash_start_time);
+}
+
+TEST_F(PlayerDashTest, CannotDashOnCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    keystate[SDL_SCANCODE_LSHIFT] = 0; // Release key
+
+    // End dash and start cooldown
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+    ASSERT_TRUE(player.on_cooldown);
+    ASSERT_FALSE(player.is_dashing);
+
+    // Try to dash again while on cooldown
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    // Should still be on cooldown, not dashing
+    EXPECT_FALSE(player.is_dashing);
+    EXPECT_TRUE(player.on_cooldown);
+}
+
+TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    keystate[SDL_SCANCODE_LSHIFT] = 0;
+
+    // End dash and start cooldown
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+    ASSERT_TRUE(player.on_cooldown);
+
+    // Wait for cooldown to end
+    SDL_Delay(Player::DASH_COOLDOWN_MS + 20);
+    player.update();
+
+    // Cooldown should be over
+    EXPECT_FALSE(player.on_cooldown);
+    EXPECT_FALSE(player.is_dashing);
+
+    // Dash should be available again
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    EXPECT_TRUE(player.is_dashing);
+}
+
 // Test suite for the Obstacle class
 TEST(ObstacleTest, Creation) {
     Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt);
@@ -196,18 +311,6 @@ TEST(ObstacleTest, IsOffscreen) {
     // Obstacle fully offscreen (right edge at x=0)
     EXPECT_TRUE(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
 }
-
-// A test fixture for tests that require SDL to be initialized.
-class SdlTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
-    }
-
-    void TearDown() override {
-        SDL_Quit();
-    }
-};
 
 // Use the fixture for the collision detection test
 TEST_F(SdlTest, CollisionDetection) {

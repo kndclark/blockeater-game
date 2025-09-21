@@ -85,6 +85,9 @@ int main(int argc, char* argv[]) {
         const Uint8* keystate = SDL_GetKeyboardState(NULL);
         game_state.player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
 
+        // Update player state (e.g., for dash cooldown)
+        game_state.player.update();
+
         // Spawn new obstacles based on time
         Uint32 current_time = SDL_GetTicks();
         game_state.spawner.spawn_obstacles(current_time, game_state.obstacles);
