@@ -74,48 +74,57 @@ Config::Config(const std::string& filepath) {
 
 void Config::load_from_path(const std::string& filepath) {
     std::ifstream f(filepath);
-    if (!f.is_open()) {
+    if (f.is_open()) {
+        try {
+            json data = json::parse(f);
+
+            // Use value() with a JSON pointer for safe access to nested keys.
+            playerColor = data.value("/colors/player"_json_pointer, Color{100, 100, 100, 255});
+            obstacleColors[ObstacleType::Hurt] = data.value("/colors/obstacle_hurt"_json_pointer, Color{120, 120, 120, 255});
+            obstacleColors[ObstacleType::Grow] = data.value("/colors/obstacle_grow"_json_pointer, Color{140, 140, 140, 255});
+            obstacleColors[ObstacleType::Shrink] = data.value("/colors/obstacle_shrink"_json_pointer, Color{160, 160, 160, 255});
+            obstacleColors[ObstacleType::Checkpoint] = data.value("/colors/obstacle_checkpoint"_json_pointer, Color{100, 100, 200, 255});
+            // For new settings, use value() with a JSON pointer for safe access to nested keys.
+            // This will not throw if "settings" or its sub-keys are missing, using the default instead.
+            target_fps = data.value("/settings/target_fps"_json_pointer, 60);
+            screen_width = data.value("/settings/screen_width"_json_pointer, 640);
+            screen_height = data.value("/settings/screen_height"_json_pointer, 480);
+            // Game config-related (i.e. difficulty, saved state, etc.)
+            base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
+            spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
+            checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
+            grow_chance_percent = data.value("/game/obstacle_spawn_chances/grow"_json_pointer, 40);
+            shrink_chance_percent = data.value("/game/obstacle_spawn_chances/shrink"_json_pointer, 40);
+            hurt_chance_percent = data.value("/game/obstacle_spawn_chances/hurt"_json_pointer, 20);
+            grow_dims = data.value("/game/obstacle_dimensions/grow"_json_pointer, ObstacleSize{40, 40});
+            shrink_dims = data.value("/game/obstacle_dimensions/shrink"_json_pointer, ObstacleSize{20, 20});
+            hurt_dims = data.value("/game/obstacle_dimensions/hurt"_json_pointer, ObstacleSize{30, 30});
+            player_initial_x = data.value("/game/player/initial_x"_json_pointer, 100);
+            player_width = data.value("/game/player/width"_json_pointer, 40);
+            player_height = data.value("/game/player/height"_json_pointer, 40);
+            player_speed = data.value("/game/player/speed"_json_pointer, 5);
+
+            if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
+                throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
+            }
+
+        } catch (const std::exception& e) {
+            std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
+            load_defaults();
+        }
+    } else {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
         load_defaults();
-        return;
     }
 
-    try {
-        json data = json::parse(f);
-
-        // Use value() with a JSON pointer for safe access to nested keys.
-        playerColor = data.value("/colors/player"_json_pointer, Color{100, 100, 100, 255});
-        obstacleColors[ObstacleType::Hurt] = data.value("/colors/obstacle_hurt"_json_pointer, Color{120, 120, 120, 255});
-        obstacleColors[ObstacleType::Grow] = data.value("/colors/obstacle_grow"_json_pointer, Color{140, 140, 140, 255});
-        obstacleColors[ObstacleType::Shrink] = data.value("/colors/obstacle_shrink"_json_pointer, Color{160, 160, 160, 255});
-        obstacleColors[ObstacleType::Checkpoint] = data.value("/colors/obstacle_checkpoint"_json_pointer, Color{100, 100, 200, 255});
-        // For new settings, use value() with a JSON pointer for safe access to nested keys.
-        // This will not throw if "settings" or its sub-keys are missing, using the default instead.
-        target_fps = data.value("/settings/target_fps"_json_pointer, 60);
-        screen_width = data.value("/settings/screen_width"_json_pointer, 640);
-        screen_height = data.value("/settings/screen_height"_json_pointer, 480);
-        // Game config-related (i.e. difficulty, saved state, etc.)
-        base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
-        spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
-        checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
-        grow_chance_percent = data.value("/game/obstacle_spawn_chances/grow"_json_pointer, 40);
-        shrink_chance_percent = data.value("/game/obstacle_spawn_chances/shrink"_json_pointer, 40);
-        hurt_chance_percent = data.value("/game/obstacle_spawn_chances/hurt"_json_pointer, 20);
-        grow_dims = data.value("/game/obstacle_dimensions/grow"_json_pointer, ObstacleSize{40, 40});
-        shrink_dims = data.value("/game/obstacle_dimensions/shrink"_json_pointer, ObstacleSize{20, 20});
-        hurt_dims = data.value("/game/obstacle_dimensions/hurt"_json_pointer, ObstacleSize{30, 30});
-        player_initial_x = data.value("/game/player/initial_x"_json_pointer, 100);
-        player_width = data.value("/game/player/width"_json_pointer, 40);
-        player_height = data.value("/game/player/height"_json_pointer, 40);
-        player_speed = data.value("/game/player/speed"_json_pointer, 5);
-
-        if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
-            throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
-        }
-
-    } catch (const std::exception& e) {
-        std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
-        load_defaults();
+    // Override screen dimensions with native resolution for fullscreen mode.
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
+        SDL_Log("Warning: Could not get display mode: %s. Using configured resolution.", SDL_GetError());
+    } else {
+        screen_width = dm.w;
+        screen_height = dm.h;
+        SDL_Log("Using native screen resolution: %d x %d", screen_width, screen_height);
     }
 }
 

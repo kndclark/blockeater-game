@@ -11,7 +11,35 @@
 
 namespace {
 const std::string kTestConfigPath = "../../config/config.json";
+
+// Helper to check that the Config class correctly overrides screen dimensions
+// with the native resolution when available, or falls back to the default.
+void checkConfigScreenResolution(const Config& config) {
+    SDL_DisplayMode dm;
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0) {
+        // If we can get the display mode, the config should have used it.
+        EXPECT_EQ(config.getScreenWidth(), dm.w);
+        EXPECT_EQ(config.getScreenHeight(), dm.h);
+    } else {
+        // If we can't, it should have fallen back to the default/file values (640x480).
+        EXPECT_EQ(config.getScreenWidth(), 640);
+        EXPECT_EQ(config.getScreenHeight(), 480);
+    }
+}
 } // namespace
+
+// A test fixture for tests that require SDL to be initialized.
+class SdlTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
+    }
+
+    void TearDown() override {
+        SDL_Quit();
+    }
+};
+
 
 // Test suite for the Player class
 TEST(PlayerTest, Creation) {
@@ -137,6 +165,121 @@ TEST(PlayerTest, SizeModification) {
     EXPECT_EQ(player.rect.h, Player::MIN_SIZE);
 }
 
+// --- Player Dash Test ---
+class PlayerDashTest : public SdlTest {
+protected:
+    // Use a speed of 10 for easier math in tests
+    Player player{100, 100, 40, 40, 10, {0,0,0,0}};
+    const int screen_width = 640;
+    const int screen_height = 480;
+    Uint8 keystate[SDL_NUM_SCANCODES] = {0};
+};
+
+TEST_F(PlayerDashTest, DashActivatesAndIncreasesSpeed) {
+    ASSERT_FALSE(player.is_dashing);
+    ASSERT_FALSE(player.on_cooldown);
+
+    // Press Shift and Right arrow to dash right
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    keystate[SDL_SCANCODE_RIGHT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    // Check state
+    EXPECT_TRUE(player.is_dashing);
+    EXPECT_FALSE(player.on_cooldown);
+
+    // Check position change
+    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    EXPECT_EQ(player.rect.x, expected_x);
+}
+
+TEST_F(PlayerDashTest, DashForwardWithNoDirectionalInput) {
+    ASSERT_FALSE(player.is_dashing);
+    ASSERT_FALSE(player.on_cooldown);
+
+    // Press Shift with no direction to dash forward
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    EXPECT_TRUE(player.is_dashing);
+    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    EXPECT_EQ(player.rect.x, expected_x);
+}
+
+TEST_F(PlayerDashTest, DashEndsAndEntersCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    ASSERT_TRUE(player.is_dashing);
+
+    // Wait for dash to end
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+
+    EXPECT_FALSE(player.is_dashing);
+    EXPECT_TRUE(player.on_cooldown);
+}
+
+TEST_F(PlayerDashTest, CannotDashWhileDashing) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    ASSERT_TRUE(player.is_dashing);
+    Uint32 dash_start_time = player.dash_start_time;
+
+    // Try to dash again immediately while holding the key
+    player.handle_input(keystate, screen_width, screen_height);
+    EXPECT_TRUE(player.is_dashing);
+    // The dash start time should not have been reset
+    EXPECT_EQ(player.dash_start_time, dash_start_time);
+}
+
+TEST_F(PlayerDashTest, CannotDashOnCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    keystate[SDL_SCANCODE_LSHIFT] = 0; // Release key
+
+    // End dash and start cooldown
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+    ASSERT_TRUE(player.on_cooldown);
+    ASSERT_FALSE(player.is_dashing);
+
+    // Try to dash again while on cooldown
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    // Should still be on cooldown, not dashing
+    EXPECT_FALSE(player.is_dashing);
+    EXPECT_TRUE(player.on_cooldown);
+}
+
+TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
+    // Start dashing
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    keystate[SDL_SCANCODE_LSHIFT] = 0;
+
+    // End dash and start cooldown
+    SDL_Delay(Player::DASH_DURATION_MS + 20);
+    player.update();
+    ASSERT_TRUE(player.on_cooldown);
+
+    // Wait for cooldown to end
+    SDL_Delay(Player::DASH_COOLDOWN_MS + 20);
+    player.update();
+
+    // Cooldown should be over
+    EXPECT_FALSE(player.on_cooldown);
+    EXPECT_FALSE(player.is_dashing);
+
+    // Dash should be available again
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+    EXPECT_TRUE(player.is_dashing);
+}
+
 // Test suite for the Obstacle class
 TEST(ObstacleTest, Creation) {
     Obstacle obstacle(50, 60, 70, 80, 3, ObstacleType::Hurt);
@@ -181,18 +324,6 @@ TEST(ObstacleTest, IsOffscreen) {
     // Obstacle fully offscreen (right edge at x=0)
     EXPECT_TRUE(Obstacle(-20, 10, 20, 20, 1, ObstacleType::Hurt).is_offscreen());
 }
-
-// A test fixture for tests that require SDL to be initialized.
-class SdlTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
-    }
-
-    void TearDown() override {
-        SDL_Quit();
-    }
-};
 
 // Use the fixture for the collision detection test
 TEST_F(SdlTest, CollisionDetection) {
@@ -240,7 +371,7 @@ TEST_F(SdlTest, CheckpointCollisionDetection) {
 }
 
 // A test fixture for tests that create temporary files.
-class ConfigFileTest : public ::testing::Test {
+class ConfigFileTest : public SdlTest {
 protected:
     const std::string malformed_filename = "malformed.json";
     const std::string partial_filename = "partial.json";
@@ -248,11 +379,12 @@ protected:
     void TearDown() override {
         std::remove(malformed_filename.c_str());
         std::remove(partial_filename.c_str());
+        SdlTest::TearDown();
     }
 };
 
 // Test suite for the Config class
-TEST(ConfigTest, LoadsConfigFromFile) {
+TEST_F(SdlTest, LoadsConfigFromFile) {
     // The test executable runs from the `test/build` directory, so we navigate up.
     Config config(kTestConfigPath);
 
@@ -275,9 +407,11 @@ TEST(ConfigTest, LoadsConfigFromFile) {
     EXPECT_EQ(shrink_color.r, 255);
     EXPECT_EQ(shrink_color.g, 165);
     EXPECT_EQ(shrink_color.b, 0);
+
+    checkConfigScreenResolution(config);
 }
 
-TEST(ConfigTest, FallbackOnMissingFile) {
+TEST_F(SdlTest, FallbackOnMissingFile) {
     Config config("nonexistent_file.json");
 
     // Should fall back to the hardcoded defaults defined in Config.cpp
@@ -288,6 +422,8 @@ TEST(ConfigTest, FallbackOnMissingFile) {
 
     Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
     EXPECT_EQ(hurt_color.r, 120);
+
+    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
@@ -302,6 +438,8 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
     EXPECT_EQ(player_color.b, 100);
+
+    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
@@ -327,9 +465,11 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
     Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
     EXPECT_EQ(hurt_color.r, 120); // Default value
     EXPECT_EQ(config.getSpawnInterval(), 1500); // Default value
+
+    checkConfigScreenResolution(config);
 }
 
-TEST(ConfigTest, LoadsGameConfigFromFile) {
+TEST_F(SdlTest, LoadsGameConfigFromFile) {
     Config config(kTestConfigPath);
     EXPECT_EQ(config.getBaseCheckpointGap(), 80);
     EXPECT_EQ(config.getSpawnInterval(), 1500);
@@ -354,6 +494,8 @@ TEST(ConfigTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getPlayerWidth(), 40);
     EXPECT_EQ(config.getPlayerHeight(), 40);
     EXPECT_EQ(config.getPlayerSpeed(), 5);
+
+    checkConfigScreenResolution(config);
 }
 
 // Test suite for the GameState struct
@@ -518,7 +660,7 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
   protected:
     // This test class can be used to test createRegular by controlling the type roll.
     // We can't fully test createRegular without mocking rand(), but we can test the type logic.
-    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) {
+    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) { // NOLINT(readability-function-cognitive-complexity)
         ObstacleType type = determineObstacleType(grow, shrink, roll);
         ObstacleSize grow_dims{0,0};
         ObstacleSize shrink_dims{0,0};
@@ -526,7 +668,12 @@ class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParam
         switch (type) {
             case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 100, 1, grow_dims);
             case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 100, 1, shrink_dims);
-            default:                   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
+            case ObstacleType::Hurt:   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
+            default:
+                ADD_FAILURE() << "Unexpected obstacle type in test helper";
+                // This line is needed to satisfy the compiler's need for a return value,
+                // but the test will have already failed.
+                return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
         }
     }
 };
@@ -636,7 +783,7 @@ TEST_P(CollisionLogicTest, HandlesCollisions) {
     bool running = true;
     int initial_width = player.rect.w;
 
-    handleCollision(player, it, obstacles, running);
+    it = handleCollision(player, it, obstacles, running);
 
     EXPECT_EQ(running, params.expected_running);
     EXPECT_EQ(obstacles.size(), params.expected_obstacle_count);
@@ -671,6 +818,8 @@ TEST_F(SdlTest, ConfigDefaultConstructor) {
     EXPECT_EQ(player_color.r, 128);
     EXPECT_EQ(player_color.g, 0);
     EXPECT_EQ(player_color.b, 128);
+
+    checkConfigScreenResolution(config);
 }
 
 // --- Obstacle Batching Test ---

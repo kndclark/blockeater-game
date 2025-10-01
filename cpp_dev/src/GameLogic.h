@@ -11,28 +11,27 @@
 
 const int PLAYER_SIZE_CHANGE_AMOUNT = 10;
 
-// Handles the game logic for a collision between the player and an obstacle.
-// Modifies the player, the list of obstacles, and the game's running state by reference.
-inline void handleCollision(Player& player, std::vector<Obstacle>::iterator& it, std::vector<Obstacle>& obstacles, bool& running) {
+/// Handles the game logic for a collision between the player and an obstacle.
+/// @return The iterator to the next element to be processed.
+inline std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running) {
     switch (it->type) {
         case ObstacleType::Checkpoint:
             // fallthrough
         case ObstacleType::Hurt:
             SDL_Log("Collision with Hurt obstacle! Game Over.");
             running = false; // End the game
-            ++it; // Advance iterator to avoid re-processing in the game loop
-            break;
+            return ++it; // Advance iterator to avoid re-processing in the game loop
         case ObstacleType::Grow:
             SDL_Log("Collision with Grow obstacle! Player grows.");
             player.grow(PLAYER_SIZE_CHANGE_AMOUNT);
-            it = obstacles.erase(it); // Erase and get next valid iterator
-            break;
+            return obstacles.erase(it); // Erase and get next valid iterator
         case ObstacleType::Shrink:
             SDL_Log("Collision with Shrink obstacle! Player shrinks.");
             player.shrink(PLAYER_SIZE_CHANGE_AMOUNT);
-            it = obstacles.erase(it); // Erase and get next valid iterator
-            break;
+            return obstacles.erase(it); // Erase and get next valid iterator
     }
+    // Should not be reached, but some compilers might complain.
+    return ++it;
 }
 
 // --- Obstacle Spawner ---
