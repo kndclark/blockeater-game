@@ -22,10 +22,10 @@ struct Player {
     Uint32 dash_start_time = 0;
     Uint32 dash_cooldown_start_time = 0;
 
-    // Dash ability constants TODO move these to config.json
+    // Dash ability constants TODO move these to config.json (may shouldn't be consts? could modify via powerups, etc.)
     static constexpr float DASH_SPEED_MULTIPLIER = 2.5f;
-    static constexpr Uint32 DASH_DURATION_MS = 1250; // 1.25 seconds
-    static constexpr Uint32 DASH_COOLDOWN_MS = 3000; // 3 seconds
+    static constexpr Uint32 DASH_DURATION_MS = 500; // .5 seconds
+    static constexpr Uint32 DASH_COOLDOWN_MS = 2000; // 2 seconds
 
     Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
 
@@ -52,6 +52,15 @@ struct Player {
 
         float current_speed = is_dashing ? static_cast<float>(speed) * DASH_SPEED_MULTIPLIER : static_cast<float>(speed);
 
+        bool any_direction_pressed = keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_RIGHT] ||
+                                     keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_DOWN];
+
+        if (is_dashing && !any_direction_pressed) {
+            // If dashing with no directional input, move forward.
+            rect.x += static_cast<int>(current_speed);
+        }
+
+        // Regular movement or directional dash.
         if (keystate[SDL_SCANCODE_LEFT])  rect.x -= static_cast<int>(current_speed);
         if (keystate[SDL_SCANCODE_RIGHT]) rect.x += static_cast<int>(current_speed);
         if (keystate[SDL_SCANCODE_UP])    rect.y -= static_cast<int>(current_speed);

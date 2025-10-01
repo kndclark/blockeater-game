@@ -193,6 +193,19 @@ TEST_F(PlayerDashTest, DashActivatesAndIncreasesSpeed) {
     EXPECT_EQ(player.rect.x, expected_x);
 }
 
+TEST_F(PlayerDashTest, DashForwardWithNoDirectionalInput) {
+    ASSERT_FALSE(player.is_dashing);
+    ASSERT_FALSE(player.on_cooldown);
+
+    // Press Shift with no direction to dash forward
+    keystate[SDL_SCANCODE_LSHIFT] = 1;
+    player.handle_input(keystate, screen_width, screen_height);
+
+    EXPECT_TRUE(player.is_dashing);
+    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    EXPECT_EQ(player.rect.x, expected_x);
+}
+
 TEST_F(PlayerDashTest, DashEndsAndEntersCooldown) {
     // Start dashing
     keystate[SDL_SCANCODE_LSHIFT] = 1;
