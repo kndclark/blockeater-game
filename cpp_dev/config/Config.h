@@ -2,11 +2,21 @@
 
 #include <SDL2/SDL_stdinc.h> // For Uint32
 #include <string>
+#include <optional>
 #include <map>
 #include "../src/Color.h"
 #include "../src/Obstacle.h" // For ObstacleType, and dimension structs
 
-struct LevelConfig; // Forward declaration
+/// @brief Holds configuration that can be overridden on a per-level basis.
+struct LevelConfig {
+    std::optional<Uint32> spawn_interval_ms;
+    std::optional<Uint32> checkpoint_interval_ms;
+    std::optional<int> obstacle_speed;
+    std::optional<int> grow_chance_percent;
+    std::optional<int> shrink_chance_percent;
+    std::optional<int> hurt_chance_percent;
+    std::optional<int> base_checkpoint_gap;
+};
 
 class Config {
 public:

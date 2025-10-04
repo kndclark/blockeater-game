@@ -17,7 +17,7 @@
     "spawn_interval_ms": 1500,
     "player_size_change_amount": 10,
     "score_per_checkpoint": 10,
-    "checkpoints_per_level": 10,
+    "checkpoints_per_level": 1,
     "checkpoint_interval_ms": 10000,
     "obstacle_spawn_chances": {
       "grow": 40,

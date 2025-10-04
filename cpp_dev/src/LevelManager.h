@@ -1,21 +1,9 @@
 #pragma once
 
-#include <optional>
 #include <map>
 #include <SDL2/SDL_stdinc.h> // For Uint32
 #include "../config/Config.h"
 #include "Obstacle.h"
-
-/// @brief Holds configuration that can be overridden on a per-level basis.
-struct LevelConfig {
-    std::optional<Uint32> spawn_interval_ms;
-    std::optional<Uint32> checkpoint_interval_ms;
-    std::optional<int> obstacle_speed;
-    std::optional<int> grow_chance_percent;
-    std::optional<int> shrink_chance_percent;
-    std::optional<int> hurt_chance_percent;
-    std::optional<int> base_checkpoint_gap;
-};
 
 /// @brief Manages level-specific game parameters.
 /// This class holds the effective configuration for the current level,
