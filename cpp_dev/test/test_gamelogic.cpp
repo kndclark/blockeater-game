@@ -182,24 +182,28 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(GameLogicTest, LevelUp) {
     Config config;
     GameState game_state(config, 800, 600);
-    game_state.checkpoints_passed = config.getCheckpointsPerLevel() - 1;
+    int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
+    ASSERT_EQ(checkpoints_for_lvl1, 5); // From levels.json
+    game_state.checkpoints_passed = checkpoints_for_lvl1 - 1; // = 4
 
-    // Pass a checkpoint, checkpoints_passed becomes 10, level should become 2
+    // Pass a checkpoint. checkpoints_passed becomes 5. 5 % 5 == 0, so level up to 2.
     Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150); // NOLINT(readability-magic-numbers)
     checkpoint1.rect.x = 50; // Place it behind the player
     if(checkpoint1.rect2) checkpoint1.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
-    EXPECT_EQ(game_state.checkpoints_passed, config.getCheckpointsPerLevel());
-    EXPECT_EQ(game_state.level, 1 + (game_state.checkpoints_passed / config.getCheckpointsPerLevel()));
+    EXPECT_EQ(game_state.checkpoints_passed, checkpoints_for_lvl1);
+    EXPECT_EQ(game_state.level, 2);
     EXPECT_TRUE(checkpoint1.passed);
 
-    // Pass another checkpoint, checkpoints_passed becomes 11, level should stay 2
+    // After leveling up, LevelManager now uses level 2's config.
+    // checkpoints_per_level for level 2 is also 5.
+    // Pass another checkpoint. checkpoints_passed becomes 6. 6 % 5 != 0, so level stays 2.
     Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150); // NOLINT(readability-magic-numbers)
     checkpoint2.rect.x = 50;
     if(checkpoint2.rect2) checkpoint2.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint2, game_state);
-    EXPECT_EQ(game_state.checkpoints_passed, config.getCheckpointsPerLevel() + 1);
-    EXPECT_EQ(game_state.level, 1 + (game_state.checkpoints_passed / config.getCheckpointsPerLevel()));
+    EXPECT_EQ(game_state.checkpoints_passed, checkpoints_for_lvl1 + 1);
+    EXPECT_EQ(game_state.level, 2);
     EXPECT_TRUE(checkpoint2.passed);
 }
 

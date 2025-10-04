@@ -46,6 +46,9 @@ void from_json(const json& j, LevelConfig& lc) {
     if (j.contains("hurt_chance_percent")) {
         lc.hurt_chance_percent = j.at("hurt_chance_percent").get<int>();
     }
+    if (j.contains("checkpoints_per_level")) {
+        lc.checkpoints_per_level = j.at("checkpoints_per_level").get<int>();
+    }
 }
 
 void Config::load_defaults() {

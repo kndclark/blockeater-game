@@ -16,6 +16,7 @@ struct LevelConfig {
     std::optional<int> shrink_chance_percent;
     std::optional<int> hurt_chance_percent;
     std::optional<int> base_checkpoint_gap;
+    std::optional<int> checkpoints_per_level;
 };
 
 class Config {

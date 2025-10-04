@@ -75,7 +75,7 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
             game_state.checkpoints_passed++;
             player.resetSize();
             // Level up every CHECKPOINTS_PER_LEVEL checkpoints
-            if (game_state.checkpoints_passed > 0 && game_state.checkpoints_passed % game_state.config.getCheckpointsPerLevel() == 0) {
+            if (game_state.checkpoints_passed > 0 && game_state.checkpoints_passed % game_state.level_manager.getCheckpointsPerLevel() == 0) {
                 game_state.level++;
                 game_state.level_manager.updateForLevel(game_state.level);
                 SDL_Log("Level up! You are now level %d.", game_state.level);
