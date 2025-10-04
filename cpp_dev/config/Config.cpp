@@ -172,8 +172,15 @@ void Config::load_from_path(const std::string& filepath) {
         load_defaults();
     }
 
-    // Also load level configurations from a file with the same path but with ".levels.json" suffix.
+    // Try to load levels.json from the same directory as the main config file.
+    std::string levels_path = filepath;
+    size_t last_slash_pos = levels_path.find_last_of("/\\");
+    if (last_slash_pos != std::string::npos) { // if filepath has a directory
+        load_levels(levels_path.substr(0, last_slash_pos + 1) + "levels.json");
+    }
+    // Also try loading a file with ".levels.json" suffix for tests.
     load_levels(filepath + ".levels.json");
+
 
 
     // Override screen dimensions with native resolution for fullscreen mode.

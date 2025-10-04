@@ -101,3 +101,26 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
 
     checkConfigScreenResolution(config);
 }
+
+TEST_F(ConfigFileTest, LoadsLevelsConfig) {
+    // This test relies on the main config file being present at kTestConfigPath
+    // and the associated levels.json being in the same directory.
+    Config config(kTestConfigPath);
+
+    // Check level 1 config from levels.json
+    const LevelConfig* level1_config = config.getLevelConfig(1);
+    ASSERT_NE(level1_config, nullptr);
+    EXPECT_EQ(level1_config->obstacle_speed.value(), 3);
+    EXPECT_EQ(level1_config->spawn_interval_ms.value(), 2000);
+    EXPECT_EQ(level1_config->base_checkpoint_gap.value(), 200);
+
+    // Check level 2 config from levels.json
+    const LevelConfig* level2_config = config.getLevelConfig(2);
+    ASSERT_NE(level2_config, nullptr);
+    EXPECT_EQ(level2_config->obstacle_speed.value(), 4);
+    EXPECT_EQ(level2_config->spawn_interval_ms.value(), 1850);
+
+    // Check a level that doesn't exist in levels.json
+    const LevelConfig* non_existent_level_config = config.getLevelConfig(99);
+    EXPECT_EQ(non_existent_level_config, nullptr);
+}

@@ -30,14 +30,14 @@ public:
             return;
         }
 
-        effective_spawn_interval_ = level_cfg->spawn_interval_ms.value_or(base_config_.getSpawnInterval());
-        effective_obstacle_speed_ = level_cfg->obstacle_speed.value_or(base_config_.getObstacleSpeed());
-        effective_grow_chance_ = level_cfg->grow_chance_percent.value_or(base_config_.getGrowChance());
-        effective_shrink_chance_ = level_cfg->shrink_chance_percent.value_or(base_config_.getShrinkChance());
-        effective_base_checkpoint_gap_ = level_cfg->base_checkpoint_gap.value_or(base_config_.getBaseCheckpointGap());
+        effective_spawn_interval_ = level_cfg->spawn_interval_ms.value_or(effective_spawn_interval_);
+        effective_obstacle_speed_ = level_cfg->obstacle_speed.value_or(effective_obstacle_speed_);
+        effective_grow_chance_ = level_cfg->grow_chance_percent.value_or(effective_grow_chance_);
+        effective_shrink_chance_ = level_cfg->shrink_chance_percent.value_or(effective_shrink_chance_);
+        effective_base_checkpoint_gap_ = level_cfg->base_checkpoint_gap.value_or(effective_base_checkpoint_gap_);
         // Note: We assume the chances in the config sum to 100. The base config validates this,
         // but per-level overrides currently do not. The logic in determineObstacleType handles it gracefully.
-        effective_hurt_chance_ = level_cfg->hurt_chance_percent.value_or(base_config_.getHurtChance());
+        effective_hurt_chance_ = level_cfg->hurt_chance_percent.value_or(effective_hurt_chance_);
     }
 
     Uint32 getSpawnInterval() const { return effective_spawn_interval_; }

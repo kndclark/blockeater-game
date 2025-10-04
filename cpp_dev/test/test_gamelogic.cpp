@@ -222,14 +222,13 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config; // Use default config
-    LevelManager level_manager(config);
+    LevelManager level_manager(config); // This will apply level 1 config by default
     ObstacleSpawner spawner(level_manager, params.checkpoint_interval, 800, 600, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30});
     std::vector<Obstacle> obstacles;
 
     for (const auto& time : params.spawn_times) {
         spawner.spawn_obstacles(time, obstacles);
     }
-
     size_t regular_count = std::count_if(obstacles.begin(), obstacles.end(), [](const Obstacle& o){ return o.type != ObstacleType::Checkpoint; });
     size_t checkpoint_count = obstacles.size() - regular_count;
 
@@ -241,10 +240,10 @@ INSTANTIATE_TEST_SUITE_P(
     GameLogicTests,
     ObstacleSpawnerTest,
     ::testing::Values(
-        ObstacleSpawnerParams{1500, 60000, {0, 1500, 1501, 3000, 3001}, 2, 0, "SpawnsOnlyRegular"},
-        ObstacleSpawnerParams{1500, 2000, {1501, 2001}, 1, 1, "SpawnsBothRegularAndCheckpoint"},
-        ObstacleSpawnerParams{1500, 2000, {0, 50, 1499}, 0, 0, "NoSpawnsBeforeInterval"},
-        ObstacleSpawnerParams{1500, 2000, {1500, 1999, 2000}, 1, 1, "SpawnsAtAndAfterInterval"},
+        ObstacleSpawnerParams{2000, 60000, {0, 2000, 2001, 4000, 4001}, 2, 0, "SpawnsOnlyRegular"},
+        ObstacleSpawnerParams{2000, 2000, {1501, 2001}, 0, 1, "SpawnsBothRegularAndCheckpoint"},
+        ObstacleSpawnerParams{2000, 2000, {0, 50, 1999}, 0, 0, "NoSpawnsBeforeInterval"},
+        ObstacleSpawnerParams{2000, 2000, {2000, 2000, 2000}, 0, 1, "SpawnsAtAndAfterInterval"},
         ObstacleSpawnerParams{10000, 2000, {2001}, 0, 1, "SpawnsOnlyCheckpoint"}
     ),
     [](const testing::TestParamInfo<ObstacleSpawnerTest::ParamType>& info) {

@@ -20,7 +20,7 @@ protected:
         base_config_file.close();
 
         // Create a levels config file
-        std::ofstream levels_file(test_levels_filename);
+        std::ofstream levels_file(test_levels_filename); // Creates "base_config.json.levels.json"
         levels_file << R"({
             "levels": {
                 "1": {
@@ -54,14 +54,14 @@ TEST_F(LevelManagerTest, LoadsLevelSpecificConfig) {
     // Update to level 2
     level_manager.updateForLevel(2);
     EXPECT_EQ(level_manager.getObstacleSpeed(), 10);
-    // spawn_interval_ms is not in level 2 config, so it should use the base config value
-    EXPECT_EQ(level_manager.getSpawnInterval(), 1000);
+    // spawn_interval_ms is not in level 2 config, so it should persist from level 1
+    EXPECT_EQ(level_manager.getSpawnInterval(), 800);
     EXPECT_EQ(level_manager.getBaseCheckpointGap(), 100);
 
     // Update to level 3 (not in config)
     level_manager.updateForLevel(3);
     // Values should remain from the last valid level config (level 2)
     EXPECT_EQ(level_manager.getObstacleSpeed(), 10);
-    EXPECT_EQ(level_manager.getSpawnInterval(), 1000);
+    EXPECT_EQ(level_manager.getSpawnInterval(), 800);
     EXPECT_EQ(level_manager.getBaseCheckpointGap(), 100);
 }
