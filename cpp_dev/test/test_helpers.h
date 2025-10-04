@@ -6,7 +6,7 @@
 #include <fstream>
 #include <string>
 
-inline const std::string kTestConfigPath = "../../config/config.json";
+inline const std::string kTestConfigPath = "../../config/json/config.json";
 
 // Helper to check that the Config class correctly overrides screen dimensions
 // with the native resolution when available, or falls back to the default.

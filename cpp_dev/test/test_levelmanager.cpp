@@ -8,19 +8,23 @@ class LevelManagerTest : public ConfigFileTest {
 protected:
     void SetUp() override {
         ConfigFileTest::SetUp();
+        // Create a dummy directory for the test config files
+        std::system("mkdir -p test_config_dir/json");
+
         // Create a base config file
-        std::ofstream base_config_file("base_config.json");
+        std::ofstream base_config_file("test_config_dir/json/base_config.json");
         base_config_file << R"({
             "game": {
                 "spawn_interval_ms": 1000,
                 "obstacle_speed": 3,
-                "base_checkpoint_gap": 100
+                "base_checkpoint_gap": 100,
+                "checkpoints_per_level": 1
             }
         })";
         base_config_file.close();
 
         // Create a levels config file
-        std::ofstream levels_file(test_levels_filename); // Creates "base_config.json.levels.json"
+        std::ofstream levels_file("test_config_dir/json/levels.json");
         levels_file << R"({
             "levels": {
                 "1": {
@@ -36,13 +40,14 @@ protected:
     }
 
     void TearDown() override {
-        std::remove("base_config.json");
+        std::system("rm -rf test_config_dir");
         ConfigFileTest::TearDown();
     }
 };
 
 TEST_F(LevelManagerTest, LoadsLevelSpecificConfig) {
-    Config config("base_config.json");
+    // Config will automatically look for levels.json in the same directory.
+    Config config("test_config_dir/json/base_config.json");
     LevelManager level_manager(config);
 
     // Level 1 should have its own values

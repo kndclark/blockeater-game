@@ -86,18 +86,18 @@ Config::Config() {
     char* base_path = SDL_GetBasePath();
     if (base_path) {
 #ifdef IS_TEST_BUILD
-        // The test executable is in test/build/, so we go up two directories.
-        config_path = std::string(base_path) + "../../config/config.json";
+        // The test executable is in test/build/, so we go up two directories to the project root.
+        config_path = std::string(base_path) + "../../config/json/config.json";
 #else
-        // The game executable is in build/, so we go up one directory.
-        config_path = std::string(base_path) + "../config/config.json";
+        // The game executable is in build/, so we go up one directory to the project root.
+        config_path = std::string(base_path) + "../config/json/config.json";
 #endif
         SDL_free(base_path);
     } else {
         // Fallback for when the base path can't be determined.
         // Assumes the executable is run from the `cpp_dev` directory.
-        SDL_Log("Warning: Could not get application base path. Using relative path 'config/config.json'");
-        config_path = "config/config.json";
+        SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
+        config_path = "config/json/config.json";
     }
     load_from_path(config_path); // This will also load levels.json
 }
