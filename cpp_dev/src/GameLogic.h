@@ -8,141 +8,55 @@
 
 #include "Obstacle.h" // For ObstacleType
 #include "Player.h"   // For Player
+#include "LevelManager.h"
 
-const int PLAYER_SIZE_CHANGE_AMOUNT = 10;
-const int SCORE_PER_CHECKPOINT = 10;
-const int CHECKPOINTS_PER_LEVEL = 10;
+struct GameState; // Forward declaration
 
 /// Handles the game logic for a collision between the player and an obstacle.
 /// @return The iterator to the next element to be processed.
-inline std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running) {
-    switch (it->type) {
-        case ObstacleType::Checkpoint:
-            // fallthrough
-        case ObstacleType::Hurt:
-            SDL_Log("Collision with Hurt obstacle! Game Over.");
-            running = false; // End the game
-            return ++it; // Advance iterator to avoid re-processing in the game loop
-        case ObstacleType::Grow:
-            SDL_Log("Collision with Grow obstacle! Player grows.");
-            player.grow(PLAYER_SIZE_CHANGE_AMOUNT);
-            return obstacles.erase(it); // Erase and get next valid iterator
-        case ObstacleType::Shrink:
-            SDL_Log("Collision with Shrink obstacle! Player shrinks.");
-            player.shrink(PLAYER_SIZE_CHANGE_AMOUNT);
-            return obstacles.erase(it); // Erase and get next valid iterator
-    }
-    // Should not be reached, but some compilers might complain.
-    return ++it;
-}
+std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running, int player_size_change_amount);
 
 // --- Obstacle Spawner ---
 // Manages the logic and state for spawning obstacles over time.
 struct ObstacleSpawner {
+    const LevelManager& level_manager;
     Uint32 last_spawn_time = 0;
-    const Uint32 spawn_interval;
     Uint32 last_checkpoint_spawn_time = 0;
     const Uint32 checkpoint_spawn_interval;
 
     const int screen_width;
     const int screen_height;
-    const int obstacle_speed;
+    const int player_size_change_amount;
     const int grow_chance;
     const int shrink_chance;
-    const int base_checkpoint_gap;
     const ObstacleSize grow_dims;
     const ObstacleSize shrink_dims;
     const ObstacleSize hurt_dims;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
-
-    ObstacleSpawner(Uint32 regular_interval, Uint32 checkpoint_int, int width, int height, int speed, int grow, int shrink, int base_gap,
+    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, int width, int height, int size_change, int grow, int shrink,
                       ObstacleSize gd, ObstacleSize sd, ObstacleSize hd)
-        : spawn_interval(regular_interval), checkpoint_spawn_interval(checkpoint_int),
-          screen_width(width), screen_height(height), obstacle_speed(speed),
-          grow_chance(grow), shrink_chance(shrink), base_checkpoint_gap(base_gap),
+        : level_manager(lm), checkpoint_spawn_interval(checkpoint_int),
+          screen_width(width), screen_height(height),
+          player_size_change_amount(size_change),
+          grow_chance(grow), shrink_chance(shrink),
           grow_dims(gd), shrink_dims(sd), hurt_dims(hd) {}
-
+    
     // Calculates the gap size for the next checkpoint based on power-ups collected.
-    int calculateCheckpointGapSize() const {
-        size_t shrink_count = shrink_powerups_since_checkpoint.size();
-
-        const int base_gap_height = base_checkpoint_gap;
-        // The minimum gap should be the player's smallest possible size plus a margin.
-        const int min_gap_height = Player::MIN_SIZE + 5;
-        // Adjust the gap based on how much the player's size changes.
-        const int gap_adjustment_per_powerup = PLAYER_SIZE_CHANGE_AMOUNT;
-
-        // The gap size is only decreased by shrink blocks collected. Grow blocks have no effect.
-        int shrink_effect = -static_cast<int>(shrink_count) * gap_adjustment_per_powerup;
-        int calculated_gap = base_gap_height + shrink_effect;
-
-        // Clamp the gap size to be within reasonable bounds.
-        int final_gap_height = std::max(min_gap_height, calculated_gap);
-        final_gap_height = std::min(final_gap_height, screen_height - 20); // Ensure walls are at least 10px thick.
-
-        return final_gap_height;
-    }
+    int calculateCheckpointGapSize() const;
 
     // Checks the current time and spawns obstacles if their respective intervals have passed.
-    void spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles) {
-        // Prioritize spawning checkpoints.
-        if (current_time >= last_checkpoint_spawn_time + checkpoint_spawn_interval) {
-            last_checkpoint_spawn_time = current_time;
-            // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
-            last_spawn_time = current_time;
-
-            int final_gap_height = calculateCheckpointGapSize();
-            obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, obstacle_speed, final_gap_height));
-
-            // Reset the trackers for the next interval.
-            shrink_powerups_since_checkpoint.clear();
-        }
-        // Only spawn a regular obstacle if a checkpoint was not spawned.
-        else if (current_time >= last_spawn_time + spawn_interval) {
-            last_spawn_time = current_time;
-            Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, obstacle_speed, grow_chance, shrink_chance, grow_dims, shrink_dims, hurt_dims);
-            if (new_obstacle.type == ObstacleType::Shrink) {
-                shrink_powerups_since_checkpoint.push_back(1);
-            }
-            obstacles.push_back(new_obstacle);
-        }
-    }
+    void spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles);
 };
 
 // Handles scoring when a player passes a checkpoint.
-inline void handleCheckpointPassing(Player& player, Obstacle& obstacle, int& score, int& level, int& checkpoints_passed) {
-    if (obstacle.type == ObstacleType::Checkpoint && !obstacle.passed) {
-        // Check if the player's front has passed the obstacle's back
-        if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
-            obstacle.passed = true;
-            score += SCORE_PER_CHECKPOINT;
-            checkpoints_passed++;
-            player.resetSize();
-            // Level up every CHECKPOINTS_PER_LEVEL checkpoints
-            if (checkpoints_passed > 0 && checkpoints_passed % CHECKPOINTS_PER_LEVEL == 0) {
-                level++;
-                SDL_Log("Level up! You are now level %d.", level);
-            }
-            SDL_Log("Checkpoint passed! Score: %d. Level: %d. Checkpoints: %d. Player size reset.", score, level, checkpoints_passed);
-        }
-    }
-}
+void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game_state);
 
 // Calculates FPS when a second has passed.
 // Returns the FPS value if an update is due, otherwise returns std::nullopt.
 // Manages frame_count and last_fps_update_time by reference.
-inline std::optional<float> calculateFps(Uint32& frame_count, Uint32& last_fps_update_time, Uint32 current_time) {
-    frame_count++;
-    if (current_time - last_fps_update_time >= 1000) {
-        float fps = static_cast<float>(frame_count) / ((current_time - last_fps_update_time) / 1000.0f);
-        frame_count = 0;
-        last_fps_update_time = current_time;
-        return fps;
-    }
-    return std::nullopt;
-}
+std::optional<float> calculateFps(Uint32& frame_count, Uint32& last_fps_update_time, Uint32 current_time);
 
 // Separates obstacles into batches for efficient rendering.
 inline void prepareObstacleBatches(const std::vector<Obstacle>& obstacles,
@@ -170,29 +84,6 @@ inline void prepareObstacleBatches(const std::vector<Obstacle>& obstacles,
 }
 
 // Renders all obstacles in batches, which is more efficient than individual draw calls.
-inline void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& obstacles, const Config& config,
+void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& obstacles, const Config& config,
                                  std::vector<SDL_Rect>& hurt_rects, std::vector<SDL_Rect>& grow_rects, std::vector<SDL_Rect>& shrink_rects,
-                                 std::vector<SDL_Rect>& checkpoint_rects) {
-    prepareObstacleBatches(obstacles, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
-
-    if (!hurt_rects.empty()) {
-        Color c = config.getObstacleColor(ObstacleType::Hurt);
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-        SDL_RenderFillRects(renderer, hurt_rects.data(), static_cast<int>(hurt_rects.size()));
-    }
-    if (!grow_rects.empty()) {
-        Color c = config.getObstacleColor(ObstacleType::Grow);
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-        SDL_RenderFillRects(renderer, grow_rects.data(), static_cast<int>(grow_rects.size()));
-    }
-    if (!shrink_rects.empty()) {
-        Color c = config.getObstacleColor(ObstacleType::Shrink);
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-        SDL_RenderFillRects(renderer, shrink_rects.data(), static_cast<int>(shrink_rects.size()));
-    }
-    if (!checkpoint_rects.empty()) {
-        Color c = config.getObstacleColor(ObstacleType::Checkpoint);
-        SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-        SDL_RenderFillRects(renderer, checkpoint_rects.data(), static_cast<int>(checkpoint_rects.size()));
-    }
-}
+                                 std::vector<SDL_Rect>& checkpoint_rects);

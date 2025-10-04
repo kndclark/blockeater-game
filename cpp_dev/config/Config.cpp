@@ -3,6 +3,7 @@
 #include <iostream>
 #include <SDL2/SDL.h>
 #include "../src/Obstacle.h"
+#include "../src/LevelManager.h"
 #include "nlohmann/json.hpp"
 
 using json = nlohmann::json;
@@ -21,6 +22,23 @@ void from_json(const json& j, ObstacleSize& dims) {
     j.at("h").get_to(dims.h);
 }
 
+// Helper to parse LevelConfig from json. `value()` is used for optional fields.
+void from_json(const json& j, LevelConfig& lc) {
+    if (j.contains("spawn_interval_ms")) {
+        lc.spawn_interval_ms = j.at("spawn_interval_ms").get<Uint32>();
+    }
+    if (j.contains("checkpoint_interval_ms")) {
+        lc.checkpoint_interval_ms = j.at("checkpoint_interval_ms").get<Uint32>();
+    }
+    if (j.contains("obstacle_speed")) {
+        lc.obstacle_speed = j.at("obstacle_speed").get<int>();
+    }
+    // Add other level-specific parameters here...
+    if (j.contains("base_checkpoint_gap")) {
+        lc.base_checkpoint_gap = j.at("base_checkpoint_gap").get<int>();
+    }
+}
+
 void Config::load_defaults() {
     playerColor = {100, 100, 100, 255}; // Gray
     obstacleColors[ObstacleType::Hurt] = {120, 120, 120, 255}; // Gray
@@ -30,7 +48,11 @@ void Config::load_defaults() {
     target_fps = 60;
     screen_width = 640;
     screen_height = 480;
+    obstacle_speed = 3;
     base_checkpoint_gap = 120;
+    player_size_change_amount = 10;
+    score_per_checkpoint = 10;
+    checkpoints_per_level = 10;
     spawn_interval_ms = 1500;
     checkpoint_interval_ms = 10000;
     grow_chance_percent = 40;
@@ -65,11 +87,31 @@ Config::Config() {
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/config.json'");
         config_path = "config/config.json";
     }
-    load_from_path(config_path);
+    load_from_path(config_path); // This will also load levels.json
 }
 
 Config::Config(const std::string& filepath) {
     load_from_path(filepath);
+}
+
+void Config::load_levels(const std::string& filepath) {
+    std::ifstream f(filepath);
+    if (f.is_open()) {
+        try {
+            json data = json::parse(f);
+            if (data.contains("levels")) {
+                for (auto& [level_str, level_data] : data["levels"].items()) {
+                    int level = std::stoi(level_str);
+                    level_configs_[level] = level_data.get<LevelConfig>();
+                }
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default level configuration." << std::endl;
+        }
+    } else {
+        // This is not a critical error, as level-specific configs are optional.
+        // In tests, this might be expected if no levels.json is created.
+    }
 }
 
 void Config::load_from_path(const std::string& filepath) {
@@ -91,6 +133,10 @@ void Config::load_from_path(const std::string& filepath) {
             screen_height = data.value("/settings/screen_height"_json_pointer, 480);
             // Game config-related (i.e. difficulty, saved state, etc.)
             base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
+            player_size_change_amount = data.value("/game/player_size_change_amount"_json_pointer, 10);
+            score_per_checkpoint = data.value("/game/score_per_checkpoint"_json_pointer, 10);
+            checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
+            obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
             spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
             checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
             grow_chance_percent = data.value("/game/obstacle_spawn_chances/grow"_json_pointer, 40);
@@ -116,6 +162,10 @@ void Config::load_from_path(const std::string& filepath) {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
         load_defaults();
     }
+
+    // Also load level configurations from a file with the same path but with ".levels.json" suffix.
+    load_levels(filepath + ".levels.json");
+
 
     // Override screen dimensions with native resolution for fullscreen mode.
     SDL_DisplayMode dm;
@@ -149,8 +199,24 @@ int Config::getScreenHeight() const {
     return screen_height;
 }
 
+int Config::getObstacleSpeed() const {
+    return obstacle_speed;
+}
+
 int Config::getBaseCheckpointGap() const {
     return base_checkpoint_gap;
+}
+
+int Config::getPlayerSizeChangeAmount() const {
+    return player_size_change_amount;
+}
+
+int Config::getScorePerCheckpoint() const {
+    return score_per_checkpoint;
+}
+
+int Config::getCheckpointsPerLevel() const {
+    return checkpoints_per_level;
 }
 
 Uint32 Config::getSpawnInterval() const {
@@ -199,4 +265,12 @@ int Config::getPlayerHeight() const {
 
 int Config::getPlayerSpeed() const {
     return player_speed;
+}
+
+const LevelConfig* Config::getLevelConfig(int level) const {
+    auto it = level_configs_.find(level);
+    if (it != level_configs_.end()) {
+        return &it->second;
+    }
+    return nullptr;
 }

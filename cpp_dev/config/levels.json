@@ -1,0 +1,21 @@
+{
+    "levels": {
+        "1": {
+            "obstacle_speed": 4,
+            "spawn_interval_ms": 1500,
+            "base_checkpoint_gap": 120
+        },
+        "2": {
+            "obstacle_speed": 6,
+            "spawn_interval_ms": 1000,
+            "base_checkpoint_gap": 100
+        },
+        "3": {
+            "obstacle_speed": 8,
+            "spawn_interval_ms": 800
+        },
+        "4": {
+            "obstacle_speed": 10
+        }
+    }
+}

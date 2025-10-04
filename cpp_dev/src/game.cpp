@@ -114,9 +114,9 @@ int main(int argc, char* argv[]) {
             }
 
             if (collision_detected) {
-                it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running);
+                it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running, game_state.config.getPlayerSizeChangeAmount());
             } else {
-                handleCheckpointPassing(game_state.player, *it, game_state.score, game_state.level, game_state.checkpoints_passed);
+                handleCheckpointPassing(game_state.player, *it, game_state);
                 ++it;
             }
             if (!game_state.running) break; // Exit loop immediately if game is over

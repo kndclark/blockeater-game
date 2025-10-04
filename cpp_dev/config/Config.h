@@ -6,6 +6,8 @@
 #include "../src/Color.h"
 #include "../src/Obstacle.h" // For ObstacleType, and dimension structs
 
+struct LevelConfig; // Forward declaration
+
 class Config {
 public:
     // Default constructor: loads from a standard path relative to the executable.
@@ -20,8 +22,12 @@ public:
     int getTargetFps() const;
     int getScreenWidth() const;
     int getScreenHeight() const;
+    int getObstacleSpeed() const;
     int getBaseCheckpointGap() const;
     Uint32 getSpawnInterval() const;
+    int getPlayerSizeChangeAmount() const;
+    int getScorePerCheckpoint() const;
+    int getCheckpointsPerLevel() const;
     Uint32 getCheckpointInterval() const;
     int getGrowChance() const;
     int getShrinkChance() const;
@@ -33,17 +39,24 @@ public:
     int getPlayerWidth() const;
     int getPlayerHeight() const;
     int getPlayerSpeed() const;
+    const LevelConfig* getLevelConfig(int level) const;
 
 private:
     void load_from_path(const std::string& filepath);
+    void load_levels(const std::string& filepath);
     void load_defaults();
 
     Color playerColor;
+    std::map<int, LevelConfig> level_configs_;
     std::map<ObstacleType, Color> obstacleColors;
     int target_fps;
     int screen_width;
     int screen_height;
+    int obstacle_speed;
     int base_checkpoint_gap;
+    int player_size_change_amount;
+    int score_per_checkpoint;
+    int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
     int grow_chance_percent;

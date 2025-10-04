@@ -15,7 +15,7 @@ endif
 
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs)
-SRC = src/game.cpp config/Config.cpp
+SRC = src/game.cpp config/Config.cpp src/GameState.cpp src/GameLogic.cpp
 BIN = build/game
 
 all: $(BIN)

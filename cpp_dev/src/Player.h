@@ -32,13 +32,13 @@ struct Player {
     // Updates the player's state, like managing dash timers.
     void update() {
         // End the dash after its duration has passed
-        if (is_dashing && (SDL_GetTicks() - dash_start_time > DASH_DURATION_MS)) {
+        if (is_dashing && (SDL_GetTicks() - dash_start_time >= DASH_DURATION_MS)) {
             is_dashing = false;
             on_cooldown = true;
             dash_cooldown_start_time = SDL_GetTicks();
         }
         // End the cooldown after its duration has passed
-        if (on_cooldown && (SDL_GetTicks() - dash_cooldown_start_time > DASH_COOLDOWN_MS)) {
+        if (on_cooldown && (SDL_GetTicks() - dash_cooldown_start_time >= DASH_COOLDOWN_MS)) {
             on_cooldown = false;
         }
     }
