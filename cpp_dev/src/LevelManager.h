@@ -11,6 +11,8 @@
 /// for the current level.
 class LevelManager {
 public:
+    static const int MAX_LEVEL = 10;
+
     LevelManager(const Config& base_config)
         : base_config_(base_config),
           effective_spawn_interval_(base_config.getSpawnInterval()),
