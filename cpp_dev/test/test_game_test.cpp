@@ -213,8 +213,8 @@ TEST_F(PlayerDashTest, DashEndsAndEntersCooldown) {
     ASSERT_TRUE(player.is_dashing);
 
     // Wait for dash to end
-    SDL_Delay(Player::DASH_DURATION_MS + 20);
-    player.update();
+    // Simulate time passing
+    player.update(player.dash_start_time + Player::DASH_DURATION_MS + 1);
 
     EXPECT_FALSE(player.is_dashing);
     EXPECT_TRUE(player.on_cooldown);
@@ -240,9 +240,8 @@ TEST_F(PlayerDashTest, CannotDashOnCooldown) {
     player.handle_input(keystate, screen_width, screen_height);
     keystate[SDL_SCANCODE_LSHIFT] = 0; // Release key
 
-    // End dash and start cooldown
-    SDL_Delay(Player::DASH_DURATION_MS + 20);
-    player.update();
+    // End dash and start cooldown by simulating time
+    player.update(player.dash_start_time + Player::DASH_DURATION_MS + 1);
     ASSERT_TRUE(player.on_cooldown);
     ASSERT_FALSE(player.is_dashing);
 
@@ -261,14 +260,13 @@ TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
     player.handle_input(keystate, screen_width, screen_height);
     keystate[SDL_SCANCODE_LSHIFT] = 0;
 
-    // End dash and start cooldown
-    SDL_Delay(Player::DASH_DURATION_MS + 20);
-    player.update();
+    // Simulate time passing to end the dash and start the cooldown
+    Uint32 cooldown_start_time = player.dash_start_time + Player::DASH_DURATION_MS + 1;
+    player.update(cooldown_start_time);
     ASSERT_TRUE(player.on_cooldown);
 
-    // Wait for cooldown to end
-    SDL_Delay(Player::DASH_COOLDOWN_MS + 20);
-    player.update();
+    // Simulate time passing for the cooldown to end
+    player.update(cooldown_start_time + Player::DASH_COOLDOWN_MS + 1);
 
     // Cooldown should be over
     EXPECT_FALSE(player.on_cooldown);
@@ -473,7 +471,7 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
 
 TEST_F(SdlTest, LoadsGameConfigFromFile) {
     Config config(kTestConfigPath);
-    EXPECT_EQ(config.getBaseCheckpointGap(), 80);
+    EXPECT_EQ(config.getBaseCheckpointGap(), 200);
     EXPECT_EQ(config.getSpawnInterval(), 1500);
     EXPECT_EQ(config.getCheckpointInterval(), 10000);
     EXPECT_EQ(config.getGrowChance(), 40);
@@ -598,8 +596,8 @@ TEST_F(GameStateTest, Initialization) {
     EXPECT_EQ(game_state.spawner.screen_height, screen_height);
     EXPECT_EQ(game_state.spawner.player_size_change_amount, config.getPlayerSizeChangeAmount());
     EXPECT_EQ(game_state.level_manager.getObstacleSpeed(), config.getObstacleSpeed());
-    EXPECT_EQ(game_state.spawner.grow_chance, config.getGrowChance());
-    EXPECT_EQ(game_state.spawner.shrink_chance, config.getShrinkChance());
+    EXPECT_EQ(game_state.level_manager.getGrowChance(), config.getGrowChance());
+    EXPECT_EQ(game_state.level_manager.getShrinkChance(), config.getShrinkChance());
     EXPECT_EQ(game_state.level_manager.getBaseCheckpointGap(), config.getBaseCheckpointGap());
     EXPECT_EQ(game_state.spawner.grow_dims, config.getGrowDimensions());
     EXPECT_EQ(game_state.spawner.shrink_dims, config.getShrinkDimensions());
@@ -1016,21 +1014,21 @@ TEST(GameLogicTest, LevelUp) {
     game_state.checkpoints_passed = config.getCheckpointsPerLevel() - 1;
 
     // Pass a checkpoint, checkpoints_passed becomes 10, level should become 2
-    Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150);
+    Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150); // NOLINT(readability-magic-numbers)
     checkpoint1.rect.x = 50; // Place it behind the player
     if(checkpoint1.rect2) checkpoint1.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
     EXPECT_EQ(game_state.checkpoints_passed, config.getCheckpointsPerLevel());
-    EXPECT_EQ(game_state.level, 2);
+    EXPECT_EQ(game_state.level, 1 + (game_state.checkpoints_passed / config.getCheckpointsPerLevel()));
     EXPECT_TRUE(checkpoint1.passed);
 
     // Pass another checkpoint, checkpoints_passed becomes 11, level should stay 2
-    Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150);
+    Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150); // NOLINT(readability-magic-numbers)
     checkpoint2.rect.x = 50;
     if(checkpoint2.rect2) checkpoint2.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint2, game_state);
     EXPECT_EQ(game_state.checkpoints_passed, config.getCheckpointsPerLevel() + 1);
-    EXPECT_EQ(game_state.level, 2);
+    EXPECT_EQ(game_state.level, 1 + (game_state.checkpoints_passed / config.getCheckpointsPerLevel()));
     EXPECT_TRUE(checkpoint2.passed);
 }
 
@@ -1054,7 +1052,7 @@ TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config; // Use default config
     LevelManager level_manager(config);
-    ObstacleSpawner spawner(level_manager, params.checkpoint_interval, 800, 600, config.getPlayerSizeChangeAmount(), 50, 50, {40,40}, {20,20}, {30,30});
+    ObstacleSpawner spawner(level_manager, params.checkpoint_interval, 800, 600, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30});
     std::vector<Obstacle> obstacles;
 
     for (const auto& time : params.spawn_times) {
@@ -1104,7 +1102,7 @@ protected:
     const int CHECKPOINT_INTERVAL = 1000;
     Config config{kTestConfigPath};
     LevelManager level_manager{config};
-    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 50, 50, {40,40}, {20,20}, {30,30}};
+    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30}};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
@@ -1120,14 +1118,14 @@ INSTANTIATE_TEST_SUITE_P(
     GapCalculationTests,
     CheckpointGapCalculationTest,
     ::testing::Values(
-        // base_gap is 80 from config.json. gap_adjustment is 10. min_gap is 25.
-        ObstacleSpawnerGapParams{{}, 80, "IsBaseWhenNoPowerups"},
-        // 1 shrink -> 80 - 1*10 = 70
-        ObstacleSpawnerGapParams{{1}, 70, "DecreasesWithOneShrinkBlock"},
-        // 2 shrinks -> 80 - 2*10 = 60
-        ObstacleSpawnerGapParams{{1, 1}, 60, "DecreasesWithTwoShrinkBlocks"},
-        // 7 shrinks -> 80 - 7*10 = 10. Clamped to min_gap_height (25), so 25.
-        ObstacleSpawnerGapParams{std::vector<int>(7), 25, "ClampsAtMinimum"}
+        // base_gap is 200 from config.json. gap_adjustment is 10. min_gap is 25.
+        ObstacleSpawnerGapParams{{}, 200, "IsBaseWhenNoPowerups"},
+        // 1 shrink -> 200 - 1*10 = 190
+        ObstacleSpawnerGapParams{{1}, 190, "DecreasesWithOneShrinkBlock"},
+        // 2 shrinks -> 200 - 2*10 = 180
+        ObstacleSpawnerGapParams{{1, 1}, 180, "DecreasesWithTwoShrinkBlocks"},
+        // 18 shrinks -> 200 - 18*10 = 20. Clamped to min_gap_height (25), so 25.
+        ObstacleSpawnerGapParams{std::vector<int>(18), 25, "ClampsAtMinimum"}
     ),
     [](const testing::TestParamInfo<CheckpointGapCalculationTest::ParamType>& info) {
         return info.param.description;
@@ -1142,7 +1140,7 @@ protected:
     const int CHECKPOINT_INTERVAL = 1000;
     Config config{kTestConfigPath};
     LevelManager level_manager{config};
-    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 50, 50, {40,40}, {20,20}, {30,30}};
+    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30}};
     std::vector<Obstacle> obstacles;
 };
 

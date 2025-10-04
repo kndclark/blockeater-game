@@ -14,8 +14,6 @@ GameState::GameState(const Config& config, int screen_width, int screen_height)
               screen_width,                                           // screen width
               screen_height,                                          // screen height
               config.getPlayerSizeChangeAmount(),
-              config.getGrowChance(),
-              config.getShrinkChance(),
               config.getGrowDimensions(),                             // dimensions for grow blocks
               config.getShrinkDimensions(),                           // dimensions for shrink blocks
               config.getHurtDimensions()

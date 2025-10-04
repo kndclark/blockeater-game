@@ -58,7 +58,7 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, std::vector<Obstacle>
     // Only spawn a regular obstacle if a checkpoint was not spawned.
     else if (current_time >= last_spawn_time + level_manager.getSpawnInterval()) {
         last_spawn_time = current_time;
-        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(), grow_chance, shrink_chance, grow_dims, shrink_dims, hurt_dims);
+        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(), level_manager.getGrowChance(), level_manager.getShrinkChance(), grow_dims, shrink_dims, hurt_dims);
         if (new_obstacle.type == ObstacleType::Shrink) {
             shrink_powerups_since_checkpoint.push_back(1);
         }

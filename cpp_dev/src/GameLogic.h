@@ -27,20 +27,17 @@ struct ObstacleSpawner {
     const int screen_width;
     const int screen_height;
     const int player_size_change_amount;
-    const int grow_chance;
-    const int shrink_chance;
     const ObstacleSize grow_dims;
     const ObstacleSize shrink_dims;
     const ObstacleSize hurt_dims;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
-    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, int width, int height, int size_change, int grow, int shrink,
+    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, int width, int height, int size_change,
                       ObstacleSize gd, ObstacleSize sd, ObstacleSize hd)
         : level_manager(lm), checkpoint_spawn_interval(checkpoint_int),
           screen_width(width), screen_height(height),
           player_size_change_amount(size_change),
-          grow_chance(grow), shrink_chance(shrink),
           grow_dims(gd), shrink_dims(sd), hurt_dims(hd) {}
     
     // Calculates the gap size for the next checkpoint based on power-ups collected.

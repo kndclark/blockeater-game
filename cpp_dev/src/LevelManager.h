@@ -47,6 +47,9 @@ public:
         effective_grow_chance_ = level_cfg->grow_chance_percent.value_or(base_config_.getGrowChance());
         effective_shrink_chance_ = level_cfg->shrink_chance_percent.value_or(base_config_.getShrinkChance());
         effective_base_checkpoint_gap_ = level_cfg->base_checkpoint_gap.value_or(base_config_.getBaseCheckpointGap());
+        // Note: We assume the chances in the config sum to 100. The base config validates this,
+        // but per-level overrides currently do not. The logic in determineObstacleType handles it gracefully.
+        effective_hurt_chance_ = level_cfg->hurt_chance_percent.value_or(base_config_.getHurtChance());
     }
 
     Uint32 getSpawnInterval() const { return effective_spawn_interval_; }
@@ -54,6 +57,7 @@ public:
     int getGrowChance() const { return effective_grow_chance_; }
     int getShrinkChance() const { return effective_shrink_chance_; }
     int getBaseCheckpointGap() const { return effective_base_checkpoint_gap_; }
+    int getHurtChance() const { return effective_hurt_chance_; }
 
 private:
     const Config& base_config_;
@@ -61,5 +65,6 @@ private:
     int effective_obstacle_speed_;
     int effective_grow_chance_;
     int effective_shrink_chance_;
+    int effective_hurt_chance_;
     int effective_base_checkpoint_gap_;
 };

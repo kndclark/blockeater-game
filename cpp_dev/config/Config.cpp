@@ -37,6 +37,15 @@ void from_json(const json& j, LevelConfig& lc) {
     if (j.contains("base_checkpoint_gap")) {
         lc.base_checkpoint_gap = j.at("base_checkpoint_gap").get<int>();
     }
+    if (j.contains("grow_chance_percent")) {
+        lc.grow_chance_percent = j.at("grow_chance_percent").get<int>();
+    }
+    if (j.contains("shrink_chance_percent")) {
+        lc.shrink_chance_percent = j.at("shrink_chance_percent").get<int>();
+    }
+    if (j.contains("hurt_chance_percent")) {
+        lc.hurt_chance_percent = j.at("hurt_chance_percent").get<int>();
+    }
 }
 
 void Config::load_defaults() {
