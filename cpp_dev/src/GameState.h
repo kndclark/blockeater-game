@@ -13,6 +13,8 @@ struct GameState {
     Player player;
     std::vector<Obstacle> obstacles;
     int score = 0;
+    int level = 1;
+    int checkpoints_passed = 0;
     ObstacleSpawner spawner;
 
     // Create vectors to hold rectangles for batch drawing. Reusing these vectors

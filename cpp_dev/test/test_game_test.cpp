@@ -912,8 +912,10 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     }
     obstacle.passed = params.obstacle_initially_passed;
     int score = params.initial_score;
+    int checkpoints_passed = 0;
+    int level = 1; // Dummy level for this test
 
-    handleCheckpointPassing(player, obstacle, score);
+    handleCheckpointPassing(player, obstacle, score, level, checkpoints_passed);
 
     EXPECT_EQ(score, params.expected_score);
     EXPECT_EQ(obstacle.passed, params.expected_passed_state);
@@ -931,7 +933,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         CheckpointPassingParams{100, 121, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerBeforeCheckpoint"},
         CheckpointPassingParams{121, 100, false, 0, 10, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"},
-        CheckpointPassingParams{122, 100, false, 10, 20, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
+        CheckpointPassingParams{122, 100, false, 10, 10 + SCORE_PER_CHECKPOINT, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
         CheckpointPassingParams{121, 100, true, 10, 10, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
         CheckpointPassingParams{100, 100, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerAtCheckpointEdge"},
         CheckpointPassingParams{121, 100, false, 0, 0, false, ObstacleType::Hurt, "DoesNotAffectNonCheckpoints"}
@@ -940,6 +942,31 @@ INSTANTIATE_TEST_SUITE_P(
         return info.param.description;
     }
 );
+
+TEST(GameLogicTest, LevelUp) {
+    Player player(100, 100, 40, 40, 5, {0,0,0,0});
+    int score = 0;
+    int checkpoints_passed = CHECKPOINTS_PER_LEVEL - 1;
+    int level = 1;
+
+    // Pass a checkpoint, checkpoints_passed becomes 10, level should become 2
+    Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150);
+    checkpoint1.rect.x = 50; // Place it behind the player
+    if(checkpoint1.rect2) checkpoint1.rect2->x = 50;
+    handleCheckpointPassing(player, checkpoint1, score, level, checkpoints_passed);
+    EXPECT_EQ(checkpoints_passed, CHECKPOINTS_PER_LEVEL);
+    EXPECT_EQ(level, 2);
+    EXPECT_TRUE(checkpoint1.passed);
+
+    // Pass another checkpoint, checkpoints_passed becomes 11, level should stay 2
+    Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150);
+    checkpoint2.rect.x = 50;
+    if(checkpoint2.rect2) checkpoint2.rect2->x = 50;
+    handleCheckpointPassing(player, checkpoint2, score, level, checkpoints_passed);
+    EXPECT_EQ(checkpoints_passed, CHECKPOINTS_PER_LEVEL + 1);
+    EXPECT_EQ(level, 2);
+    EXPECT_TRUE(checkpoint2.passed);
+}
 
 // --- Obstacle Spawner Test ---
 struct ObstacleSpawnerParams {

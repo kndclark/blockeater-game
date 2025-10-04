@@ -10,6 +10,8 @@
 #include "Player.h"   // For Player
 
 const int PLAYER_SIZE_CHANGE_AMOUNT = 10;
+const int SCORE_PER_CHECKPOINT = 10;
+const int CHECKPOINTS_PER_LEVEL = 10;
 
 /// Handles the game logic for a collision between the player and an obstacle.
 /// @return The iterator to the next element to be processed.
@@ -110,14 +112,20 @@ struct ObstacleSpawner {
 };
 
 // Handles scoring when a player passes a checkpoint.
-inline void handleCheckpointPassing(Player& player, Obstacle& obstacle, int& score) {
+inline void handleCheckpointPassing(Player& player, Obstacle& obstacle, int& score, int& level, int& checkpoints_passed) {
     if (obstacle.type == ObstacleType::Checkpoint && !obstacle.passed) {
         // Check if the player's front has passed the obstacle's back
         if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
             obstacle.passed = true;
-            score += 10;
+            score += SCORE_PER_CHECKPOINT;
+            checkpoints_passed++;
             player.resetSize();
-            SDL_Log("Checkpoint passed! Score: %d. Player size reset.", score);
+            // Level up every CHECKPOINTS_PER_LEVEL checkpoints
+            if (checkpoints_passed > 0 && checkpoints_passed % CHECKPOINTS_PER_LEVEL == 0) {
+                level++;
+                SDL_Log("Level up! You are now level %d.", level);
+            }
+            SDL_Log("Checkpoint passed! Score: %d. Level: %d. Checkpoints: %d. Player size reset.", score, level, checkpoints_passed);
         }
     }
 }
