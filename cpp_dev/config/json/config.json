@@ -1,0 +1,39 @@
+{
+  "colors": {
+    "player": { "r": 128, "g": 0, "b": 128, "a": 255 },
+    "obstacle_hurt": { "r": 255, "g": 50, "b": 50, "a": 255 },
+    "obstacle_grow": { "r": 50, "g": 200, "b": 50, "a": 255 },
+    "obstacle_shrink": { "r": 255, "g": 165, "b": 0, "a": 255 },
+    "obstacle_checkpoint": { "r": 100, "g": 100, "b": 200, "a": 255 }
+  },
+  "settings": {
+    "target_fps": 60,
+    "screen_width": 640,
+    "screen_height": 480
+  },
+  "game": {
+    "obstacle_speed": 3,
+    "base_checkpoint_gap": 200,
+    "spawn_interval_ms": 1500,
+    "player_size_change_amount": 10,
+    "score_per_checkpoint": 10,
+    "checkpoints_per_level": 1,
+    "checkpoint_interval_ms": 10000,
+    "obstacle_spawn_chances": {
+      "grow": 40,
+      "shrink": 40,
+      "hurt": 20
+    },
+    "obstacle_dimensions": {
+      "grow": { "w": 50, "h": 50 },
+      "shrink": { "w": 10, "h": 10 },
+      "hurt": { "w": 30, "h": 30 }
+    },
+    "player": {
+      "initial_x": 100,
+      "width": 40,
+      "height": 40,
+      "speed": 5
+    }
+  }
+}

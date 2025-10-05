@@ -6,8 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Add source files
-file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp")
-file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../config/*.cpp")
+set(TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gamelogic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gamestate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_obstacle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_player.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_levelmanager.cpp)
 
 # Exclude the main game entry point from the test build to avoid a "multiple definition of main" error.
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/game.cpp")
@@ -16,12 +23,20 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/game.cpp")
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
+# Add path for project headers and third-party libraries
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../config)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../third_party)
+
 # Find GoogleTest
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(test_game_test ${TEST_SOURCES} ${SOURCES})
 target_link_libraries(test_game_test PRIVATE SDL2::SDL2 GTest::gtest GTest::gtest_main)
+
+# Add a compile definition to identify test builds
+target_compile_definitions(test_game_test PRIVATE IS_TEST_BUILD)
 
 # Enable warnings
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
