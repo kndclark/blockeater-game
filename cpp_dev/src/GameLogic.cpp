@@ -49,16 +49,26 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, std::vector<Obstacle>
         // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
         last_spawn_time = current_time;
 
-        int final_gap_height = calculateCheckpointGapSize();
-        obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), final_gap_height));
+        int gap_height = calculateCheckpointGapSize();
+        int gap_y;
+        obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, gap_y));
+        last_checkpoint_gap_y = {{gap_y, gap_height}};
 
         // Reset the trackers for the next interval.
         shrink_powerups_since_checkpoint.clear();
     }
     // Only spawn a regular obstacle if a checkpoint was not spawned.
     else if (current_time >= last_spawn_time + level_manager.getSpawnInterval()) {
+        // If we are outside the safe zone duration, clear the gap information
+        // so the next obstacle can spawn anywhere.
+        if (last_checkpoint_gap_y.has_value() && current_time > last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
+            last_checkpoint_gap_y.reset();
+        }
+
         last_spawn_time = current_time;
-        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(), level_manager.getGrowChance(), level_manager.getShrinkChance(), grow_dims, shrink_dims, hurt_dims);
+        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
+                                                      level_manager.getGrowChance(), level_manager.getShrinkChance(),
+                                                      grow_dims, shrink_dims, hurt_dims, last_checkpoint_gap_y);
         if (new_obstacle.type == ObstacleType::Shrink) {
             shrink_powerups_since_checkpoint.push_back(1);
         }
@@ -120,5 +130,97 @@ void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& o
         Color c = config.getObstacleColor(ObstacleType::Checkpoint);
         SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
         SDL_RenderFillRects(renderer, checkpoint_rects.data(), static_cast<int>(checkpoint_rects.size()));
+    }
+}
+
+/// @brief Processes all pending SDL events and player keyboard input.
+/// @param game_state The current state of the game. Will be modified if a quit event is detected.
+/// @param SCREEN_WIDTH The width of the screen for boundary checks.
+/// @param SCREEN_HEIGHT The height of the screen for boundary checks.
+void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREEN_HEIGHT) {
+    SDL_Event event;
+    // Process all pending events in SDL's event queue.
+    while (SDL_PollEvent(&event)) {
+        // Check if the event is a request to quit the application.
+        if (event.type == SDL_QUIT) {
+            game_state.running = false;
+        }
+    }
+
+    // Handle player movement from keyboard state
+    const Uint8* keystate = SDL_GetKeyboardState(NULL);
+    game_state.player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
+}
+
+/// @brief Updates the state of all game objects and handles game logic.
+/// @param game_state The current state of the game to be updated.
+void updateGame(GameState& game_state) {
+    Uint32 current_time = SDL_GetTicks();
+
+    // Update player state (e.g., for dash cooldown)
+    game_state.player.update(current_time);
+
+    game_state.spawner.spawn_obstacles(current_time, game_state.obstacles);
+
+    // Update obstacle positions and remove off-screen ones
+    Obstacle::updateAndRemove(game_state.obstacles);
+
+    // Collision detection and game logic
+    for (auto it = game_state.obstacles.begin(); it != game_state.obstacles.end(); ) {
+        bool collision_detected = SDL_HasIntersection(&game_state.player.rect, &it->rect);
+        // For checkpoints, check collision with the second rectangle as well.
+        if (it->rect2) {
+            collision_detected = collision_detected || SDL_HasIntersection(&game_state.player.rect, &*(it->rect2));
+        }
+
+        if (collision_detected) {
+            it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running, game_state.config.getPlayerSizeChangeAmount());
+        } else {
+            handleCheckpointPassing(game_state.player, *it, game_state); // This can change game_state.level
+            ++it;
+        }
+        if (!game_state.running) break; // Exit loop immediately if game is over
+    }
+}
+
+/// @brief Renders all game objects to the screen.
+/// @param renderer The SDL renderer to draw with.
+/// @param game_state The current state of the game to be rendered.
+/// @param config The game configuration, needed for rendering details.
+void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config) { // NOLINT(readability-non-const-parameter)
+    // Clear the screen with a dark gray color
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
+    // Create temporary vectors for batch rendering. These are cleared and refilled each frame.
+    std::vector<SDL_Rect> hurt_rects;
+    std::vector<SDL_Rect> grow_rects;
+    std::vector<SDL_Rect> shrink_rects;
+    std::vector<SDL_Rect> checkpoint_rects;
+
+    // Batch render all obstacles
+    batchRenderObstacles(renderer, game_state.obstacles, config, hurt_rects, grow_rects, shrink_rects, checkpoint_rects);
+
+    // Draw the player
+    game_state.player.draw(renderer);
+
+    // Present the back buffer to the screen
+    SDL_RenderPresent(renderer);
+}
+
+/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
+/// @param game_state The current state of the game to be updated.
+/// @param config The game configuration.
+void gameLoopIteration(GameState& game_state, const Config& config) {
+    processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
+
+    updateGame(game_state);
+
+    // Only check for victory if the game is still running after the update phase
+    if (game_state.running) {
+        if (game_state.level > LevelManager::MAX_LEVEL) {
+            SDL_Log("VICTORY! You have completed all levels!");
+            game_state.running = false; // End the game
+        }
     }
 }

@@ -11,6 +11,7 @@ GameState::GameState(const Config& config, int screen_width, int screen_height)
       level_manager(config),                                          // must be initialized before spawner
       spawner(level_manager,
               config.getCheckpointInterval(),
+              config.getCheckpointSafeZoneDuration(),
               screen_width,                                           // screen width
               screen_height,                                          // screen height
               config.getPlayerSizeChangeAmount(),

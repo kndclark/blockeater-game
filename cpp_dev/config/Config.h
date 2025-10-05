@@ -40,6 +40,7 @@ public:
     int getScorePerCheckpoint() const;
     int getCheckpointsPerLevel() const;
     Uint32 getCheckpointInterval() const;
+    Uint32 getCheckpointSafeZoneDuration() const;
     int getGrowChance() const;
     int getShrinkChance() const;
     int getHurtChance() const;
@@ -70,6 +71,7 @@ private:
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
+    Uint32 checkpoint_safe_zone_duration_ms;
     int grow_chance_percent;
     int shrink_chance_percent;
     int hurt_chance_percent;

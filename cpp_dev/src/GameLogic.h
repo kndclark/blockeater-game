@@ -10,8 +10,8 @@
 #include "Player.h"   // For Player
 #include "LevelManager.h"
 
-struct GameState; // Forward declaration
-
+struct GameState; // Forward declaration needed for handleCheckpointPassing
+class Config;     // Forward declaration for batchRenderObstacles
 /// Handles the game logic for a collision between the player and an obstacle.
 /// @return The iterator to the next element to be processed.
 std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running, int player_size_change_amount);
@@ -23,6 +23,8 @@ struct ObstacleSpawner {
     Uint32 last_spawn_time = 0;
     Uint32 last_checkpoint_spawn_time = 0;
     const Uint32 checkpoint_spawn_interval;
+    const Uint32 checkpoint_safe_zone_duration;
+    std::optional<std::pair<int, int>> last_checkpoint_gap_y;
 
     const int screen_width;
     const int screen_height;
@@ -33,9 +35,9 @@ struct ObstacleSpawner {
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
-    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, int width, int height, int size_change,
-                      ObstacleSize gd, ObstacleSize sd, ObstacleSize hd)
-        : level_manager(lm), checkpoint_spawn_interval(checkpoint_int),
+    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, Uint32 safe_zone_duration,
+                      int width, int height, int size_change, const ObstacleSize& gd, const ObstacleSize& sd, const ObstacleSize& hd)
+        : level_manager(lm), checkpoint_spawn_interval(checkpoint_int), checkpoint_safe_zone_duration(safe_zone_duration),
           screen_width(width), screen_height(height),
           player_size_change_amount(size_change),
           grow_dims(gd), shrink_dims(sd), hurt_dims(hd) {}
@@ -84,3 +86,15 @@ inline void prepareObstacleBatches(const std::vector<Obstacle>& obstacles,
 void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& obstacles, const Config& config,
                                  std::vector<SDL_Rect>& hurt_rects, std::vector<SDL_Rect>& grow_rects, std::vector<SDL_Rect>& shrink_rects,
                                  std::vector<SDL_Rect>& checkpoint_rects);
+
+/// @brief Processes all pending SDL events and player keyboard input.
+void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREEN_HEIGHT);
+
+/// @brief Updates the state of all game objects and handles game logic.
+void updateGame(GameState& game_state);
+
+/// @brief Renders all game objects to the screen.
+void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
+
+/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
+void gameLoopIteration(GameState& game_state, const Config& config);

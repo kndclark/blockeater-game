@@ -33,14 +33,14 @@ protected:
 // A test fixture for tests that create temporary files.
 class ConfigFileTest : public SdlTest {
 protected:
-    const std::string test_levels_filename = "base_config.json.levels.json";
     const std::string malformed_filename = "malformed.json";
     const std::string partial_filename = "partial.json";
+    const std::string invalid_chances_filename = "invalid_chances.json";
 
     void TearDown() override {
         std::remove(malformed_filename.c_str());
         std::remove(partial_filename.c_str());
+        std::remove(invalid_chances_filename.c_str());
         SdlTest::TearDown();
-        std::remove(test_levels_filename.c_str());
     }
 };

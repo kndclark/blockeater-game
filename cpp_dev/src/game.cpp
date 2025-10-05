@@ -1,85 +1,10 @@
 // Simple 2D game window using SDL2
 #include <SDL2/SDL.h>
 #include <memory>  // For std::unique_ptr
-#include <cstdlib> // For rand() and srand()
 #include <ctime>   // For time()
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
-
-/// @brief Processes all pending SDL events and player keyboard input.
-/// @param game_state The current state of the game. Will be modified if a quit event is detected.
-/// @param SCREEN_WIDTH The width of the screen for boundary checks.
-/// @param SCREEN_HEIGHT The height of the screen for boundary checks.
-void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREEN_HEIGHT) {
-    SDL_Event event;
-    // Process all pending events in SDL's event queue.
-    while (SDL_PollEvent(&event)) {
-        // Check if the event is a request to quit the application.
-        if (event.type == SDL_QUIT) {
-            game_state.running = false;
-        }
-    }
-
-    // Handle player movement from keyboard state
-    const Uint8* keystate = SDL_GetKeyboardState(NULL);
-    game_state.player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
-}
-
-/// @brief Updates the state of all game objects and handles game logic.
-/// @param game_state The current state of the game to be updated.
-void updateGame(GameState& game_state) {
-    Uint32 current_time = SDL_GetTicks();
-
-    // Update player state (e.g., for dash cooldown)
-    game_state.player.update(current_time);
-
-    game_state.spawner.spawn_obstacles(current_time, game_state.obstacles);
-
-    // Update obstacle positions and remove off-screen ones
-    Obstacle::updateAndRemove(game_state.obstacles);
-
-    // Collision detection and game logic
-    for (auto it = game_state.obstacles.begin(); it != game_state.obstacles.end(); ) {
-        bool collision_detected = SDL_HasIntersection(&game_state.player.rect, &it->rect);
-        // For checkpoints, check collision with the second rectangle as well.
-        if (it->rect2) {
-            collision_detected = collision_detected || SDL_HasIntersection(&game_state.player.rect, &*(it->rect2));
-        }
-
-        if (collision_detected) {
-            it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running, game_state.config.getPlayerSizeChangeAmount());
-        } else {
-            int old_level = game_state.level;
-            handleCheckpointPassing(game_state.player, *it, game_state); // This can change game_state.level
-            if (game_state.level > old_level && old_level == LevelManager::MAX_LEVEL) {
-                SDL_Log("VICTORY! You have completed all levels!");
-                game_state.running = false; // End the game
-            }
-            ++it;
-        }
-        if (!game_state.running) break; // Exit loop immediately if game is over
-    }
-}
-
-/// @brief Renders all game objects to the screen.
-/// @param renderer The SDL renderer to draw with.
-/// @param game_state The current state of the game to be rendered.
-/// @param config The game configuration, needed for rendering details.
-void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config) {
-    // Clear the screen with a dark gray color
-    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-    SDL_RenderClear(renderer);
-
-    // Batch render all obstacles
-    batchRenderObstacles(renderer, game_state.obstacles, config, game_state.hurt_rects, game_state.grow_rects, game_state.shrink_rects, game_state.checkpoint_rects);
-
-    // Draw the player
-    game_state.player.draw(renderer);
-
-    // Present the back buffer to the screen
-    SDL_RenderPresent(renderer);
-}
 
 int main(int argc, char* argv[]) {
     struct SdlDeleter {
@@ -140,15 +65,11 @@ int main(int argc, char* argv[]) {
     Uint32 frame_start_time;
 
     // --- Main Game Loop ---
-    SDL_Event event;     // A variable to store event data (e.g., keyboard, mouse, window events).
-
     // The game will continue to run as long as this 'running' flag is true.
     while (game_state.running) {
         frame_start_time = SDL_GetTicks();
 
-        processInput(game_state, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-        updateGame(game_state);
+        gameLoopIteration(game_state, config);
 
         // Only render if the game is still running after the update phase
         if (game_state.running) {

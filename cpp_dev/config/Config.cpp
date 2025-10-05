@@ -67,6 +67,7 @@ void Config::load_defaults() {
     checkpoints_per_level = 10;
     spawn_interval_ms = 1500;
     checkpoint_interval_ms = 10000;
+    checkpoint_safe_zone_duration_ms = 500;
     grow_chance_percent = 40;
     shrink_chance_percent = 40;
     hurt_chance_percent = 20;
@@ -150,6 +151,7 @@ void Config::load_from_path(const std::string& filepath) {
             checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
             obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
             spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
+            checkpoint_safe_zone_duration_ms = data.value("/game/checkpoint_safe_zone_duration_ms"_json_pointer, 500);
             checkpoint_interval_ms = data.value("/game/checkpoint_interval_ms"_json_pointer, 10000);
             grow_chance_percent = data.value("/game/obstacle_spawn_chances/grow"_json_pointer, 40);
             shrink_chance_percent = data.value("/game/obstacle_spawn_chances/shrink"_json_pointer, 40);
@@ -162,10 +164,6 @@ void Config::load_from_path(const std::string& filepath) {
             player_height = data.value("/game/player/height"_json_pointer, 40);
             player_speed = data.value("/game/player/speed"_json_pointer, 5);
 
-            if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
-                throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
-            }
-
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
             load_defaults();
@@ -173,6 +171,10 @@ void Config::load_from_path(const std::string& filepath) {
     } else {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
         load_defaults();
+    }
+
+    if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
+        throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
     }
 
     // Try to load levels.json from the same directory as the main config file.
@@ -244,6 +246,10 @@ Uint32 Config::getSpawnInterval() const {
 
 Uint32 Config::getCheckpointInterval() const {
     return checkpoint_interval_ms;
+}
+
+Uint32 Config::getCheckpointSafeZoneDuration() const {
+    return checkpoint_safe_zone_duration_ms;
 }
 
 int Config::getGrowChance() const {

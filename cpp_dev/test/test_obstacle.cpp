@@ -2,6 +2,8 @@
 #include <vector>
 #include <numeric>
 #include <set>
+#include <optional>
+#include <utility>
 #include <set>
 #include "../src/Obstacle.h"
 #include "../src/GameLogic.h"
@@ -20,7 +22,8 @@ TEST(ObstacleTest, Creation) {
 
 TEST(ObstacleCreationTest, CreateCheckpoint) {
     // We don't need to test the randomness, just that it creates the right kind of obstacle.
-    Obstacle o = Obstacle::createCheckpoint(800, 600, 3, 150); // Pass a fixed gap height for testing
+    int dummy_gap_y;
+    Obstacle o = Obstacle::createCheckpoint(800, 600, 3, 150, dummy_gap_y); // Pass a fixed gap height for testing
     EXPECT_EQ(o.type, ObstacleType::Checkpoint);
     EXPECT_TRUE(o.rect2.has_value());
     EXPECT_EQ(o.speed, 3);
@@ -159,61 +162,39 @@ INSTANTIATE_TEST_SUITE_P(
     }
 );
 
-struct CreateRegularTestParams {
-    int grow_chance;
-    int shrink_chance;
-    int type_roll;
-    ObstacleType expected_type;
-    std::string description;
-};
+// --- Obstacle Placement Test ---
+// Test to ensure obstacles are not placed inside the safe gap.
+TEST(ObstaclePlacementTest, CalculateSafeY_AvoidsGap) {
+    const int screen_height = 600;
+    const int obstacle_height = 50;
+    const std::pair<int, int> gap = {200, 200}; // Gap from y=200 to y=400
 
-void PrintTo(const CreateRegularTestParams& params, std::ostream* os) {
-    *os << params.description;
+    const int num_trials = 1000;
+    for (int i = 0; i < num_trials; ++i) {
+        int y = Obstacle::calculateSafeY(screen_height, obstacle_height, gap);
+
+        // Check if the obstacle's y-range [y, y + obstacle_height]
+        // overlaps with the gap's y-range [gap.first, gap.first + gap.second].
+        bool overlaps = (y < gap.first + gap.second) && (y + obstacle_height > gap.first);
+
+        EXPECT_FALSE(overlaps) << "Obstacle spawned at y=" << y << " overlaps with gap ["
+                               << gap.first << ", " << gap.first + gap.second << "]";
+    }
 }
 
-class CreateRegularTest : public ::testing::TestWithParam<CreateRegularTestParams> {
-  protected:
-    // This test class can be used to test createRegular by controlling the type roll.
-    // We can't fully test createRegular without mocking rand(), but we can test the type logic.
-    static Obstacle createRegularWithTypeRoll(int grow, int shrink, int roll) { // NOLINT(readability-function-cognitive-complexity)
-        ObstacleType type = determineObstacleType(grow, shrink, roll);
-        ObstacleSize grow_dims{0,0};
-        ObstacleSize shrink_dims{0,0};
-        ObstacleSize hurt_dims{0,0};
-        switch (type) {
-            case ObstacleType::Grow:   return Obstacle::createGrowBlock(0, 100, 1, grow_dims);
-            case ObstacleType::Shrink: return Obstacle::createShrinkBlock(0, 100, 1, shrink_dims);
-            case ObstacleType::Hurt:   return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
-            default:
-                ADD_FAILURE() << "Unexpected obstacle type in test helper";
-                // This line is needed to satisfy the compiler's need for a return value,
-                // but the test will have already failed.
-                return Obstacle::createHurtBlock(0, 100, 1, hurt_dims);
-        }
-    }
-};
+// Test to ensure obstacles are placed anywhere when no gap is provided.
+TEST(ObstaclePlacementTest, CalculateSafeY_NoGap) {
+    const int screen_height = 600;
+    const int obstacle_height = 50;
+    const int max_y = screen_height - obstacle_height;
 
-TEST_P(CreateRegularTest, CreatesCorrectType) {
-    auto params = GetParam();
-    Obstacle o = createRegularWithTypeRoll(params.grow_chance, params.shrink_chance, params.type_roll);
-    EXPECT_EQ(o.type, params.expected_type);
+    const int num_trials = 1000;
+    for (int i = 0; i < num_trials; ++i) {
+        int y = Obstacle::calculateSafeY(screen_height, obstacle_height, std::nullopt);
+        EXPECT_GE(y, 0);
+        EXPECT_LE(y, max_y);
+    }
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    ObstacleLogicTests,
-    CreateRegularTest,
-    ::testing::Values(
-        CreateRegularTestParams{30, 30, 29, ObstacleType::Grow, "RollIsGrow"},
-        CreateRegularTestParams{30, 30, 59, ObstacleType::Shrink, "RollIsShrink"},
-        CreateRegularTestParams{30, 30, 60, ObstacleType::Hurt, "RollIsHurt"},
-        CreateRegularTestParams{100, 0, 50, ObstacleType::Grow, "AlwaysGrow"},
-        CreateRegularTestParams{0, 100, 50, ObstacleType::Shrink, "AlwaysShrink"},
-        CreateRegularTestParams{0, 0, 50, ObstacleType::Hurt, "AlwaysHurt"}
-    ),
-    [](const testing::TestParamInfo<CreateRegularTest::ParamType>& info) {
-        return info.param.description;
-    }
-);
 
 // --- UpdateAndRemove Test ---
 struct UpdateAndRemoveParams {

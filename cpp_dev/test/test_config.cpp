@@ -59,6 +59,18 @@ TEST_F(SdlTest, FallbackOnMissingFile) {
     checkConfigScreenResolution(config);
 }
 
+TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
+    // Create a temporary config file with spawn chances that don't sum to 100.
+    std::ofstream invalid_chances_file(invalid_chances_filename);
+    invalid_chances_file << R"({
+        "game": { "obstacle_spawn_chances": { "grow": 10, "shrink": 10, "hurt": 10 } }
+    })";
+    invalid_chances_file.close();
+
+    // Expect a std::runtime_error to be thrown.
+    EXPECT_THROW(Config config(invalid_chances_filename), std::runtime_error);
+}
+
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     // Create a temporary malformed JSON file for the test.
     // This file will be created in the `test/build` directory.

@@ -16,49 +16,49 @@
             "obstacle_speed": 5, "spawn_interval_ms": 1700, "base_checkpoint_gap": 125,
             "grow_chance_percent": 30,
             "shrink_chance_percent": 40, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 8
+            "checkpoints_per_level": 5
         },
         "4": {
             "obstacle_speed": 6, "spawn_interval_ms": 1550, "base_checkpoint_gap": 110,
             "grow_chance_percent": 35,
             "shrink_chance_percent": 35, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 8
+            "checkpoints_per_level": 5
         },
         "5": {
             "obstacle_speed": 7, "spawn_interval_ms": 1400, "base_checkpoint_gap": 105,
             "grow_chance_percent": 40,
             "shrink_chance_percent": 30, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 10
+            "checkpoints_per_level": 5
         },
         "6": {
             "obstacle_speed": 8, "spawn_interval_ms": 1250, "base_checkpoint_gap": 100,
             "grow_chance_percent": 45,
             "shrink_chance_percent": 25, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 10
+            "checkpoints_per_level": 5
         },
         "7": {
             "obstacle_speed": 9, "spawn_interval_ms": 1100, "base_checkpoint_gap": 95,
             "grow_chance_percent": 50,
             "shrink_chance_percent": 20, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 12
+            "checkpoints_per_level": 8
         },
         "8": {
             "obstacle_speed": 10, "spawn_interval_ms": 950, "base_checkpoint_gap": 90,
             "grow_chance_percent": 55,
             "shrink_chance_percent": 15, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 12
+            "checkpoints_per_level": 8
         },
         "9": {
             "obstacle_speed": 11, "spawn_interval_ms": 800, "base_checkpoint_gap": 85,
             "grow_chance_percent": 60,
             "shrink_chance_percent": 10, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 15
+            "checkpoints_per_level": 10
         },
         "10": {
             "obstacle_speed": 12, "spawn_interval_ms": 650, "base_checkpoint_gap": 80,
             "grow_chance_percent": 65,
             "shrink_chance_percent": 5, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 15
+            "checkpoints_per_level": 10
         }
     }
 }
