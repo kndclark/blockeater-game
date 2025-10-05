@@ -1,7 +1,6 @@
 // Simple 2D game window using SDL2
 #include <SDL2/SDL.h>
 #include <memory>  // For std::unique_ptr
-#include <cstdlib> // For rand() and srand()
 #include <ctime>   // For time()
 #include "../config/Config.h"
 #include "GameState.h"
@@ -66,63 +65,16 @@ int main(int argc, char* argv[]) {
     Uint32 frame_start_time;
 
     // --- Main Game Loop ---
-    SDL_Event event;     // A variable to store event data (e.g., keyboard, mouse, window events).
-
     // The game will continue to run as long as this 'running' flag is true.
     while (game_state.running) {
-        // This inner loop processes all pending events in SDL's event queue.
-        while (SDL_PollEvent(&event)) {
-            // Check if the event is a request to quit the application.
-            if (event.type == SDL_QUIT) {
-                // If the user closes the window, set 'running' to false to exit the main loop.
-                game_state.running = false;
-            }
-        }
-
         frame_start_time = SDL_GetTicks();
 
-        // Handle player input
-        const Uint8* keystate = SDL_GetKeyboardState(NULL);
-        game_state.player.handle_input(keystate, SCREEN_WIDTH, SCREEN_HEIGHT);
+        gameLoopIteration(game_state, config);
 
-        // Update player state (e.g., for dash cooldown)
-        game_state.player.update();
-
-        // Spawn new obstacles based on time
-        Uint32 current_time = SDL_GetTicks();
-        game_state.spawner.spawn_obstacles(current_time, game_state.obstacles);
-
-        // Update obstacle positions and remove off-screen ones
-        Obstacle::updateAndRemove(game_state.obstacles);
-
-        // --- Rendering ---
-        SDL_SetRenderDrawColor(renderer.get(), 30, 30, 30, 255); // Dark gray
-        SDL_RenderClear(renderer.get());
-
-        batchRenderObstacles(renderer.get(), game_state.obstacles, config, game_state.hurt_rects, game_state.grow_rects, game_state.shrink_rects, game_state.checkpoint_rects);
-
-        // Draw player
-        game_state.player.draw(renderer.get());
-
-        // Collision detection
-        // We use an iterator-based loop so we can safely remove obstacles after collision.
-        for (auto it = game_state.obstacles.begin(); it != game_state.obstacles.end(); ) {
-            bool collision_detected = SDL_HasIntersection(&game_state.player.rect, &it->rect);
-            // For checkpoints, check collision with the second rectangle as well.
-            if (it->rect2) {
-                collision_detected = collision_detected || SDL_HasIntersection(&game_state.player.rect, &*(it->rect2));
-            }
-
-            if (collision_detected) {
-                it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running);
-            } else {
-                handleCheckpointPassing(game_state.player, *it, game_state.score);
-                ++it;
-            }
-            if (!game_state.running) break; // Exit loop immediately if game is over
+        // Only render if the game is still running after the update phase
+        if (game_state.running) {
+            renderGame(renderer.get(), game_state, config);
         }
-
-        SDL_RenderPresent(renderer.get());
 
         // --- FPS Calculation and Capping ---
         Uint32 current_frametime = SDL_GetTicks();

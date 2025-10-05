@@ -5,14 +5,17 @@
 #include "Player.h"
 #include "Obstacle.h"
 #include "../config/Config.h"
+#include "LevelManager.h"
 #include "GameLogic.h"
 
-const int OBSTACLE_SPEED = 3;
-
 struct GameState {
+    const Config& config;
     Player player;
     std::vector<Obstacle> obstacles;
     int score = 0;
+    int level = 1; // TODO: add win condition when player reaches level 10
+    int checkpoints_passed = 0;
+    LevelManager level_manager;
     ObstacleSpawner spawner;
 
     // Create vectors to hold rectangles for batch drawing. Reusing these vectors
@@ -29,24 +32,5 @@ struct GameState {
     Uint32 frame_count = 0;
     Uint32 last_fps_update_time = 0;
 
-    GameState(const Config& config, int screen_width, int screen_height)
-        : player(config.getPlayerInitialX(),                               // initial x position
-                 screen_height / 2 - config.getPlayerHeight() / 2,         // initial y position (centered)
-                 config.getPlayerWidth(),                                  // width
-                 config.getPlayerHeight(),                                 // height
-                 config.getPlayerSpeed(),                                  // speed
-                 config.getPlayerColor()),                                 // color
-          spawner(config.getSpawnInterval(),                               // interval for regular obstacles
-                  config.getCheckpointInterval(),                         // interval for checkpoints
-                  screen_width,                                           // screen width
-                  screen_height,                                          // screen height
-                  OBSTACLE_SPEED,                                         // speed of obstacles
-                  config.getGrowChance(),                                 // chance for a grow block
-                  config.getShrinkChance(),                               // chance for a shrink block
-                  config.getBaseCheckpointGap(),                          // base gap size for checkpoints
-                  config.getGrowDimensions(),                             // dimensions for grow blocks
-                  config.getShrinkDimensions(),                           // dimensions for shrink blocks
-                  config.getHurtDimensions()),                            // dimensions for hurt blocks
-          last_fps_update_time(SDL_GetTicks())                            // initialize FPS timer
-    {}
+    GameState(const Config& config, int screen_width, int screen_height);
 };

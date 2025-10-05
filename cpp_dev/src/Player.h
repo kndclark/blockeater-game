@@ -30,15 +30,15 @@ struct Player {
     Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
 
     // Updates the player's state, like managing dash timers.
-    void update() {
+    void update(Uint32 current_time) {
         // End the dash after its duration has passed
-        if (is_dashing && (SDL_GetTicks() - dash_start_time > DASH_DURATION_MS)) {
+        if (is_dashing && (current_time - dash_start_time >= DASH_DURATION_MS)) {
             is_dashing = false;
             on_cooldown = true;
-            dash_cooldown_start_time = SDL_GetTicks();
+            dash_cooldown_start_time = current_time;
         }
         // End the cooldown after its duration has passed
-        if (on_cooldown && (SDL_GetTicks() - dash_cooldown_start_time > DASH_COOLDOWN_MS)) {
+        if (on_cooldown && (current_time - dash_cooldown_start_time >= DASH_COOLDOWN_MS)) {
             on_cooldown = false;
         }
     }
