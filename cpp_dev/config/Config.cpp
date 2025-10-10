@@ -89,24 +89,33 @@ void Config::load_defaults() {
 
 Config::Config(const std::string& root_path) : root_path_(root_path) {
     std::string config_filepath;
-    if (root_path_.empty()) {
+    // if the provided path ends with .json, consider it a full path.
+    // otherwise, treat it as a root path to which we append the default config path.
+    if (root_path_.length() >= 5 && root_path_.substr(root_path_.length() - 5) == ".json") {
+        config_filepath = root_path_;
+        // This is a test-only path. We should not load associated files.
+        load_from_path(config_filepath);
+    } else if (root_path_.empty()) {
         // Fallback for when the base path can't be determined.
         // Assumes the executable is run from the `cpp_dev` directory.
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
         config_filepath = "config/json/config.json";
+        load_from_path(config_filepath);
+        // Then, load the associated levels and UI text files from the same directory.
+        std::string config_dir = config_filepath.substr(0, config_filepath.find_last_of("/\\") + 1);
+        load_levels(config_dir + "levels.json");
+        load_ui_texts(config_dir);
     } else {
         config_filepath = root_path_ + "config/json/config.json";
+        load_from_path(config_filepath);
+        load_levels(root_path_ + "config/json/levels.json");
+        load_ui_texts(root_path_ + "config/json/");
     }
-    load_from_path(config_filepath);
-}
 
-// Private constructor for tests
-Config::Config(const std::string& filepath, bool /*is_test*/) : root_path_("") {
-    load_from_path(filepath);
-}
-
-Config Config::fromFile(const std::string& filepath) {
-    return Config(filepath, true);
+    // Final validation after all files are loaded.
+    if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
+        throw std::runtime_error("Obstacle spawn chances in config must sum to 100.");
+    }
 }
 
 void Config::load_ui_texts(const std::string& base_path) {
@@ -201,22 +210,6 @@ void Config::load_from_path(const std::string& filepath) {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
         load_defaults();
     }
-
-    if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
-        throw std::runtime_error("Obstacle spawn chances in config.json must sum to 100.");
-    }
-
-    // Try to load levels.json from the same directory as the main config file.
-    std::string levels_path = filepath;
-    size_t last_slash_pos = levels_path.find_last_of("/\\");
-    if (last_slash_pos != std::string::npos) { // if filepath has a directory
-        load_levels(levels_path.substr(0, last_slash_pos + 1) + "levels.json");
-        load_ui_texts(levels_path.substr(0, last_slash_pos + 1));
-    }
-    // Also try loading a file with ".levels.json" suffix for tests.
-    load_levels(filepath + ".levels.json");
-
-
 
     // Override screen dimensions with native resolution for fullscreen mode.
     SDL_DisplayMode dm;

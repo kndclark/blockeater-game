@@ -25,9 +25,6 @@ public:
     // optionally taking a root_path to locate assets.
     explicit Config(const std::string& root_path = "");
 
-    // Named constructor for loading from a specific file path, primarily for tests.
-    static Config fromFile(const std::string& filepath);
-    
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
     int getTargetFps() const;
@@ -60,13 +57,12 @@ public:
     const std::string& getLevelProgressSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
 
-private:
-    // Private constructor for loading from a specific file path.
-    explicit Config(const std::string& filepath, bool /*is_test*/);
+protected:
+    void load_levels(const std::string& filepath);
 
+private:
     void load_from_path(const std::string& filepath);
     void load_ui_texts(const std::string& base_path);
-    void load_levels(const std::string& filepath);
     void load_defaults();
 
     std::string root_path_;
