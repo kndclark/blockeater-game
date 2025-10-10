@@ -310,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // This test is separate because it has a different structure (multiple spawns).
-class ObstacleSpawnerStateTest : public ::testing::Test {
+class ObstacleSpawnerStateTest : public SdlTest {
 protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
@@ -342,6 +342,40 @@ TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
     const int expected_gap = config.getBaseCheckpointGap();
     const int actual_gap = checkpoint2.rect2->y - checkpoint2.rect.h;
     EXPECT_EQ(actual_gap, expected_gap);
+};
+
+TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
+    // This test uses the spawner injected in the test fixture's constructor.
+    // The checkpoint interval is set to 1000ms there.
+    const Uint32 test_checkpoint_interval = 2000;
+
+    // Grab the initial values before any changes.
+    const int initial_ui_gap_size = game_state.ui_next_checkpoint_gap_size;
+    const int initial_internal_gap_size = game_state.next_checkpoint_gap_size;
+
+    // Manually trigger the logic that happens when a shrink power-up is spawned.
+    // This avoids the fragile while-loop that depends on random generation.
+    // We simulate this happening at a time before the first checkpoint.
+    const Uint32 regular_spawn_time = 1000;
+    game_state.spawner.last_spawn_time = regular_spawn_time;
+    game_state.spawner.shrink_powerups_since_checkpoint.push_back(1);
+    // Manually call calculateCheckpointGapSize to update the internal prediction,
+    // just as spawn_obstacles would.
+    game_state.next_checkpoint_gap_size = game_state.spawner.calculateCheckpointGapSize();
+
+    // Assert that the UI value has NOT changed, but the internal one has.
+    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, initial_ui_gap_size) << "UI gap size should not change when a shrink power-up spawns.";
+    EXPECT_NE(game_state.next_checkpoint_gap_size, initial_internal_gap_size) << "Internal gap size should change when a shrink power-up spawns.";
+
+    // Now, spawn a checkpoint. This SHOULD update the UI value to the size of the checkpoint that was just created.
+    // The size of this new checkpoint is based on the *updated* internal prediction.
+    const int expected_spawned_gap_size = game_state.next_checkpoint_gap_size;
+    game_state.spawner.spawn_obstacles(test_checkpoint_interval, game_state);
+
+    // The UI should now show the size of the checkpoint that was just spawned.
+    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, expected_spawned_gap_size) << "UI gap size should match the size of the newly spawned checkpoint.";
+    // The internal prediction is now for the *next* checkpoint, which should be the base size again.
+    EXPECT_EQ(game_state.next_checkpoint_gap_size, config.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
 }
 
 // --- Top-Level Game Logic Tests ---

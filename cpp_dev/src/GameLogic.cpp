@@ -57,6 +57,8 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         // Reset the trackers for the next interval.
         shrink_powerups_since_checkpoint.clear();
         // After spawning a checkpoint, calculate the size for the *next* one.
+        // The UI should display the size of the checkpoint that was just spawned.
+        game_state.ui_next_checkpoint_gap_size = gap_height;
         game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
     }
     // Only spawn a regular obstacle if a checkpoint was not spawned.
