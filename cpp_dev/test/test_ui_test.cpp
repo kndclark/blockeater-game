@@ -12,8 +12,8 @@
 class UiTest : public ::testing::Test {
 protected:
     SDL_Window* window_ = nullptr;
-    SDL_Renderer* renderer_ = nullptr;
-    Config config_{kTestConfigPath};
+    SDL_Renderer* renderer_ = nullptr;    
+    Config config_{kTestRootPath};
 
     void SetUp() override {
         ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
@@ -62,7 +62,7 @@ TEST_F(UiTest, ScoreboardCreationFailure) {
     // A mock config class that overrides getFontPath to return an invalid path.
     class MockConfig : public Config {
     public:
-        MockConfig() : Config(kTestConfigPath) {} // Initialize with a valid config
+        MockConfig() : Config(kTestRootPath) {} // Initialize with a valid config that finds assets
         const std::string& getFontPath() const override {
             return invalid_path_;
         }

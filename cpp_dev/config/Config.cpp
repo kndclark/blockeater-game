@@ -87,33 +87,26 @@ void Config::load_defaults() {
     font_size_ = 24;
 }
 
-Config::Config() {
-    // Construct a path to the config file relative to the executable's location.
-    // This makes the game runnable from any working directory.
-    std::string config_path;
-    char* base_path = SDL_GetBasePath();
-    if (base_path) {
-#ifdef IS_TEST_BUILD
-        // The test executable is in test/build/, so we go up to the cpp_dev directory.
-        config_path = std::string(base_path) + "../../";
-#else
-        // The game executable is in build/, so we go up to the cpp_dev directory.
-        config_path = std::string(base_path) + "../";
-#endif
-        SDL_free(base_path);
-    } else {
+Config::Config(const std::string& root_path) : root_path_(root_path) {
+    std::string config_filepath;
+    if (root_path_.empty()) {
         // Fallback for when the base path can't be determined.
         // Assumes the executable is run from the `cpp_dev` directory.
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
-        config_path = "config/json/config.json";
-        load_from_path(config_path); // This will also load levels.json
-        return;
+        config_filepath = "config/json/config.json";
+    } else {
+        config_filepath = root_path_ + "config/json/config.json";
     }
-    load_from_path(config_path + "config/json/config.json");
+    load_from_path(config_filepath);
 }
 
-Config::Config(const std::string& filepath) {
+// Private constructor for tests
+Config::Config(const std::string& filepath, bool /*is_test*/) : root_path_("") {
     load_from_path(filepath);
+}
+
+Config Config::fromFile(const std::string& filepath) {
+    return Config(filepath, true);
 }
 
 void Config::load_ui_texts(const std::string& base_path) {
@@ -131,16 +124,9 @@ void Config::load_ui_texts(const std::string& base_path) {
 
             // Prepend the base path to the font path if it's not absolute.
             // This makes the font path relative to the project root.
-            char* sdl_base_path = SDL_GetBasePath();
-            if (sdl_base_path) {
-#ifdef IS_TEST_BUILD
-                font_path_ = std::string(sdl_base_path) + "../../" + font_path_;
-#else
-                font_path_ = std::string(sdl_base_path) + "../" + font_path_;
-#endif
-                SDL_free(sdl_base_path);
+            if (!root_path_.empty()) {
+                font_path_ = root_path_ + font_path_;
             }
-
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing ui_texts.json: " << e.what() << ". Using default UI text." << std::endl;
         }

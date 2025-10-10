@@ -47,7 +47,7 @@ protected:
 
 TEST_F(LevelManagerTest, LoadsLevelSpecificConfig) {
     // Config will automatically look for levels.json in the same directory.
-    Config config("test_config_dir/json/base_config.json");
+    Config config = Config::fromFile("test_config_dir/json/base_config.json");
     LevelManager level_manager(config);
 
     // Level 1 should have its own values

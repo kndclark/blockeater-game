@@ -21,13 +21,13 @@ struct LevelConfig {
 
 class Config {
 public:
-    // Default constructor: loads from a standard path relative to the executable.
-    Config();
+    // Default constructor: loads from a standard path relative to the executable,
+    // optionally taking a root_path to locate assets.
+    explicit Config(const std::string& root_path = "");
 
-    // Loads configuration from the given JSON file.
-    // If loading fails, it will use hardcoded default colors.
-    explicit Config(const std::string& filepath);
-
+    // Named constructor for loading from a specific file path, primarily for tests.
+    static Config fromFile(const std::string& filepath);
+    
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
     int getTargetFps() const;
@@ -61,11 +61,15 @@ public:
     const LevelConfig* getLevelConfig(int level) const;
 
 private:
+    // Private constructor for loading from a specific file path.
+    explicit Config(const std::string& filepath, bool /*is_test*/);
+
     void load_from_path(const std::string& filepath);
     void load_ui_texts(const std::string& base_path);
     void load_levels(const std::string& filepath);
     void load_defaults();
 
+    std::string root_path_;
     Color playerColor;
     std::map<int, LevelConfig> level_configs_;
     std::map<ObstacleType, Color> obstacleColors;

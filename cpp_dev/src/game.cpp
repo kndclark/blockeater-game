@@ -27,8 +27,19 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Determine the project root path. The game executable is in `build/`.
+    std::string root_path;
+    char* base_path = SDL_GetBasePath();
+    if (base_path) {
+        root_path = std::string(base_path) + "../";
+        SDL_free(base_path);
+    } else {
+        SDL_Log("Warning: Could not get application base path. Asset paths may be incorrect.");
+        // Fallback to an empty root path.
+    }
+
     // Load configuration. The Config class will find the default config file.
-    Config config;
+    Config config(root_path);
 
     const int SCREEN_WIDTH = config.getScreenWidth();
     const int SCREEN_HEIGHT = config.getScreenHeight();

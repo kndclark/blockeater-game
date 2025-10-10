@@ -5,8 +5,8 @@
 
 // Test suite for the Config class
 TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
-    // The test executable runs from the `test/build` directory, so we navigate up.
-    Config config(kTestConfigPath);
+    // This constructor loads config.json and associated files like levels.json
+    Config config = Config::fromFile(kTestConfigPath);
 
     // Check colors
     EXPECT_EQ(config.getPlayerColor().r, 128);
@@ -45,7 +45,7 @@ TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
 }
 
 TEST_F(SdlTest, FallbackOnMissingFile) {
-    Config config("nonexistent_file.json");
+    Config config = Config::fromFile("nonexistent_file.json");
 
     // Should fall back to the hardcoded defaults defined in Config.cpp
     Color player_color = config.getPlayerColor();
@@ -68,7 +68,7 @@ TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
     invalid_chances_file.close();
 
     // Expect a std::runtime_error to be thrown.
-    EXPECT_THROW(Config config(invalid_chances_filename), std::runtime_error);
+    EXPECT_THROW(Config::fromFile(invalid_chances_filename), std::runtime_error);
 }
 
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
@@ -78,7 +78,7 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     malformed_file << "{ \"player\": { \"r\": 10, "; // Intentionally broken JSON
     malformed_file.close();
 
-    Config config(malformed_filename);
+    Config config = Config::fromFile(malformed_filename);
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
@@ -99,7 +99,7 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
     })";
     partial_file.close();
 
-    Config config(partial_filename);
+    Config config = Config::fromFile(partial_filename);
 
     // Check that the specified values are loaded
     Color player_color = config.getPlayerColor();
@@ -117,7 +117,7 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
 TEST_F(ConfigFileTest, LoadsLevelsConfig) {
     // This test relies on the main config file being present at kTestConfigPath
     // and the associated levels.json being in the same directory.
-    Config config(kTestConfigPath);
+    Config config = Config::fromFile(kTestConfigPath);
 
     // Check level 1 config from levels.json
     const LevelConfig* level1_config = config.getLevelConfig(1);
