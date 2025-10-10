@@ -12,8 +12,12 @@
     "screen_height": 480
   },
   "game": {
-    "base_checkpoint_gap": 80,
+    "obstacle_speed": 3,
+    "base_checkpoint_gap": 200,
     "spawn_interval_ms": 1500,
+    "player_size_change_amount": 10,
+    "score_per_checkpoint": 10,
+    "checkpoints_per_level": 1,
     "checkpoint_interval_ms": 10000,
     "obstacle_spawn_chances": {
       "grow": 40,

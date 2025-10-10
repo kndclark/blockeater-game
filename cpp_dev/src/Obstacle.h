@@ -71,68 +71,85 @@ struct Obstacle {
         return rect.x + rect.w <= 0;
     }
 
-    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height) {
+    static void updateAndRemove(std::vector<Obstacle>& obstacles) {
+        for (auto& obstacle : obstacles) {
+            obstacle.update();
+        }
+        obstacles.erase(
+            std::remove_if(obstacles.begin(), obstacles.end(), [](const Obstacle& o) {
+                return o.is_offscreen();
+            }),
+            obstacles.end()
+        );
+    }
+
+    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int& out_gap_y) {
         // Spawn a checkpoint (a wall with a gap)
-        const int gap_y = rand() % (screen_height - gap_height);
+        out_gap_y = rand() % (screen_height - gap_height);
         const int checkpoint_width = 30;
 
-        SDL_Rect top_rect = {screen_width, 0, checkpoint_width, gap_y};
-        SDL_Rect bottom_rect = {screen_width, gap_y + gap_height, checkpoint_width, screen_height - (gap_y + gap_height)};
+        SDL_Rect top_rect = {screen_width, 0, checkpoint_width, out_gap_y};
+        SDL_Rect bottom_rect = {screen_width, out_gap_y + gap_height, checkpoint_width, screen_height - (out_gap_y + gap_height)};
 
         return Obstacle(top_rect, bottom_rect, speed);
     }
 
-    static Obstacle createGrowBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
-        // TODO: add more unique characteristics of grow blocks
-        int w = dims.w;
-        int h = dims.h;
-        int y = rand() % (screen_height - h); // random y position
-        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Grow);
+    static int calculateSafeY(int screen_height, int obstacle_height, const std::optional<std::pair<int, int>>& gap) {
+        if (!gap.has_value()) {
+            return rand() % (screen_height - obstacle_height);
+        }
+
+        const auto& [gap_top, gap_h] = gap.value();
+        int gap_bottom = gap_top + gap_h;
+
+        // Define the two possible spawn areas: above the gap and below the gap
+        int top_area_height = gap_top;
+        int bottom_area_height = screen_height - gap_bottom;
+
+        // If there's no space to spawn, return a default value (edge case)
+        if (top_area_height < obstacle_height && bottom_area_height < obstacle_height) {
+            return rand() % (screen_height - obstacle_height);
+        }
+
+        // Decide whether to spawn in the top or bottom area
+        if (top_area_height >= obstacle_height && (bottom_area_height < obstacle_height || (rand() % 2 == 0))) {
+            // Spawn in the top area
+            return rand() % (top_area_height - obstacle_height + 1);
+        }
+        
+        if (bottom_area_height >= obstacle_height) {
+            // Spawn in the bottom area
+            return gap_bottom + (rand() % (bottom_area_height - obstacle_height + 1));
+        }
+
+        // Fallback, should not be reached if logic is correct
+        return rand() % (screen_height - obstacle_height);
     }
 
-    static Obstacle createShrinkBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
-        // TODO: add more unique characteristics of shrink blocks
-        int w = dims.w;
-        int h = dims.h;
-        int y = rand() % (screen_height - h); // random y position
-        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Shrink);
-    }
+private:
+    // Helper to select obstacle properties based on a random roll.
+    // Kept private as it's an implementation detail of createRegular.
+    static std::pair<ObstacleType, ObstacleSize> getObstacleTypeAndSize(
+        int grow_chance, int shrink_chance, int type_roll,
+        const ObstacleSize& grow_dims, const ObstacleSize& shrink_dims, const ObstacleSize& hurt_dims) {
 
-    static Obstacle createHurtBlock(int screen_width, int screen_height, int speed, ObstacleSize dims) {
-        // TODO: add more unique characteristics of hurt blocks
-        int w = dims.w;
-        int h = dims.h;
-        int y = rand() % (screen_height - h); // random y position
-        return Obstacle(screen_width, y, w, h, speed, ObstacleType::Hurt);
-    }
-
-    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance, ObstacleSize grow_dims, ObstacleSize shrink_dims, ObstacleSize hurt_dims) {
-        int type_roll = rand() % 100; // Roll a number between 0 and 99
         ObstacleType type = determineObstacleType(grow_chance, shrink_chance, type_roll);
-
         switch (type) {
-            case ObstacleType::Grow:   return createGrowBlock(screen_width, screen_height, speed, grow_dims);
-            case ObstacleType::Shrink: return createShrinkBlock(screen_width, screen_height, speed, shrink_dims);
-            default:                   return createHurtBlock(screen_width, screen_height, speed, hurt_dims);
+            case ObstacleType::Grow:   return {type, grow_dims};
+            case ObstacleType::Shrink: return {type, shrink_dims};
+            default:                   return {type, hurt_dims};
         }
     }
 
-    static void updateAndRemove(std::vector<Obstacle>& obstacles) {
-        // This is more efficient than the erase-remove idiom as it avoids
-        // shifting elements in the vector. It has O(N) complexity for one
-        // pass, whereas erase-remove can be O(N^2) in the worst case if
-        // many elements are removed.
-        for (size_t i = 0; i < obstacles.size();) {
-            obstacles[i].update();
-            if (obstacles[i].is_offscreen()) {
-                // Swap with the last element and pop back (O(1) on average)
-                std::swap(obstacles[i], obstacles.back());
-                obstacles.pop_back();
-                // Do not increment i, as we need to process the new element at index i
-            } else {
-                // Move to the next obstacle
-                ++i;
-            }
-        }
+public:
+    static Obstacle createRegular(int screen_width, int screen_height, int speed, int grow_chance, int shrink_chance,
+                                  ObstacleSize grow_dims, ObstacleSize shrink_dims, ObstacleSize hurt_dims,
+                                  const std::optional<std::pair<int, int>>& gap) {
+        int type_roll = rand() % 100; // Roll a number between 0 and 99
+        auto [type, dims] = getObstacleTypeAndSize(grow_chance, shrink_chance, type_roll, grow_dims, shrink_dims, hurt_dims);
+
+        int y = calculateSafeY(screen_height, dims.h, gap);
+        return Obstacle(screen_width, y, dims.w, dims.h, speed, type);
     }
+
 };

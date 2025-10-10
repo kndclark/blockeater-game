@@ -7,7 +7,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Add source files
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/../config/*.cpp")
-file(GLOB TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
+set(TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gamelogic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_gamestate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_obstacle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_player.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_collision.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_levelmanager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_ui_test.cpp)
 
 # Exclude the main game entry point from the test build to avoid a "multiple definition of main" error.
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/game.cpp")
