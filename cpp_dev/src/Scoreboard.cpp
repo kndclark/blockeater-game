@@ -103,5 +103,5 @@ std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int chec
     // (4 % 5) = 4. 5 - 4 = 1.
     int checkpoints_in_level = checkpoints_passed % checkpoints_per_level;
     int checkpoints_to_next_level = checkpoints_per_level - checkpoints_in_level;
-    return "Level: " + std::to_string(level) + " (" + std::to_string(checkpoints_to_next_level) + " to next)";
+    return "Level: " + std::to_string(level) + " (" + std::to_string(checkpoints_to_next_level) + " checkpoints to next level)";
 }

@@ -84,13 +84,13 @@ TEST_F(UiTest, ScoreboardRender) {
 TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
     Scoreboard scoreboard(renderer_, font_path_, 24);
 
-    EXPECT_EQ(scoreboard.getLevelText(1, 0, 5), "Level: 1 (5 to next)");
-    EXPECT_EQ(scoreboard.getLevelText(1, 1, 5), "Level: 1 (4 to next)");
-    EXPECT_EQ(scoreboard.getLevelText(1, 4, 5), "Level: 1 (1 to next)");
+    EXPECT_EQ(scoreboard.getLevelText(1, 0, 5), "Level: 1 (5 checkpoints to next level)");
+    EXPECT_EQ(scoreboard.getLevelText(1, 1, 5), "Level: 1 (4 checkpoints to next level)");
+    EXPECT_EQ(scoreboard.getLevelText(1, 4, 5), "Level: 1 (1 checkpoints to next level)");
     // After passing 5 checkpoints (0-4), the 6th checkpoint (index 5) means a level up.
-    EXPECT_EQ(scoreboard.getLevelText(2, 5, 5), "Level: 2 (5 to next)");
+    EXPECT_EQ(scoreboard.getLevelText(2, 5, 5), "Level: 2 (5 checkpoints to next level)");
     // 34 checkpoints passed, 8 per level. 34 % 8 = 2 checkpoints into the current level. 8 - 2 = 6 to go.
-    EXPECT_EQ(scoreboard.getLevelText(7, 34, 8), "Level: 7 (6 to next)");
+    EXPECT_EQ(scoreboard.getLevelText(7, 34, 8), "Level: 7 (6 checkpoints to next level)");
 }
 
 // Test that rendering different score and level values works without crashing.
