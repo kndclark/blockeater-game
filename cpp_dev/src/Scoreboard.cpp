@@ -2,9 +2,9 @@
 #include <stdexcept> // For std::runtime_error
 #include <memory>    // For std::unique_ptr
 
-Scoreboard::Scoreboard(SDL_Renderer* renderer, const std::string& font_path, int font_size)
-    : renderer_(renderer) {
-    font_ = TTF_OpenFont(font_path.c_str(), font_size);
+Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config)
+    : renderer_(renderer), config_(config) {
+    font_ = TTF_OpenFont(config.getFontPath().c_str(), config.getFontSize());
     if (!font_) {
         throw std::runtime_error("Failed to load font for scoreboard: " + std::string(TTF_GetError()));
     }
@@ -27,8 +27,9 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     };
 
     // --- Render Score ---
-    std::string score_text = "Score: " + std::to_string(score);
-    SDL_Color color = {255, 255, 255, 255}; // White
+    std::string score_text = config_.getScorePrefix() + std::to_string(score);
+    Color c = config_.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
 
     // Create a temporary surface for the score text. A unique_ptr handles cleanup for us.
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> score_surface(TTF_RenderText_Solid(font_, score_text.c_str(), color));
@@ -72,7 +73,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 
     // --- Render Next Gap Size ---
-    std::string gap_text = "Gap Size: " + std::to_string(current_gap_size);
+    std::string gap_text = config_.getGapSizePrefix() + std::to_string(current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_, gap_text.c_str(), color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
@@ -97,11 +98,12 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
 std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const {
     if (checkpoints_per_level <= 0) {
-        return "Level: " + std::to_string(level);
+        return config_.getLevelPrefix() + std::to_string(level);
     }
     // If 5 checkpoints are needed, passing #4 means you are on 4/5, with 1 to go.
     // (4 % 5) = 4. 5 - 4 = 1.
     int checkpoints_in_level = checkpoints_passed % checkpoints_per_level;
     int checkpoints_to_next_level = checkpoints_per_level - checkpoints_in_level;
-    return "Level: " + std::to_string(level) + " (" + std::to_string(checkpoints_to_next_level) + " checkpoints to next level)";
+    return config_.getLevelPrefix() + std::to_string(level) +
+           config_.getLevelProgressPrefix() + std::to_string(checkpoints_to_next_level) + config_.getLevelProgressSuffix();
 }

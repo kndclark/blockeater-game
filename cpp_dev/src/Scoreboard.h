@@ -3,10 +3,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <string>
+#include "../config/Config.h"
 
 class Scoreboard {
 public:
-    Scoreboard(SDL_Renderer* renderer, const std::string& font_path, int font_size);
+    Scoreboard(SDL_Renderer* renderer, const Config& config);
     ~Scoreboard();
 
     // Delete copy constructor and assignment operator to prevent copying.
@@ -20,5 +21,6 @@ public:
 
 private:
     SDL_Renderer* renderer_;
+    const Config& config_;
     TTF_Font* font_;
 };

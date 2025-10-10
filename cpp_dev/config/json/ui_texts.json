@@ -1,0 +1,14 @@
+{
+    "ui_text": {
+        "score_prefix": "Score: ",
+        "level_prefix": "Level: ",
+        "level_progress_prefix": " (",
+        "level_progress_suffix": " checkpoints to next level)",
+        "gap_size_prefix": "Gap Size: ",
+        "font": {
+            "path": "assets/font.ttf",
+            "size": 24
+        },
+        "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 }
+    }
+}

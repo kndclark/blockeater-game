@@ -135,7 +135,7 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
-    Config config;
+    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
     game_state.player.rect.x = params.player_x;
     game_state.score = params.initial_score;
@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST(GameLogicTest, LevelUp) {
-    Config config(kTestConfigPath);
+    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
     int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
     ASSERT_EQ(checkpoints_for_lvl1, 5); // From levels.json
@@ -228,7 +228,7 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    Config config; // Use default config
+    Config config(kTestRootPath); // Use default config
     LevelManager level_manager(config);
     ObstacleSpawner test_spawner(level_manager, params.checkpoint_interval, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), config.getGrowDimensions(), config.getShrinkDimensions(), config.getHurtDimensions());
     
@@ -278,7 +278,7 @@ protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestConfigPath};
+    Config config{kTestRootPath};
     LevelManager level_manager{config};
     ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30}};
 };
@@ -316,7 +316,7 @@ protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestConfigPath};
+    Config config{kTestRootPath};
     LevelManager level_manager{config};
     // We create a spawner with the test-specific interval and inject it into GameState.
     ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), config.getGrowDimensions(), config.getShrinkDimensions(), config.getHurtDimensions()};
@@ -384,7 +384,7 @@ TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
 // Test fixture for game logic tests
 class TopLevelGameLogicTest : public SdlTest {
 protected:
-    Config config;
+    Config config{kTestRootPath};
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
 };

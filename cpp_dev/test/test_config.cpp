@@ -5,14 +5,20 @@
 
 // Test suite for the Config class
 TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
-    // The test executable runs from the `test/build` directory, so we navigate up.
-    Config config(kTestConfigPath);
+    // This constructor loads config.json and associated files like levels.json
+    Config config(kTestRootPath);
 
     // Check colors
     EXPECT_EQ(config.getPlayerColor().r, 128);
     EXPECT_EQ(config.getObstacleColor(ObstacleType::Hurt).r, 255);
     EXPECT_EQ(config.getObstacleColor(ObstacleType::Grow).g, 200);
     EXPECT_EQ(config.getObstacleColor(ObstacleType::Shrink).b, 0);
+
+    // Check UI text color
+    Color ui_color = config.getUiTextColor();
+    EXPECT_EQ(ui_color.r, 255);
+    EXPECT_EQ(ui_color.g, 255);
+    EXPECT_EQ(ui_color.b, 255);
 
     // Check game settings
     EXPECT_EQ(config.getBaseCheckpointGap(), 200);
@@ -68,7 +74,7 @@ TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
     invalid_chances_file.close();
 
     // Expect a std::runtime_error to be thrown.
-    EXPECT_THROW(Config config(invalid_chances_filename), std::runtime_error);
+    EXPECT_THROW(Config{invalid_chances_filename}, std::runtime_error);
 }
 
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
@@ -117,7 +123,7 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
 TEST_F(ConfigFileTest, LoadsLevelsConfig) {
     // This test relies on the main config file being present at kTestConfigPath
     // and the associated levels.json being in the same directory.
-    Config config(kTestConfigPath);
+    Config config(kTestRootPath);
 
     // Check level 1 config from levels.json
     const LevelConfig* level1_config = config.getLevelConfig(1);

@@ -10,7 +10,7 @@ class GameStateTest : public SdlTest {};
 TEST_F(GameStateTest, Initialization) {
     const int screen_width = 800;
     const int screen_height = 600;
-    Config config(kTestConfigPath); // This will call SDL_GetDesktopDisplayMode
+    Config config(kTestRootPath);
 
     GameState game_state(config, screen_width, screen_height); // This will call SDL_GetTicks
 
