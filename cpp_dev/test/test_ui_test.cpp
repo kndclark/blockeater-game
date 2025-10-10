@@ -94,13 +94,20 @@ TEST_F(UiTest, ScoreboardRender) {
 TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
     Scoreboard scoreboard(renderer_, config_);
 
-    EXPECT_EQ(scoreboard.getLevelText(1, 0, 5), "Level: 1 (5 checkpoints to next level)");
-    EXPECT_EQ(scoreboard.getLevelText(1, 1, 5), "Level: 1 (4 checkpoints to next level)");
-    EXPECT_EQ(scoreboard.getLevelText(1, 4, 5), "Level: 1 (1 checkpoints to next level)");
+    // Helper lambda to build the expected string from the config.
+    // This makes the test resilient to changes in ui_texts.json.
+    auto build_expected_text = [&](int level, int to_next) {
+        return config_.getLevelPrefix() + std::to_string(level) +
+               config_.getLevelProgressPrefix() + std::to_string(to_next) + config_.getLevelProgressSuffix();
+    };
+
+    EXPECT_EQ(scoreboard.getLevelText(1, 0, 5), build_expected_text(1, 5));
+    EXPECT_EQ(scoreboard.getLevelText(1, 1, 5), build_expected_text(1, 4));
+    EXPECT_EQ(scoreboard.getLevelText(1, 4, 5), build_expected_text(1, 1));
     // After passing 5 checkpoints (0-4), the 6th checkpoint (index 5) means a level up.
-    EXPECT_EQ(scoreboard.getLevelText(2, 5, 5), "Level: 2 (5 checkpoints to next level)");
+    EXPECT_EQ(scoreboard.getLevelText(2, 5, 5), build_expected_text(2, 5));
     // 34 checkpoints passed, 8 per level. 34 % 8 = 2 checkpoints into the current level. 8 - 2 = 6 to go.
-    EXPECT_EQ(scoreboard.getLevelText(7, 34, 8), "Level: 7 (6 checkpoints to next level)");
+    EXPECT_EQ(scoreboard.getLevelText(7, 34, 8), build_expected_text(7, 6));
 }
 
 // Test that rendering different score and level values works without crashing.
