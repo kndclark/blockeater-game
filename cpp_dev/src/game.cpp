@@ -76,11 +76,9 @@ int main(int argc, char* argv[]) {
             SDL_Log("Warning: Could not get application base path. Using relative path '../assets/font.ttf'");
             font_path = "../assets/font.ttf";
         }
-        scoreboard = std::make_unique<Scoreboard>(renderer, font_path, 24);
+        scoreboard = std::make_unique<Scoreboard>(renderer.get(), font_path, 24);
     } catch (const std::exception& e) {
         SDL_Log("Error creating scoreboard: %s", e.what());
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
         TTF_Quit();
         SDL_Quit();
         return 1;
