@@ -110,6 +110,22 @@ TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
     EXPECT_EQ(scoreboard.getLevelText(7, 34, 8), build_expected_text(7, 6));
 }
 
+TEST_F(UiTest, CalculatesPlayerSizeTextCorrectly) {
+    Scoreboard scoreboard(renderer_, config_);
+
+    // Helper lambda to build the expected string from the config.
+    auto build_expected_text = [&](int player_size, int gap_size) {
+        if (gap_size <= 0) return config_.getPlayerSizePrefix() + "N/A";
+        int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
+        return config_.getPlayerSizePrefix() + std::to_string(percentage) + config_.getPlayerSizeSuffix();
+    };
+
+    EXPECT_EQ(scoreboard.getPlayerSizeText(40, 200), build_expected_text(40, 200)); // 20%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(60, 150), build_expected_text(60, 150)); // 40%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(150, 150), build_expected_text(150, 150)); // 100%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(50, 0), build_expected_text(50, 0)); // N/A
+}
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
     Scoreboard scoreboard(renderer_, config_);

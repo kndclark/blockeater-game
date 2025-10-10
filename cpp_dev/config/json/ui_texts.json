@@ -6,6 +6,7 @@
         "level_progress_suffix": " checkpoints to next level)",
         "gap_size_prefix": "Gap Size: ",
         "player_size_prefix": "Size: ",
+        "player_size_suffix": "% of gap size",
         "font": {
             "path": "assets/font.ttf",
             "size": 24

@@ -96,7 +96,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
 
     // --- Render Player Size ---
-    std::string player_size_text = config_.getPlayerSizePrefix() + std::to_string(player_size);
+    std::string player_size_text = getPlayerSizeText(player_size, current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_, player_size_text.c_str(), color));
     if (!player_size_surface) {
         SDL_Log("Unable to create text surface for player size: %s", TTF_GetError());
@@ -125,4 +125,13 @@ std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int chec
     int checkpoints_to_next_level = checkpoints_per_level - checkpoints_in_level;
     return config_.getLevelPrefix() + std::to_string(level) +
            config_.getLevelProgressPrefix() + std::to_string(checkpoints_to_next_level) + config_.getLevelProgressSuffix();
+}
+
+std::string Scoreboard::getPlayerSizeText(int player_size, int gap_size) const {
+    if (gap_size <= 0) {
+        return config_.getPlayerSizePrefix() + "N/A";
+    }
+    int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
+    return config_.getPlayerSizePrefix() + std::to_string(percentage) +
+           config_.getPlayerSizeSuffix();
 }

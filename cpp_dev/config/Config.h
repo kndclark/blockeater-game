@@ -55,6 +55,7 @@ public:
     const std::string& getGapSizePrefix() const;
     const std::string& getLevelProgressPrefix() const;
     const std::string& getPlayerSizePrefix() const;
+    const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
     const std::string& getLevelProgressSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
@@ -100,6 +101,7 @@ private:
     std::string level_progress_suffix_;
     std::string gap_size_prefix_;
     std::string player_size_prefix_;
+    std::string player_size_suffix_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;

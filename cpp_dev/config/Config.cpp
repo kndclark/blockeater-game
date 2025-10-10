@@ -84,6 +84,7 @@ void Config::load_defaults() {
     level_progress_suffix_ = " checkpoints to next level)";
     gap_size_prefix_ = "Gap Size: ";
     player_size_prefix_ = "Size: ";
+    player_size_suffix_ = "% of gap size";
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
@@ -131,6 +132,7 @@ void Config::load_ui_texts(const std::string& base_path) {
             level_progress_suffix_ = data.value("/ui_text/level_progress_suffix"_json_pointer, level_progress_suffix_);
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
+            player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
@@ -353,6 +355,10 @@ const std::string& Config::getGapSizePrefix() const {
 
 const std::string& Config::getPlayerSizePrefix() const {
     return player_size_prefix_;
+}
+
+const std::string& Config::getPlayerSizeSuffix() const {
+    return player_size_suffix_;
 }
 
 const std::string& Config::getLevelProgressPrefix() const {

@@ -18,6 +18,7 @@ public:
 
     // Generates the text for the level display. Made public for easier testing.
     std::string getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const;
+    std::string getPlayerSizeText(int player_size, int gap_size) const;
 
 private:
     SDL_Renderer* renderer_;
