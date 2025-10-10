@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <SDL2/SDL.h>
+#include "../src/GameState.h"
 #include "../config/Config.h"
 #include <fstream>
 #include <string>
@@ -21,6 +22,14 @@ inline void checkConfigScreenResolution(const Config& config) {
         EXPECT_EQ(config.getScreenWidth(), 640);
         EXPECT_EQ(config.getScreenHeight(), 480);
     }
+}
+
+// Helper to inject a configured spawner into a GameState for testing.
+// This replaces the need for a test-only constructor in GameState itself.
+inline void injectSpawnerForTest(GameState& gameState, ObstacleSpawner&& spawner) {
+    // Use placement new to construct a new ObstacleSpawner in place of the old one.
+    new (&gameState.spawner) ObstacleSpawner(std::move(spawner));
+    gameState.next_checkpoint_gap_size = gameState.spawner.calculateCheckpointGapSize();
 }
 
 // A test fixture for tests that require SDL to be initialized.

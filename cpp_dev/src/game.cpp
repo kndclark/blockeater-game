@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
         if (game_state.running) {
             renderGame(renderer.get(), game_state, config);
             // Draw score after the rest of the game is rendered
-            scoreboard->render(game_state.score, game_state.level);
+            scoreboard->render(game_state.score, game_state.level, game_state.next_checkpoint_gap_size);
             // Present the final frame
             SDL_RenderPresent(renderer.get());
         }

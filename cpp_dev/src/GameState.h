@@ -13,8 +13,9 @@ struct GameState {
     Player player;
     std::vector<Obstacle> obstacles;
     int score = 0;
-    int level = 1; // TODO: add win condition when player reaches level 10
+    int level = 1; 
     int checkpoints_passed = 0;
+    int next_checkpoint_gap_size = 0;
     LevelManager level_manager;
     ObstacleSpawner spawner;
 
@@ -33,4 +34,5 @@ struct GameState {
     Uint32 last_fps_update_time = 0;
 
     GameState(const Config& config, int screen_width, int screen_height);
+
 };

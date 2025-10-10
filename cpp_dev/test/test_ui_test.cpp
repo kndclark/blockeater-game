@@ -74,7 +74,7 @@ TEST_F(UiTest, ScoreboardRender) {
     // We can't easily verify the visual output in a unit test.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_);
-        scoreboard.render(12345, 1);
+        scoreboard.render(12345, 1, 80);
         SDL_RenderPresent(renderer_);
     });
 }
@@ -88,9 +88,9 @@ TEST_F(UiTest, ScoreboardRendersVariousValues) {
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
         SDL_RenderClear(renderer_);
-        scoreboard.render(0, 1);        // Initial score
-        scoreboard.render(99999, 10);   // High score and level
-        scoreboard.render(-100, 5);     // Negative score (if possible in game)
+        scoreboard.render(0, 1, 80);        // Initial score
+        scoreboard.render(99999, 10, 60);   // High score and level
+        scoreboard.render(-100, 5, 25);     // Negative score (if possible in game)
         SDL_RenderPresent(renderer_);
     });
 }
