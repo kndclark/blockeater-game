@@ -108,8 +108,8 @@ int main(int argc, char* argv[]) {
             if (game_state->running) {
                 renderGame(renderer.get(), *game_state, config);
                 // Draw score after the rest of the game is rendered
-                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size,
-                                   game_state->checkpoints_passed, game_state->level_manager.getCheckpointsPerLevel());
+                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size, game_state->checkpoints_passed,
+                                   game_state->level_manager.getCheckpointsPerLevel(), game_state->player.rect.w);
                 // Present the final frame
                 SDL_RenderPresent(renderer.get());
             }

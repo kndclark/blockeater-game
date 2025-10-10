@@ -16,7 +16,7 @@ Scoreboard::~Scoreboard() {
     }
 }
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -94,6 +94,25 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // - nullptr: Use the entire texture as the source (no clipping).
     // - &gap_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
+
+    // --- Render Player Size ---
+    std::string player_size_text = config_.getPlayerSizePrefix() + std::to_string(player_size);
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_, player_size_text.c_str(), color));
+    if (!player_size_surface) {
+        SDL_Log("Unable to create text surface for player size: %s", TTF_GetError());
+        return;
+    }
+
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> player_size_texture(SDL_CreateTextureFromSurface(renderer_, player_size_surface.get()));
+    if (!player_size_texture) {
+        SDL_Log("Unable to create texture from surface for player size: %s", SDL_GetError());
+        return;
+    }
+
+    // Position the player size text just below the gap text.
+    SDL_Rect player_size_dest_rect = {10, gap_dest_rect.y + gap_dest_rect.h + 5, player_size_surface->w, player_size_surface->h};
+    // Copy the texture to the renderer.
+    SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
 }
 
 std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const {
