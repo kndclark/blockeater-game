@@ -204,8 +204,6 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
     // Draw the player
     game_state.player.draw(renderer);
 
-    // Present the back buffer to the screen
-    SDL_RenderPresent(renderer);
 }
 
 /// @brief Runs a single iteration of the main game loop, processing input and updating game state.
