@@ -28,7 +28,8 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Score ---
     std::string score_text = config_.getScorePrefix() + std::to_string(score);
-    SDL_Color color = {255, 255, 255, 255}; // White
+    Color c = config_.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
 
     // Create a temporary surface for the score text. A unique_ptr handles cleanup for us.
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> score_surface(TTF_RenderText_Solid(font_, score_text.c_str(), color));

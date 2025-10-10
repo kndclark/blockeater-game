@@ -14,6 +14,12 @@ TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getObstacleColor(ObstacleType::Grow).g, 200);
     EXPECT_EQ(config.getObstacleColor(ObstacleType::Shrink).b, 0);
 
+    // Check UI text color
+    Color ui_color = config.getUiTextColor();
+    EXPECT_EQ(ui_color.r, 255);
+    EXPECT_EQ(ui_color.g, 255);
+    EXPECT_EQ(ui_color.b, 255);
+
     // Check game settings
     EXPECT_EQ(config.getBaseCheckpointGap(), 200);
     EXPECT_EQ(config.getSpawnInterval(), 1500);

@@ -85,6 +85,7 @@ void Config::load_defaults() {
     gap_size_prefix_ = "Gap Size: ";
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
+    ui_text_color_ = {255, 255, 255, 255}; // Default white
 }
 
 Config::Config(const std::string& root_path) : root_path_(root_path) {
@@ -130,6 +131,7 @@ void Config::load_ui_texts(const std::string& base_path) {
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
+            ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
 
             // Prepend the base path to the font path if it's not absolute.
             // This makes the font path relative to the project root.
@@ -337,6 +339,10 @@ int Config::getFontSize() const {
 
 const std::string& Config::getLevelPrefix() const {
     return level_prefix_;
+}
+
+Color Config::getUiTextColor() const {
+    return ui_text_color_;
 }
 
 const std::string& Config::getGapSizePrefix() const {
