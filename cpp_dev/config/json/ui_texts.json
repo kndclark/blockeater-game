@@ -11,6 +11,7 @@
             "path": "assets/font.ttf",
             "size": 24
         },
-        "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 }
+        "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 },
+        "game_over_text": "GAME OVER"
     }
 }

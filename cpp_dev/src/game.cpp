@@ -125,6 +125,9 @@ int main(int argc, char* argv[]) {
                 SDL_Delay(FRAME_DELAY - frame_time);
             }
         }
+
+        // Show the game over screen and wait for exit signal
+        showGameOverScreen(renderer.get(), config);
     }
 
     TTF_Quit();
