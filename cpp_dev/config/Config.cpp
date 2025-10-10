@@ -82,6 +82,7 @@ void Config::load_defaults() {
     level_prefix_ = "Level: ";
     level_progress_prefix_ = " (";
     level_progress_suffix_ = " checkpoints to next level)";
+    gap_size_prefix_ = "Gap Size: ";
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
 }
@@ -124,6 +125,7 @@ void Config::load_ui_texts(const std::string& base_path) {
             level_prefix_ = data.value("/ui_text/level_prefix"_json_pointer, level_prefix_);
             level_progress_prefix_ = data.value("/ui_text/level_progress_prefix"_json_pointer, level_progress_prefix_);
             level_progress_suffix_ = data.value("/ui_text/level_progress_suffix"_json_pointer, level_progress_suffix_);
+            gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
 
@@ -356,6 +358,10 @@ int Config::getFontSize() const {
 
 const std::string& Config::getLevelPrefix() const {
     return level_prefix_;
+}
+
+const std::string& Config::getGapSizePrefix() const {
+    return gap_size_prefix_;
 }
 
 const std::string& Config::getLevelProgressPrefix() const {

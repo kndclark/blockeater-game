@@ -72,7 +72,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 
     // --- Render Next Gap Size ---
-    std::string gap_text = "Gap Size: " + std::to_string(current_gap_size); // This text is not yet in config
+    std::string gap_text = config_.getGapSizePrefix() + std::to_string(current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_, gap_text.c_str(), color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());

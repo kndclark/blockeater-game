@@ -55,6 +55,7 @@ public:
     virtual const std::string& getFontPath() const;
     int getFontSize() const;
     const std::string& getLevelPrefix() const;
+    const std::string& getGapSizePrefix() const;
     const std::string& getLevelProgressPrefix() const;
     const std::string& getLevelProgressSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
@@ -95,6 +96,7 @@ private:
     std::string level_prefix_;
     std::string level_progress_prefix_;
     std::string level_progress_suffix_;
+    std::string gap_size_prefix_;
     std::string font_path_;
     int font_size_;
 };
