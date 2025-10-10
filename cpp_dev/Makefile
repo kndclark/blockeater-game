@@ -14,8 +14,8 @@ else
 endif
 
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
-SDL2_LIBS = $(shell sdl2-config --libs)
-SRC = src/game.cpp config/Config.cpp src/GameState.cpp src/GameLogic.cpp src/LevelManager.cpp
+SDL2_LIBS = $(shell sdl2-config --libs) -lSDL2_ttf
+SRC = src/game.cpp config/Config.cpp src/GameState.cpp src/GameLogic.cpp src/LevelManager.cpp src/Scoreboard.cpp
 BIN = build/game
 
 all: $(BIN)

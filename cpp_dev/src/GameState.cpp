@@ -20,4 +20,7 @@ GameState::GameState(const Config& config, int screen_width, int screen_height)
               config.getHurtDimensions()
              ),
       last_fps_update_time(SDL_GetTicks())                            // initialize FPS timer
-{}
+{
+    ui_next_checkpoint_gap_size = spawner.calculateCheckpointGapSize();
+    next_checkpoint_gap_size = spawner.calculateCheckpointGapSize();
+}
