@@ -16,7 +16,7 @@ Scoreboard::~Scoreboard() {
     }
 }
 
-void Scoreboard::render(int score) const {
+void Scoreboard::render(int score, int level) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -26,24 +26,48 @@ void Scoreboard::render(int score) const {
         void operator()(SDL_Texture* t) const { if (t) SDL_DestroyTexture(t); }
     };
 
+    // --- Render Score ---
     std::string score_text = "Score: " + std::to_string(score);
     SDL_Color color = {255, 255, 255, 255}; // White
 
-    // The unique_ptr now owns the surface. It will be automatically freed
-    // when 'surface' goes out of scope, even if the function exits early.
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> surface(TTF_RenderText_Solid(font_, score_text.c_str(), color));
-    if (!surface) {
+    // Create a temporary surface for the score text. A unique_ptr handles cleanup for us.
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> score_surface(TTF_RenderText_Solid(font_, score_text.c_str(), color));
+    if (!score_surface) {
         SDL_Log("Unable to create text surface for score: %s", TTF_GetError());
         return;
     }
 
-    std::unique_ptr<SDL_Texture, SdlTextureDeleter> texture(SDL_CreateTextureFromSurface(renderer_, surface.get()));
-    if (!texture) {
+    // Now create a texture from that surface. Textures are GPU-optimized.
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> score_texture(SDL_CreateTextureFromSurface(renderer_, score_surface.get()));
+    if (!score_texture) {
         SDL_Log("Unable to create texture from surface for score: %s", SDL_GetError());
-        // No need to free the surface manually, the unique_ptr will handle it
         return;
     }
 
-    SDL_Rect destRect = {10, 10, surface->w, surface->h};
-    SDL_RenderCopy(renderer_, texture.get(), nullptr, &destRect);
+    // Define where on the screen to draw the score text.
+    SDL_Rect score_dest_rect = {10, 10, score_surface->w, score_surface->h};
+    SDL_RenderCopy(renderer_, score_texture.get(), nullptr, &score_dest_rect);
+
+    // --- Render Level ---
+    std::string level_text = "Level: " + std::to_string(level);
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_, level_text.c_str(), color));
+    if (!level_surface) {
+        SDL_Log("Unable to create text surface for level: %s", TTF_GetError());
+        return;
+    }
+
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> level_texture(SDL_CreateTextureFromSurface(renderer_, level_surface.get()));
+    if (!level_texture) {
+        SDL_Log("Unable to create texture from surface for HUD: %s", SDL_GetError());
+        return;
+    }
+
+    // Position the level text just below the score text.
+    SDL_Rect level_dest_rect = {10, 10 + score_dest_rect.h + 5, level_surface->w, level_surface->h};
+    // Copy the texture to the renderer.
+    // - renderer_: Our game's main renderer.
+    // - level_texture.get(): The texture we just made from the level text surface.
+    // - nullptr: Use the entire texture as the source (no clipping).
+    // - &level_dest_rect: The destination rectangle on the screen.
+    SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 }

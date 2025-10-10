@@ -13,7 +13,7 @@ public:
     Scoreboard(const Scoreboard&) = delete;
     Scoreboard& operator=(const Scoreboard&) = delete;
 
-    void render(int score) const;
+    void render(int score, int level) const;
 
 private:
     SDL_Renderer* renderer_;
