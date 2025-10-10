@@ -197,7 +197,8 @@ TEST(GameLogicTest, LevelUp) {
     EXPECT_TRUE(checkpoint1.passed);
 
     // After leveling up, LevelManager now uses level 2's config.
-    // checkpoints_per_level for level 2 is also 5.
+    int checkpoints_for_lvl2 = game_state.level_manager.getCheckpointsPerLevel();
+    ASSERT_EQ(checkpoints_for_lvl2, 5); // From levels.json for level 2
     // Pass another checkpoint. checkpoints_passed becomes 6. 6 % 5 != 0, so level stays 2.
     Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint2.rect.x = 50;

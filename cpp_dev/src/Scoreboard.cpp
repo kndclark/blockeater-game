@@ -16,7 +16,7 @@ Scoreboard::~Scoreboard() {
     }
 }
 
-void Scoreboard::render(int score, int level, int next_gap_size) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -49,7 +49,7 @@ void Scoreboard::render(int score, int level, int next_gap_size) const {
     SDL_RenderCopy(renderer_, score_texture.get(), nullptr, &score_dest_rect);
 
     // --- Render Level ---
-    std::string level_text = "Level: " + std::to_string(level);
+    std::string level_text = getLevelText(level, checkpoints_passed, checkpoints_per_level);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_, level_text.c_str(), color));
     if (!level_surface) {
         SDL_Log("Unable to create text surface for level: %s", TTF_GetError());
@@ -72,7 +72,7 @@ void Scoreboard::render(int score, int level, int next_gap_size) const {
     SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 
     // --- Render Next Gap Size ---
-    std::string gap_text = "Next Gap: " + std::to_string(next_gap_size);
+    std::string gap_text = "Gap Size: " + std::to_string(current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_, gap_text.c_str(), color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
@@ -93,4 +93,15 @@ void Scoreboard::render(int score, int level, int next_gap_size) const {
     // - nullptr: Use the entire texture as the source (no clipping).
     // - &gap_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
+}
+
+std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const {
+    if (checkpoints_per_level <= 0) {
+        return "Level: " + std::to_string(level);
+    }
+    // If 5 checkpoints are needed, passing #4 means you are on 4/5, with 1 to go.
+    // (4 % 5) = 4. 5 - 4 = 1.
+    int checkpoints_in_level = checkpoints_passed % checkpoints_per_level;
+    int checkpoints_to_next_level = checkpoints_per_level - checkpoints_in_level;
+    return "Level: " + std::to_string(level) + " (" + std::to_string(checkpoints_to_next_level) + " to next)";
 }
