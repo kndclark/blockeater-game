@@ -83,7 +83,7 @@ void Config::load_defaults() {
     level_progress_prefix_ = " (";
     level_progress_suffix_ = " checkpoints to next level)";
     gap_size_prefix_ = "Gap Size: ";
-    player_size_prefix_ = "Size: ";
+    player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
