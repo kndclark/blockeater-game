@@ -4,18 +4,16 @@
 #include <stdexcept>
 #include <memory>
 #include "../src/Scoreboard.h"
+#include "../config/Config.h"
 
-namespace {
-// This path is relative to the test executable in `test/build/`
-const std::string kRelativeFontPath = "../../assets/font.ttf";
-} // namespace
+#include "test_helpers.h" // For kTestConfigPath
 
 // Test fixture for UI tests that require SDL and SDL_ttf initialization.
 class UiTest : public ::testing::Test {
 protected:
     SDL_Window* window_ = nullptr;
     SDL_Renderer* renderer_ = nullptr;
-    std::string font_path_;
+    Config config_{kTestConfigPath};
 
     void SetUp() override {
         ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
@@ -26,17 +24,6 @@ protected:
 
         renderer_ = SDL_CreateRenderer(window_, -1, 0);
         ASSERT_NE(renderer_, nullptr);
-
-        // Construct a robust path to the font file.
-        char* base_path = SDL_GetBasePath();
-        if (base_path) {
-            font_path_ = std::string(base_path) + kRelativeFontPath;
-            SDL_free(base_path);
-        } else {
-            // Fallback for when the base path can't be determined.
-            // This might happen on some platforms.
-            font_path_ = kRelativeFontPath;
-        }
     }
 
     void TearDown() override {
@@ -51,24 +38,47 @@ protected:
     }
 };
 
+// Test that the config correctly resolves the font path
+TEST_F(UiTest, ConfigFontPathResolution) {
+    // The config loaded by the fixture should have resolved the path
+    const std::string& font_path = config_.getFontPath();
+    EXPECT_NE(font_path.find("assets/font.ttf"), std::string::npos);
+
+    // Check that the file actually exists at that path
+    std::ifstream font_file(font_path);
+    EXPECT_TRUE(font_file.good()) << "Font file not found at: " << font_path;
+}
+
 // Test successful creation of the Scoreboard.
 TEST_F(UiTest, ScoreboardCreationSuccess) {
     EXPECT_NO_THROW({
-        Scoreboard scoreboard(renderer_, font_path_, 24);
+        Scoreboard scoreboard(renderer_, config_);
     });
 }
 
 // Test that Scoreboard creation throws an exception with an invalid font path.
+// We use a mock Config class to simulate providing an invalid path.
 TEST_F(UiTest, ScoreboardCreationFailure) {
-    const std::string invalid_font_path = "nonexistent_font.ttf";
+    // A mock config class that overrides getFontPath to return an invalid path.
+    class MockConfig : public Config {
+    public:
+        MockConfig() : Config(kTestConfigPath) {} // Initialize with a valid config
+        const std::string& getFontPath() const override {
+            return invalid_path_;
+        }
+    private:
+        std::string invalid_path_ = "this/path/does/not/exist.ttf";
+    };
+
+    MockConfig invalid_config;
     EXPECT_THROW({
-        Scoreboard scoreboard(renderer_, invalid_font_path, 24);
+        Scoreboard scoreboard(renderer_, invalid_config);
     }, std::runtime_error);
 }
 
 // Test that the render method can be called without crashing.
 TEST_F(UiTest, ScoreboardRender) {
-    Scoreboard scoreboard(renderer_, font_path_, 24);
+    Scoreboard scoreboard(renderer_, config_);
 
     // This is a smoke test to ensure render() doesn't crash.
     // We can't easily verify the visual output in a unit test.
@@ -82,7 +92,7 @@ TEST_F(UiTest, ScoreboardRender) {
 // Test the logic for generating the level progress text. By using the UiTest
 // fixture, we ensure SDL is initialized correctly before the Scoreboard is created.
 TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
-    Scoreboard scoreboard(renderer_, font_path_, 24);
+    Scoreboard scoreboard(renderer_, config_);
 
     EXPECT_EQ(scoreboard.getLevelText(1, 0, 5), "Level: 1 (5 checkpoints to next level)");
     EXPECT_EQ(scoreboard.getLevelText(1, 1, 5), "Level: 1 (4 checkpoints to next level)");
@@ -95,7 +105,7 @@ TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
 
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
-    Scoreboard scoreboard(renderer_, font_path_, 24);
+    Scoreboard scoreboard(renderer_, config_);
 
     // We can't easily check the visual output, but we can confirm that
     // rendering different values completes without throwing any exceptions.

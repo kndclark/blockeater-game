@@ -1,0 +1,12 @@
+{
+    "ui_text": {
+        "score_prefix": "Score: ",
+        "level_prefix": "Level: ",
+        "level_progress_prefix": " (",
+        "level_progress_suffix": " checkpoints to next level)",
+        "font": {
+            "path": "assets/font.ttf",
+            "size": 24
+        }
+    }
+}

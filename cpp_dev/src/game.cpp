@@ -65,18 +65,7 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<Scoreboard> scoreboard;
     try {
-        // Construct a path to the font file relative to the executable's location.
-        std::string font_path;
-        char* base_path = SDL_GetBasePath();
-        if (base_path) {
-            font_path = std::string(base_path) + "../assets/font.ttf";
-            SDL_free(base_path);
-        } else {
-            // Fallback for when the base path can't be determined.
-            SDL_Log("Warning: Could not get application base path. Using relative path '../assets/font.ttf'");
-            font_path = "../assets/font.ttf";
-        }
-        scoreboard = std::make_unique<Scoreboard>(renderer.get(), font_path, 24);
+        scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
     } catch (const std::exception& e) {
         SDL_Log("Error creating scoreboard: %s", e.what());
         TTF_Quit();

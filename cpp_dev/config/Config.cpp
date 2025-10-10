@@ -78,6 +78,12 @@ void Config::load_defaults() {
     player_width = 40;
     player_height = 40;
     player_speed = 5;
+    score_prefix_ = "Score: ";
+    level_prefix_ = "Level: ";
+    level_progress_prefix_ = " (";
+    level_progress_suffix_ = " checkpoints to next level)";
+    font_path_ = "assets/font.ttf";
+    font_size_ = 24;
 }
 
 Config::Config() {
@@ -87,11 +93,11 @@ Config::Config() {
     char* base_path = SDL_GetBasePath();
     if (base_path) {
 #ifdef IS_TEST_BUILD
-        // The test executable is in test/build/, so we go up two directories to the project root.
-        config_path = std::string(base_path) + "../../config/json/config.json";
+        // The test executable is in test/build/, so we go up to the cpp_dev directory.
+        config_path = std::string(base_path) + "../../";
 #else
-        // The game executable is in build/, so we go up one directory to the project root.
-        config_path = std::string(base_path) + "../config/json/config.json";
+        // The game executable is in build/, so we go up to the cpp_dev directory.
+        config_path = std::string(base_path) + "../";
 #endif
         SDL_free(base_path);
     } else {
@@ -99,12 +105,47 @@ Config::Config() {
         // Assumes the executable is run from the `cpp_dev` directory.
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
         config_path = "config/json/config.json";
+        load_from_path(config_path); // This will also load levels.json
+        return;
     }
-    load_from_path(config_path); // This will also load levels.json
+    load_from_path(config_path + "config/json/config.json");
 }
 
 Config::Config(const std::string& filepath) {
     load_from_path(filepath);
+}
+
+void Config::load_ui_texts(const std::string& base_path) {
+    std::ifstream f(base_path + "ui_texts.json");
+    if (f.is_open()) {
+        try {
+            json data = json::parse(f);
+            score_prefix_ = data.value("/ui_text/score_prefix"_json_pointer, score_prefix_);
+            level_prefix_ = data.value("/ui_text/level_prefix"_json_pointer, level_prefix_);
+            level_progress_prefix_ = data.value("/ui_text/level_progress_prefix"_json_pointer, level_progress_prefix_);
+            level_progress_suffix_ = data.value("/ui_text/level_progress_suffix"_json_pointer, level_progress_suffix_);
+            font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
+            font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
+
+            // Prepend the base path to the font path if it's not absolute.
+            // This makes the font path relative to the project root.
+            char* sdl_base_path = SDL_GetBasePath();
+            if (sdl_base_path) {
+#ifdef IS_TEST_BUILD
+                font_path_ = std::string(sdl_base_path) + "../../" + font_path_;
+#else
+                font_path_ = std::string(sdl_base_path) + "../" + font_path_;
+#endif
+                SDL_free(sdl_base_path);
+            }
+
+        } catch (const std::exception& e) {
+            std::cerr << "WARNING: Error parsing ui_texts.json: " << e.what() << ". Using default UI text." << std::endl;
+        }
+    } else {
+        // This is not a critical error, as default values are set.
+        SDL_Log("Info: ui_texts.json not found. Using default UI text.");
+    }
 }
 
 void Config::load_levels(const std::string& filepath) {
@@ -182,6 +223,7 @@ void Config::load_from_path(const std::string& filepath) {
     size_t last_slash_pos = levels_path.find_last_of("/\\");
     if (last_slash_pos != std::string::npos) { // if filepath has a directory
         load_levels(levels_path.substr(0, last_slash_pos + 1) + "levels.json");
+        load_ui_texts(levels_path.substr(0, last_slash_pos + 1));
     }
     // Also try loading a file with ".levels.json" suffix for tests.
     load_levels(filepath + ".levels.json");
@@ -298,4 +340,28 @@ const LevelConfig* Config::getLevelConfig(int level) const {
         return &it->second;
     }
     return nullptr;
+}
+
+const std::string& Config::getScorePrefix() const {
+    return score_prefix_;
+}
+
+const std::string& Config::getFontPath() const {
+    return font_path_;
+}
+
+int Config::getFontSize() const {
+    return font_size_;
+}
+
+const std::string& Config::getLevelPrefix() const {
+    return level_prefix_;
+}
+
+const std::string& Config::getLevelProgressPrefix() const {
+    return level_progress_prefix_;
+}
+
+const std::string& Config::getLevelProgressSuffix() const {
+    return level_progress_suffix_;
 }

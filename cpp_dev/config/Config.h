@@ -51,10 +51,17 @@ public:
     int getPlayerWidth() const;
     int getPlayerHeight() const;
     int getPlayerSpeed() const;
+    const std::string& getScorePrefix() const;
+    virtual const std::string& getFontPath() const;
+    int getFontSize() const;
+    const std::string& getLevelPrefix() const;
+    const std::string& getLevelProgressPrefix() const;
+    const std::string& getLevelProgressSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 private:
     void load_from_path(const std::string& filepath);
+    void load_ui_texts(const std::string& base_path);
     void load_levels(const std::string& filepath);
     void load_defaults();
 
@@ -82,4 +89,12 @@ private:
     int player_width;
     int player_height;
     int player_speed;
+
+    // UI Text
+    std::string score_prefix_;
+    std::string level_prefix_;
+    std::string level_progress_prefix_;
+    std::string level_progress_suffix_;
+    std::string font_path_;
+    int font_size_;
 };
