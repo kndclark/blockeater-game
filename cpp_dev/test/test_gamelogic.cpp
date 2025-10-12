@@ -66,6 +66,7 @@ enum class PlayerSizeChange { EQUAL, GREATER, LESS };
 
 struct CollisionLogicParams {
     ObstacleType obstacle_type;
+    int initial_score;
     bool expected_running;
     size_t expected_obstacle_count;
     PlayerSizeChange player_size_change;
@@ -85,6 +86,7 @@ TEST_P(CollisionLogicTest, HandlesCollisions) {
     GameState game_state(config, 800, 600);
     game_state.player.rect.x = 100;
     game_state.player.rect.y = 100;
+    game_state.score = params.initial_score;
 
     int points = 0;
     if (params.obstacle_type == ObstacleType::Grow) {
@@ -114,12 +116,17 @@ TEST_P(CollisionLogicTest, HandlesCollisions) {
 INSTANTIATE_TEST_SUITE_P(
     CollisionTests,
     CollisionLogicTest,
-    ::testing::Values(
-        CollisionLogicParams{ObstacleType::Hurt, false, 1, PlayerSizeChange::EQUAL, 0, "HurtCollision"},
-        CollisionLogicParams{ObstacleType::Grow, true, 0, PlayerSizeChange::GREATER, 200, "GrowCollision"},
-        CollisionLogicParams{ObstacleType::Shrink, true, 0, PlayerSizeChange::LESS, 100, "ShrinkCollision"},
-        CollisionLogicParams{ObstacleType::Checkpoint, false, 1, PlayerSizeChange::EQUAL, 0, "CheckpointCollision"} // A collision with a checkpoint wall should be fatal.
-    ),
+    ::testing::ValuesIn([] {
+        Config config(kTestRootPath);
+        const int penalty = std::abs(config.getScorePerHurt());
+        return std::vector<CollisionLogicParams>{
+            {ObstacleType::Hurt, penalty - 1, false, 1, PlayerSizeChange::EQUAL, penalty - 1, "HurtCollision_NotEnoughScore"},
+            {ObstacleType::Hurt, penalty, true, 0, PlayerSizeChange::EQUAL, 0, "HurtCollision_EnoughScore"},
+            {ObstacleType::Grow, 0, true, 0, PlayerSizeChange::GREATER, config.getScorePerGrow(), "GrowCollision"},
+            {ObstacleType::Shrink, 0, true, 0, PlayerSizeChange::LESS, config.getScorePerShrink(), "ShrinkCollision"},
+            {ObstacleType::Checkpoint, penalty, false, 1, PlayerSizeChange::EQUAL, penalty, "CheckpointCollision"} // A collision with a checkpoint wall should be fatal, regardless of score.
+        };
+    }()),
     [](const testing::TestParamInfo<CollisionLogicTest::ParamType>& info) {
         return info.param.description;
     }
@@ -178,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(
     CheckpointPassingTest,
     ::testing::Values(
         CheckpointPassingParams{100, 121, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerBeforeCheckpoint"},
-        CheckpointPassingParams{121, 100, false, 0, 500, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"}, // Score becomes 10
+        CheckpointPassingParams{121, 100, false, 0, 500, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"}, // score_per_checkpoint is 500 in config
         CheckpointPassingParams{122, 100, false, 500, 1000, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
         CheckpointPassingParams{121, 100, true, 500, 500, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
         CheckpointPassingParams{100, 100, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerAtCheckpointEdge"},
