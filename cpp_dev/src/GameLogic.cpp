@@ -3,12 +3,22 @@
 
 std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles) {
     switch (it->type) {
-        case ObstacleType::Checkpoint:
-            // fallthrough
-        case ObstacleType::Hurt:
-            SDL_Log("Collision with Hurt obstacle! Game Over.");
+        case ObstacleType::Checkpoint: {
+            SDL_Log("Collision with Checkpoint wall! Game Over.");
             game_state.running = false; // End the game
             return ++it; // Advance iterator to avoid re-processing in the game loop
+        }
+        case ObstacleType::Hurt: {
+            const int score_penalty = std::abs(game_state.config.getScorePerHurt());
+            if (game_state.score >= score_penalty) {
+                SDL_Log("Collision with Hurt obstacle! Score decreased by %d.", score_penalty);
+                game_state.score -= score_penalty;
+                return obstacles.erase(it); // Erase and get next valid iterator
+            }
+            SDL_Log("Collision with Hurt obstacle! Not enough score. Game Over.");
+            game_state.running = false; // End the game
+            return ++it; // Advance iterator to avoid re-processing in the game loop
+        }
         case ObstacleType::Grow:
             SDL_Log("Collision with Grow obstacle! Player grows.");
             game_state.player.grow(game_state.config.getPlayerSizeChangeAmount());

@@ -18,6 +18,7 @@
     "player_size_change_amount": 10,
     "score_per_grow": 200,
     "score_per_shrink": 100,
+    "score_per_hurt": -500,
     "score_per_checkpoint": 500,
     "checkpoints_per_level": 1,
     "checkpoint_interval_ms": 10000,

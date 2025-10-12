@@ -58,6 +58,7 @@ public:
     ObstacleSize getGrowDimensions() const;
     int getScorePerGrow() const;
     int getScorePerShrink() const;
+    int getScorePerHurt() const;
     ObstacleConfig getObstacleConfig() const;
     ObstacleSize getShrinkDimensions() const;
     ObstacleSize getHurtDimensions() const;
@@ -98,6 +99,7 @@ private:
     int score_per_checkpoint;
     int score_per_grow;
     int score_per_shrink;
+    int score_per_hurt;
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
