@@ -9,6 +9,7 @@ GameState::GameState(const Config& config, int screen_width, int screen_height)
              config.getPlayerSpeed(),                                  // speed
              config.getPlayerColor()),                                 // color
       level_manager(config),                                          // must be initialized before spawner
+      score_manager(config),
       spawner(level_manager,
               config.getCheckpointSafeZoneDuration(),
               screen_width,                                           // screen width

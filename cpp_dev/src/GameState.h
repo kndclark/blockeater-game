@@ -7,6 +7,7 @@
 #include "../config/Config.h"
 #include "LevelManager.h"
 #include "GameLogic.h"
+#include "ScoreManager.h"
 
 struct GameState {
     const Config& config;
@@ -19,6 +20,7 @@ struct GameState {
     int ui_next_checkpoint_gap_size = 0;
     int next_checkpoint_gap_size = 0;
     LevelManager level_manager;
+    ScoreManager score_manager;
     ObstacleSpawner spawner;
 
     // Create vectors to hold rectangles for batch drawing. Reusing these vectors

@@ -32,6 +32,11 @@
       "shrink": { "w": 10, "h": 10 },
       "hurt": { "w": 30, "h": 30 }
     },
+    "score_boosts": {
+      "dash_multiplier": 1.5,
+      "size_threshold_percent": 50,
+      "size_multiplier": 2.0
+    },
     "player": {
       "initial_x": 100,
       "width": 40,

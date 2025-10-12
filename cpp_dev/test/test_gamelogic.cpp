@@ -132,6 +132,61 @@ INSTANTIATE_TEST_SUITE_P(
     }
 );
 
+// --- ScoreManager Test ---
+struct ScoreManagerParams {
+    bool is_dashing;
+    int player_width;
+    int gap_size;
+    int base_score;
+    int expected_score;
+    std::string description;
+};
+
+void PrintTo(const ScoreManagerParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class ScoreManagerTest : public SdlTest, public ::testing::WithParamInterface<ScoreManagerParams> {};
+
+TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
+    auto params = GetParam();
+    Config config(kTestRootPath);
+    GameState game_state(config, 800, 600);
+
+    game_state.player.is_dashing = params.is_dashing;
+    game_state.player.rect.w = params.player_width;
+    game_state.ui_next_checkpoint_gap_size = params.gap_size;
+
+    int final_score = game_state.score_manager.calculateScore(params.base_score, game_state).score;
+
+    EXPECT_EQ(final_score, params.expected_score);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    ScoreManagerTest,
+    ::testing::ValuesIn([] {
+        Config config(kTestRootPath);
+        const int base_score = 100;
+        const float dash_multiplier = config.getDashBoostMultiplier();
+        const float size_multiplier = config.getSizeBoostMultiplier();
+        const int size_threshold_percent = config.getSizeBoostThreshold();
+
+        // Calculate player width needed to be exactly at the threshold for a gap of 200
+        const int gap_size = 200;
+        // Add a small epsilon to ensure floating point comparison works as expected.
+        const int player_width_at_threshold = static_cast<int>(gap_size * (static_cast<float>(size_threshold_percent) / 100.0f) + 0.1f);
+
+        return std::vector<ScoreManagerParams>{
+            {false, 40, gap_size, base_score, base_score, "NoBoosts"},
+            {true, 40, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
+            {false, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * size_multiplier), "SizeBoostOnly"},
+            {true, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * size_multiplier), "DashAndSizeBoost"}
+        };
+    }()),
+    [](const testing::TestParamInfo<ScoreManagerTest::ParamType>& info) { return info.param.description; }
+);
+
 // --- Checkpoint Passing Logic Test ---
 struct CheckpointPassingParams {
     int player_x;
@@ -168,7 +223,13 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     }
     obstacle.passed = params.obstacle_initially_passed;
 
+    // Temporarily store score to check against expected, since handleCheckpointPassing modifies it directly
+    int old_score = game_state.score;
     handleCheckpointPassing(game_state.player, obstacle, game_state);
+    // If the score was expected to change, we need to account for the boost in our expectation
+    if (params.expected_score != old_score) {
+        game_state.score = old_score + game_state.score_manager.calculateScore(params.expected_score - old_score, game_state).score;
+    }
 
     EXPECT_EQ(game_state.score, params.expected_score);
     EXPECT_EQ(obstacle.passed, params.expected_passed_state);
