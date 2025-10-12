@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <memory>
 #include <SDL2/SDL_ttf.h>
 #include <string>
 #include "../config/Config.h"
@@ -23,5 +24,10 @@ public:
 private:
     SDL_Renderer* renderer_;
     const Config& config_;
-    TTF_Font* font_;
+
+    struct SdlFontDeleter {
+        void operator()(TTF_Font* f) const { if (f) TTF_CloseFont(f); }
+    };
+
+    std::unique_ptr<TTF_Font, SdlFontDeleter> font_;
 };

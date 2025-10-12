@@ -11,21 +11,26 @@
 #include "Scoreboard.h"
 
 int main(int argc, char* argv[]) {
+    // RAII wrapper for SDL and TTF initialization
+    struct SdlInitializer {
+        SdlInitializer() {
+            if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+                throw std::runtime_error(std::string("Unable to initialize SDL: ") + SDL_GetError());
+            }
+            if (TTF_Init() == -1) {
+                throw std::runtime_error(std::string("Unable to initialize SDL_ttf: ") + TTF_GetError());
+            }
+        }
+        ~SdlInitializer() {
+            TTF_Quit();
+            SDL_Quit();
+        }
+    };
+
     struct SdlDeleter {
         void operator()(SDL_Window* w) const { SDL_DestroyWindow(w); }
         void operator()(SDL_Renderer* r) const { SDL_DestroyRenderer(r); }
     };
-
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        return 1;
-    }
-
-    if (TTF_Init() == -1) {
-        SDL_Log("Unable to initialize SDL_ttf: %s", TTF_GetError());
-        SDL_Quit();
-        return 1;
-    }
 
     // Determine the project root path. The game executable is in `build/`.
     std::string root_path;
@@ -38,6 +43,9 @@ int main(int argc, char* argv[]) {
         // Fallback to an empty root path.
     }
 
+    try {
+        SdlInitializer sdl_initializer;
+        
     // Load configuration. The Config class will find the default config file.
     Config config(root_path);
 
@@ -126,8 +134,11 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+    } catch (const std::exception& e) {
+        SDL_Log("An error occurred: %s", e.what());
+        // SdlInitializer destructor will still be called, cleaning up SDL and TTF.
+        return 1;
+    }
 
-    TTF_Quit();
-    SDL_Quit();
     return 0;
 }
