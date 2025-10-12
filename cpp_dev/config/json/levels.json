@@ -2,60 +2,70 @@
     "levels": {
         "1": {
             "obstacle_speed": 3, "spawn_interval_ms": 2000, "base_checkpoint_gap": 200,
+            "checkpoint_interval_ms": 12000,
             "grow_chance_percent": 20,
             "shrink_chance_percent": 50, "hurt_chance_percent": 30,
             "checkpoints_per_level": 5
         },
         "2": {
             "obstacle_speed": 4, "spawn_interval_ms": 1850, "base_checkpoint_gap": 150,
+            "checkpoint_interval_ms": 11000,
             "grow_chance_percent": 25,
             "shrink_chance_percent": 45, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 5
+            "checkpoints_per_level": 6
         },
         "3": {
             "obstacle_speed": 5, "spawn_interval_ms": 1700, "base_checkpoint_gap": 125,
+            "checkpoint_interval_ms": 10500,
             "grow_chance_percent": 30,
             "shrink_chance_percent": 40, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 5
+            "checkpoints_per_level": 6
         },
         "4": {
             "obstacle_speed": 6, "spawn_interval_ms": 1550, "base_checkpoint_gap": 110,
+            "checkpoint_interval_ms": 10000,
             "grow_chance_percent": 35,
             "shrink_chance_percent": 35, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 5
+            "checkpoints_per_level": 7
         },
         "5": {
             "obstacle_speed": 7, "spawn_interval_ms": 1400, "base_checkpoint_gap": 105,
+            "checkpoint_interval_ms": 9500,
             "grow_chance_percent": 40,
             "shrink_chance_percent": 30, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 5
+            "checkpoints_per_level": 7
         },
         "6": {
             "obstacle_speed": 8, "spawn_interval_ms": 1250, "base_checkpoint_gap": 100,
+            "checkpoint_interval_ms": 9000,
             "grow_chance_percent": 45,
             "shrink_chance_percent": 25, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 5
+            "checkpoints_per_level": 8
         },
         "7": {
             "obstacle_speed": 9, "spawn_interval_ms": 1100, "base_checkpoint_gap": 95,
+            "checkpoint_interval_ms": 8500,
             "grow_chance_percent": 50,
             "shrink_chance_percent": 20, "hurt_chance_percent": 30,
             "checkpoints_per_level": 8
         },
         "8": {
             "obstacle_speed": 10, "spawn_interval_ms": 950, "base_checkpoint_gap": 90,
+            "checkpoint_interval_ms": 8000,
             "grow_chance_percent": 55,
             "shrink_chance_percent": 15, "hurt_chance_percent": 30,
-            "checkpoints_per_level": 8
+            "checkpoints_per_level": 9
         },
         "9": {
             "obstacle_speed": 11, "spawn_interval_ms": 800, "base_checkpoint_gap": 85,
+            "checkpoint_interval_ms": 7500,
             "grow_chance_percent": 60,
             "shrink_chance_percent": 10, "hurt_chance_percent": 30,
             "checkpoints_per_level": 10
         },
         "10": {
             "obstacle_speed": 12, "spawn_interval_ms": 650, "base_checkpoint_gap": 80,
+            "checkpoint_interval_ms": 7000,
             "grow_chance_percent": 65,
             "shrink_chance_percent": 5, "hurt_chance_percent": 30,
             "checkpoints_per_level": 10

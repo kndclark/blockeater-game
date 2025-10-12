@@ -16,7 +16,10 @@
     "base_checkpoint_gap": 200,
     "spawn_interval_ms": 1500,
     "player_size_change_amount": 10,
-    "score_per_checkpoint": 10,
+    "score_per_grow": 200,
+    "score_per_shrink": 100,
+    "score_per_hurt": -500,
+    "score_per_checkpoint": 500,
     "checkpoints_per_level": 1,
     "checkpoint_interval_ms": 10000,
     "obstacle_spawn_chances": {
@@ -28,6 +31,11 @@
       "grow": { "w": 50, "h": 50 },
       "shrink": { "w": 10, "h": 10 },
       "hurt": { "w": 30, "h": 30 }
+    },
+    "score_boosts": {
+      "dash_multiplier": 1.5,
+      "size_threshold_percent": 50,
+      "size_multiplier": 2.0
     },
     "player": {
       "initial_x": 100,
