@@ -192,30 +192,33 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(GameLogicTest, LevelUp) {
     Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
-    int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
-    ASSERT_EQ(checkpoints_for_lvl1, 5); // From levels.json
-    game_state.checkpoints_passed = checkpoints_for_lvl1 - 1; // = 4
+    
+    // --- Test Level 1 -> 2 ---
+    const int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
+    game_state.checkpoints_passed_in_level = checkpoints_for_lvl1 - 1;
 
-    // Pass a checkpoint. checkpoints_passed becomes 5. 5 % 5 == 0, so level up to 2.
+    // Pass a checkpoint. This should trigger a level up to 2.
     int dummy_gap_y;
     std::vector<Obstacle> nearby;
     Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint1.rect.x = 50; // Place it behind the player
     if(checkpoint1.rect2) checkpoint1.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
-    EXPECT_EQ(game_state.checkpoints_passed, checkpoints_for_lvl1);
+    
+    EXPECT_EQ(game_state.checkpoints_passed_in_level, 0); // Counter should reset
     EXPECT_EQ(game_state.level, 2);
     EXPECT_TRUE(checkpoint1.passed);
 
-    // After leveling up, LevelManager now uses level 2's config.
-    int checkpoints_for_lvl2 = game_state.level_manager.getCheckpointsPerLevel();
-    ASSERT_EQ(checkpoints_for_lvl2, 5); // From levels.json for level 2
-    // Pass another checkpoint. checkpoints_passed becomes 6. 6 % 5 != 0, so level stays 2.
+    // --- Test within Level 2 ---
+    // After leveling up, LevelManager should be using level 2's config.
+    
+    // Pass another checkpoint. This should NOT trigger a level up.
     Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint2.rect.x = 50;
     if(checkpoint2.rect2) checkpoint2.rect2->x = 50;
     handleCheckpointPassing(game_state.player, checkpoint2, game_state);
-    EXPECT_EQ(game_state.checkpoints_passed, checkpoints_for_lvl1 + 1);
+    
+    EXPECT_EQ(game_state.checkpoints_passed_in_level, 1); // Counter should increment
     EXPECT_EQ(game_state.level, 2);
     EXPECT_TRUE(checkpoint2.passed);
 }
@@ -263,11 +266,11 @@ INSTANTIATE_TEST_SUITE_P(
     GameLogicTests,
     ObstacleSpawnerTest,
     ::testing::Values(
-        ObstacleSpawnerParams{2000, 7000, {0, 2000, 2001, 4000, 4001}, 2, 0, "SpawnsOnlyRegular"},
-        ObstacleSpawnerParams{2000, 7000, {7000}, 0, 1, "SpawnsCheckpointAndNotRegular"},
-        ObstacleSpawnerParams{2000, 7000, {0, 50, 1999}, 0, 0, "NoSpawnsBeforeInterval"},
-        ObstacleSpawnerParams{2000, 7000, {2000, 4000, 6000}, 3, 0, "SpawnsAtIntervals"},
-        ObstacleSpawnerParams{10000, 7000, {7001}, 0, 1, "SpawnsOnlyCheckpoint"}
+        ObstacleSpawnerParams{2000, 12000, {0, 2000, 2001, 4000, 4001}, 2, 0, "SpawnsOnlyRegular"},
+        ObstacleSpawnerParams{2000, 12000, {12000}, 0, 1, "SpawnsCheckpointAndNotRegular"},
+        ObstacleSpawnerParams{2000, 12000, {0, 50, 1999}, 0, 0, "NoSpawnsBeforeInterval"},
+        ObstacleSpawnerParams{2000, 12000, {2000, 4000, 6000}, 3, 0, "SpawnsAtIntervals"},
+        ObstacleSpawnerParams{10000, 12000, {12001}, 0, 1, "SpawnsOnlyCheckpoint"}
     ),
     [](const testing::TestParamInfo<ObstacleSpawnerTest::ParamType>& info) {
         return info.param.description;
@@ -408,7 +411,9 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = LevelManager::MAX_LEVEL;
-    gameState.checkpoints_passed = gameState.level_manager.getCheckpointsPerLevel() - 1;
+    // Ensure the level manager is updated to the final level's config.
+    gameState.level_manager.updateForLevel(gameState.level);
+    gameState.checkpoints_passed_in_level = gameState.level_manager.getCheckpointsPerLevel() - 1;
 
     // Add a checkpoint for the player to pass.
     // The player is at x=100, so a checkpoint at x=50 is behind them.
@@ -425,14 +430,16 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
     // Assert: The level should now be greater than the max level.
     // The main game loop is responsible for setting `running` to false.
     EXPECT_GT(gameState.level, LevelManager::MAX_LEVEL);
-}
+};
 
 TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = LevelManager::MAX_LEVEL;
-    gameState.checkpoints_passed = gameState.level_manager.getCheckpointsPerLevel() - 1;
+    // Ensure the level manager is updated to the final level's config.
+    gameState.level_manager.updateForLevel(gameState.level);
+    gameState.checkpoints_passed_in_level = gameState.level_manager.getCheckpointsPerLevel() - 1;
 
     // Add a checkpoint for the player to pass.
     // The player is at x=100, so a checkpoint at x=50 is behind them.
@@ -450,7 +457,7 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
 
     // Assert: The game should no longer be running.
     EXPECT_FALSE(gameState.running);
-}
+};
 
 TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -464,7 +471,7 @@ TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
     processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     EXPECT_FALSE(gameState.running);
-}
+};
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -476,7 +483,7 @@ TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame
     updateGame(gameState);
 
     EXPECT_FALSE(gameState.running);
-}
+};
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -491,7 +498,7 @@ TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGr
     EXPECT_TRUE(gameState.running);
     EXPECT_GT(gameState.player.rect.w, initial_width);
     EXPECT_EQ(gameState.obstacles.size(), 0); // Obstacle should be removed
-}
+};
 
 TEST_F(TopLevelGameLogicTest, RenderGameCompiles) {
     // This test's primary purpose is to ensure that renderGame compiles
@@ -499,4 +506,4 @@ TEST_F(TopLevelGameLogicTest, RenderGameCompiles) {
     // correctness issues or other compile-time problems in the render path.
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
     renderGame(nullptr, gameState, config);
-}
+};

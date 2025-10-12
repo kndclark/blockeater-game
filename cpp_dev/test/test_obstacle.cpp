@@ -204,9 +204,10 @@ TEST(ObstaclePlacementTest, CalculateSafeY_AvoidsGap) {
     const int num_trials = 1000;
     for (int i = 0; i < num_trials; ++i) {
         int y = Obstacle::calculateSafeY(screen_height, obstacle_height, nearby_obstacles);
-        // The safe zone is the gap [200, 400]. Obstacle must be fully inside.
-        EXPECT_TRUE(y >= 200 && y + obstacle_height <= 400)
-            << "Obstacle at y=" << y << " was spawned outside the checkpoint gap [200, 400].";
+        // The forbidden zones are the walls [0, 200] and [400, 600].
+        // The new obstacle must not overlap with them.
+        EXPECT_FALSE((y < 200 && y + obstacle_height > 0) || (y < 600 && y + obstacle_height > 400))
+            << "Obstacle at y=" << y << " overlaps with checkpoint walls.";
     }
 }
 

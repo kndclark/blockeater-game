@@ -41,10 +41,10 @@ int Obstacle::calculateSafeY(int screen_height, int obstacle_height, const std::
     for (const auto& obs : nearby_obstacles) {
         // For checkpoints, the forbidden zones are the walls, not the gap.
         if (obs.type == ObstacleType::Checkpoint && obs.rect2.has_value()) {
-            forbidden_zones.push_back({0, obs.rect.h}); // Top wall
-            forbidden_zones.push_back({obs.rect2->y, screen_height - obs.rect2->y}); // Bottom wall
+            // The safe zone is the gap, so the walls are forbidden.
+            forbidden_zones.push_back({0, obs.rect.h});
+            forbidden_zones.push_back({obs.rect2->y, screen_height - obs.rect2->y});
         } else {
-            // For regular obstacles, forbid the area around them.
             int start_y = std::max(0, obs.rect.y - clearance);
             int end_y = std::min(screen_height, obs.rect.y + obs.rect.h + clearance);
             forbidden_zones.push_back({start_y, end_y - start_y});

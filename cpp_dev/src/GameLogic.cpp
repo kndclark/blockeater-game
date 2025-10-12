@@ -102,11 +102,13 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
         if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
             obstacle.passed = true; // The points for the checkpoint are now added when it's passed.
             game_state.score += game_state.config.getScorePerCheckpoint();
+            game_state.checkpoints_passed_in_level++;
             game_state.checkpoints_passed++;
             player.resetSize();
             // Level up every CHECKPOINTS_PER_LEVEL checkpoints
-            if (game_state.checkpoints_passed > 0 && game_state.checkpoints_passed % game_state.level_manager.getCheckpointsPerLevel() == 0) {
+            if (game_state.checkpoints_passed_in_level >= game_state.level_manager.getCheckpointsPerLevel()) {
                 game_state.level++;
+                game_state.checkpoints_passed_in_level = 0;
                 game_state.level_manager.updateForLevel(game_state.level);
                 SDL_Log("Level up! You are now on level %d.", game_state.level);
             }
