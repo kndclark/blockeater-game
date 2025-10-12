@@ -178,9 +178,9 @@ INSTANTIATE_TEST_SUITE_P(
     CheckpointPassingTest,
     ::testing::Values(
         CheckpointPassingParams{100, 121, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerBeforeCheckpoint"},
-        CheckpointPassingParams{121, 100, false, 0, 10, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"}, // Score becomes 10
-        CheckpointPassingParams{122, 100, false, 10, 20, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
-        CheckpointPassingParams{121, 100, true, 10, 10, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
+        CheckpointPassingParams{121, 100, false, 0, 500, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"}, // Score becomes 10
+        CheckpointPassingParams{122, 100, false, 500, 1000, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
+        CheckpointPassingParams{121, 100, true, 500, 500, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
         CheckpointPassingParams{100, 100, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerAtCheckpointEdge"},
         CheckpointPassingParams{121, 100, false, 0, 0, false, ObstacleType::Hurt, "DoesNotAffectNonCheckpoints"}
     ),
