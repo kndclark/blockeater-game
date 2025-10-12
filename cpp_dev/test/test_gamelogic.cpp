@@ -189,6 +189,15 @@ INSTANTIATE_TEST_SUITE_P(
     }
 );
 
+Obstacle createPlacedCheckpoint(int x_pos) {
+    int dummy_gap_y;
+    std::vector<Obstacle> nearby;
+    Obstacle checkpoint = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
+    checkpoint.rect.x = x_pos;
+    if(checkpoint.rect2) checkpoint.rect2->x = x_pos;
+    return checkpoint;
+}
+
 TEST(GameLogicTest, LevelUp) {
     Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
@@ -198,11 +207,7 @@ TEST(GameLogicTest, LevelUp) {
     game_state.checkpoints_passed_in_level = checkpoints_for_lvl1 - 1;
 
     // Pass a checkpoint. This should trigger a level up to 2.
-    int dummy_gap_y;
-    std::vector<Obstacle> nearby;
-    Obstacle checkpoint1 = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
-    checkpoint1.rect.x = 50; // Place it behind the player
-    if(checkpoint1.rect2) checkpoint1.rect2->x = 50;
+    Obstacle checkpoint1 = createPlacedCheckpoint(50); // Place it behind the player
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
     
     EXPECT_EQ(game_state.checkpoints_passed_in_level, 0); // Counter should reset
@@ -213,9 +218,7 @@ TEST(GameLogicTest, LevelUp) {
     // After leveling up, LevelManager should be using level 2's config.
     
     // Pass another checkpoint. This should NOT trigger a level up.
-    Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
-    checkpoint2.rect.x = 50;
-    if(checkpoint2.rect2) checkpoint2.rect2->x = 50;
+    Obstacle checkpoint2 = createPlacedCheckpoint(50);
     handleCheckpointPassing(game_state.player, checkpoint2, game_state);
     
     EXPECT_EQ(game_state.checkpoints_passed_in_level, 1); // Counter should increment
@@ -243,12 +246,8 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config(kTestRootPath); // Use default config
-    LevelManager level_manager(config);
-    // We need to create a custom spawner for this test that uses the intervals from the test parameters,
-    // not the ones from the LevelManager/config files.
-    // To do this, we can create a temporary LevelManager with overridden values.
-    // This is a bit of a workaround, but it isolates the test.
-    ObstacleSpawner test_spawner(level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount());
+    TestLevelManager test_level_manager = createTestLevelManager(config, params.regular_interval, params.checkpoint_interval);
+    ObstacleSpawner test_spawner(test_level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount());
     
     GameState game_state(config, 800, 600);
     injectSpawnerForTest(game_state, std::move(test_spawner));
@@ -417,11 +416,7 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
 
     // Add a checkpoint for the player to pass.
     // The player is at x=100, so a checkpoint at x=50 is behind them.
-    int dummy_gap_y;
-    std::vector<Obstacle> nearby;
-    Obstacle checkpoint = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y);
-    checkpoint.rect.x = 50;
-    if(checkpoint.rect2) checkpoint.rect2->x = 50;
+    Obstacle checkpoint = createPlacedCheckpoint(50);
     gameState.obstacles.push_back(checkpoint);
 
     // Act: Run the game logic update. This should trigger the victory condition.
@@ -443,11 +438,7 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
 
     // Add a checkpoint for the player to pass.
     // The player is at x=100, so a checkpoint at x=50 is behind them.
-    int dummy_gap_y;
-    std::vector<Obstacle> nearby;
-    Obstacle checkpoint = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y);
-    checkpoint.rect.x = 50;
-    if(checkpoint.rect2) checkpoint.rect2->x = 50;
+    Obstacle checkpoint = createPlacedCheckpoint(50);
     gameState.obstacles.push_back(checkpoint);
 
     ASSERT_TRUE(gameState.running);
@@ -472,6 +463,44 @@ TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
 
     EXPECT_FALSE(gameState.running);
 };
+
+TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
+    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // 1. Spawn a checkpoint.
+    const Uint32 checkpoint_spawn_time = gameState.level_manager.getCheckpointInterval();
+    gameState.spawner.spawn_obstacles(checkpoint_spawn_time, gameState);
+    ASSERT_EQ(gameState.obstacles.size(), 1) << "A checkpoint should have been spawned.";
+
+    // 2. Simulate time passing and spawn a regular obstacle.
+    // The time must be after the checkpoint's safe zone and after the regular spawn interval.
+    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config.getCheckpointSafeZoneDuration() + 1;
+    const Uint32 regular_spawn_time = checkpoint_spawn_time + gameState.level_manager.getSpawnInterval();
+    const Uint32 next_spawn_time = std::max(safe_zone_end_time, regular_spawn_time);
+    gameState.spawner.spawn_obstacles(next_spawn_time, gameState);
+    ASSERT_EQ(gameState.obstacles.size(), 2) << "A regular obstacle should have been spawned after the checkpoint.";
+
+    // Simulate the game loop for a few seconds (e.g., 200 frames).
+    const int num_frames_to_simulate = 200;
+    for (int i = 0; i < num_frames_to_simulate; ++i) {
+        // Update obstacle positions
+        Obstacle::updateAndRemove(gameState.obstacles);
+
+        // Check for overlaps between all pairs of obstacles.
+        if (gameState.obstacles.size() >= 2) {
+            for (size_t j = 0; j < gameState.obstacles.size(); ++j) {
+                for (size_t k = j + 1; k < gameState.obstacles.size(); ++k) {
+                    const auto& obs1 = gameState.obstacles[j];
+                    const auto& obs2 = gameState.obstacles[k];
+
+                    // Check for intersection between the primary rects
+                    bool overlaps = SDL_HasIntersection(&obs1.rect, &obs2.rect);
+                    EXPECT_FALSE(overlaps) << "Obstacles overlap after " << i << " frames at x1=" << obs1.rect.x << ", x2=" << obs2.rect.x;
+                }
+            }
+        }
+    }
+}
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);

@@ -28,6 +28,22 @@ inline TestConfig loadTestConfig(const std::string& config_path) {
     return config;
 }
 
+// A test-only subclass of LevelManager to allow setting custom intervals.
+class TestLevelManager : public LevelManager {
+public:
+    explicit TestLevelManager(const Config& base_config) : LevelManager(base_config) {}
+
+    void set_spawn_interval(Uint32 interval) { effective_spawn_interval_ = interval; }
+    void set_checkpoint_interval(Uint32 interval) { effective_checkpoint_interval_ms_ = interval; }
+};
+
+inline TestLevelManager createTestLevelManager(const Config& config, Uint32 spawn_interval, Uint32 checkpoint_interval) {
+    TestLevelManager lm(config);
+    lm.set_spawn_interval(spawn_interval);
+    lm.set_checkpoint_interval(checkpoint_interval);
+    return lm;
+}
+
 // Helper to check that the Config class correctly overrides screen dimensions
 // with the native resolution when available, or falls back to the default.
 inline void checkConfigScreenResolution(const Config& config) {

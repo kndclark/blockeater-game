@@ -232,6 +232,69 @@ TEST(ObstaclePlacementTest, CalculateSafeY_AvoidsLastObstacle) {
     }
 }
 
+// --- Checkpoint vs. Obstacle Overlap Test ---
+struct CheckpointAvoidanceParams {
+    std::vector<SDL_Rect> nearby_obstacle_rects;
+    int checkpoint_gap_height;
+    std::string description;
+};
+
+void PrintTo(const CheckpointAvoidanceParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class CheckpointAvoidanceTest : public ::testing::TestWithParam<CheckpointAvoidanceParams> {};
+
+TEST_P(CheckpointAvoidanceTest, CheckpointWallsAvoidNearbyObstacles) {
+    auto params = GetParam();
+    const int screen_width = 800;
+    const int screen_height = 600;
+    const int speed = 3;
+    const int points = 10;
+
+    std::vector<Obstacle> nearby_obstacles;
+    for (const auto& rect : params.nearby_obstacle_rects) {
+        nearby_obstacles.emplace_back(rect.x, rect.y, rect.w, rect.h, 1, ObstacleType::Hurt, 0);
+    }
+
+    const int num_trials = 100;
+    for (int i = 0; i < num_trials; ++i) {
+        int dummy_gap_y;
+        Obstacle checkpoint = Obstacle::createCheckpoint(screen_width, screen_height, speed, params.checkpoint_gap_height, points, nearby_obstacles, dummy_gap_y);
+
+        for (const auto& rect : params.nearby_obstacle_rects) {
+            // Check that the top wall does not overlap with the nearby obstacle.
+            bool top_wall_overlaps = SDL_HasIntersection(&checkpoint.rect, &rect);
+            EXPECT_FALSE(top_wall_overlaps) << "Top wall of checkpoint overlaps with existing obstacle at y=" << rect.y;
+
+            // Check that the bottom wall does not overlap with the nearby obstacle.
+            ASSERT_TRUE(checkpoint.rect2.has_value());
+            bool bottom_wall_overlaps = SDL_HasIntersection(&checkpoint.rect2.value(), &rect);
+            EXPECT_FALSE(bottom_wall_overlaps) << "Bottom wall of checkpoint overlaps with existing obstacle at y=" << rect.y;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ObstaclePlacementTest,
+    CheckpointAvoidanceTest,
+    ::testing::Values(
+        CheckpointAvoidanceParams{{{0, 0, 50, 50}}, 150, "HurtObstacleAtTop"},
+        CheckpointAvoidanceParams{{{0, 50, 50, 50}}, 150, "HurtObstacleNearTop"},
+        CheckpointAvoidanceParams{{{0, 275, 50, 50}}, 150, "HurtObstacleInMiddle"},
+        CheckpointAvoidanceParams{{{0, 500, 50, 50}}, 150, "HurtObstacleNearBottom"},
+        CheckpointAvoidanceParams{{{0, 550, 50, 50}}, 150, "HurtObstacleAtBottom"},
+        CheckpointAvoidanceParams{{{0, 200, 50, 200}}, 150, "LargeHurtObstacle"},
+        CheckpointAvoidanceParams{{{0, 275, 40, 40}}, 150, "GrowObstacleInMiddle"},
+        CheckpointAvoidanceParams{{{0, 275, 20, 20}}, 150, "ShrinkObstacleInMiddle"},
+        CheckpointAvoidanceParams{{{0, 100, 50, 50}, {0, 400, 50, 50}}, 150, "TwoHurtObstacles"},
+        CheckpointAvoidanceParams{{{0, 50, 40, 40}, {0, 500, 20, 20}}, 150, "GrowAndShrinkObstacles"}
+    ),
+    [](const testing::TestParamInfo<CheckpointAvoidanceTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
+
 // --- UpdateAndRemove Test ---
 struct UpdateAndRemoveParams {
     std::vector<Obstacle> initial_obstacles;

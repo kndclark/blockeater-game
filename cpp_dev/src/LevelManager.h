@@ -26,7 +26,7 @@ public:
     Uint32 getCheckpointInterval() const { return effective_checkpoint_interval_ms_; }
     int getHurtChance() const { return effective_hurt_chance_; }
 
-private:
+protected:
     const Config& base_config_;
     Uint32 effective_spawn_interval_;
     int effective_obstacle_speed_;

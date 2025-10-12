@@ -90,7 +90,7 @@ struct Obstacle {
     }
 
     static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y);
-    static int calculateSafeY(int screen_height, int obstacle_height, const std::vector<Obstacle>& nearby_obstacles);
+    static int calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height = std::nullopt);
 
 private:
     // Helper to select obstacle properties based on a random roll.

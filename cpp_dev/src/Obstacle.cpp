@@ -2,38 +2,17 @@
 #include "../config/Config.h"
 
 Obstacle Obstacle::createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y) {
+    // Let calculateSafeY do the heavy lifting of finding a safe spot for the whole structure.
+    // We pass the gap_height to signal that we are placing a checkpoint.
+    out_gap_y = calculateSafeY(screen_height, 0, nearby_obstacles, gap_height);
+    
     const int checkpoint_width = 30;
-    const int max_retries = 10;
-
-    for (int i = 0; i < max_retries; ++i) {
-        // Find a safe Y position for the gap itself.
-        out_gap_y = calculateSafeY(screen_height, gap_height, nearby_obstacles);
-
-        SDL_Rect top_wall = {screen_width, 0, checkpoint_width, out_gap_y};
-        SDL_Rect bottom_wall = {screen_width, out_gap_y + gap_height, checkpoint_width, screen_height - (out_gap_y + gap_height)};
-
-        bool overlaps = false;
-        for (const auto& obstacle : nearby_obstacles) {
-            if (SDL_HasIntersection(&top_wall, &obstacle.rect) || (obstacle.rect2.has_value() && SDL_HasIntersection(&top_wall, &obstacle.rect2.value())) ||
-                SDL_HasIntersection(&bottom_wall, &obstacle.rect) || (obstacle.rect2.has_value() && SDL_HasIntersection(&bottom_wall, &obstacle.rect2.value()))) {
-                overlaps = true;
-                break;
-            }
-        }
-
-        if (!overlaps) {
-            return Obstacle(top_wall, bottom_wall, speed, points);
-        }
-    }
-
-    // Fallback: if we can't find a safe spot after several tries, just create it at a random spot.
-    out_gap_y = rand() % (screen_height - gap_height);
     SDL_Rect top_wall = {screen_width, 0, checkpoint_width, out_gap_y};
     SDL_Rect bottom_wall = {screen_width, out_gap_y + gap_height, checkpoint_width, screen_height - (out_gap_y + gap_height)};
     return Obstacle(top_wall, bottom_wall, speed, points);
 }
 
-int Obstacle::calculateSafeY(int screen_height, int obstacle_height, const std::vector<Obstacle>& nearby_obstacles) {
+int Obstacle::calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height) {
     const int clearance = 50; // Minimum vertical pixels between obstacles.
 
     std::vector<std::pair<int, int>> forbidden_zones;
@@ -76,18 +55,30 @@ int Obstacle::calculateSafeY(int screen_height, int obstacle_height, const std::
     }
 
     // Filter out safe zones that are too small for the obstacle
-    safe_zones.erase(std::remove_if(safe_zones.begin(), safe_zones.end(),
-                                    [obstacle_height](const auto& zone) { return zone.second < obstacle_height; }),
-                     safe_zones.end());
+    if (gap_height.has_value()) {
+        // For checkpoints, the safe zone must be large enough for the gap.
+        safe_zones.erase(std::remove_if(safe_zones.begin(), safe_zones.end(),
+                                        [gap_height](const auto& zone) { return zone.second < gap_height.value(); }),
+                         safe_zones.end());
+    } else {
+        // For regular obstacles, the safe zone must be large enough for the obstacle itself.
+        safe_zones.erase(std::remove_if(safe_zones.begin(), safe_zones.end(),
+                                        [entity_height](const auto& zone) { return zone.second < entity_height; }),
+                         safe_zones.end());
+    }
 
     if (safe_zones.empty()) {
         // Fallback if no safe spot is possible (very unlikely)
-        return rand() % (screen_height - obstacle_height);
+        return rand() % (screen_height - (gap_height.has_value() ? gap_height.value() : entity_height));
     }
 
     // Pick a random safe zone and a random position within it
     const auto& chosen_zone = safe_zones[rand() % safe_zones.size()];
-    return chosen_zone.first + (rand() % (chosen_zone.second - obstacle_height + 1));
+    if (gap_height.has_value()) {
+        return chosen_zone.first + (rand() % (chosen_zone.second - gap_height.value() + 1));
+    } else {
+        return chosen_zone.first + (rand() % (chosen_zone.second - entity_height + 1));
+    }
 }
 
 std::tuple<ObstacleType, ObstacleSize, int> Obstacle::getObstacleTypeAndSize(const ObstacleConfig& obs_cfg) {
