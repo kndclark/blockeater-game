@@ -47,7 +47,7 @@ inline void checkConfigScreenResolution(const Config& config) {
 // This replaces the need for a test-only constructor in GameState itself.
 inline void injectSpawnerForTest(GameState& gameState, ObstacleSpawner&& spawner) {
     // Use placement new to construct a new ObstacleSpawner in place of the old one.
-    new (&gameState.spawner) ObstacleSpawner(std::move(spawner));
+    new (&gameState.spawner) ObstacleSpawner(std::move(spawner)); // NOLINT(bugprone-use-after-move)
     gameState.next_checkpoint_gap_size = gameState.spawner.calculateCheckpointGapSize();
 }
 
