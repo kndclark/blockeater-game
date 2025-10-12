@@ -42,20 +42,24 @@ int ObstacleSpawner::calculateCheckpointGapSize() const {
     return final_gap_height;
 }
 
-void ObstacleSpawner::spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles) {
+void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state) {
     // Prioritize spawning checkpoints.
     if (current_time >= last_checkpoint_spawn_time + checkpoint_spawn_interval) {
         last_checkpoint_spawn_time = current_time;
         // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
         last_spawn_time = current_time;
 
-        int gap_height = calculateCheckpointGapSize();
+        const int gap_height = calculateCheckpointGapSize();
         int gap_y;
-        obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, gap_y));
+        game_state.obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, gap_y));
         last_checkpoint_gap_y = {{gap_y, gap_height}};
 
         // Reset the trackers for the next interval.
         shrink_powerups_since_checkpoint.clear();
+        // After spawning a checkpoint, calculate the size for the *next* one.
+        // The UI should display the size of the checkpoint that was just spawned.
+        game_state.ui_next_checkpoint_gap_size = gap_height;
+        game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
     }
     // Only spawn a regular obstacle if a checkpoint was not spawned.
     else if (current_time >= last_spawn_time + level_manager.getSpawnInterval()) {
@@ -66,13 +70,16 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, std::vector<Obstacle>
         }
 
         last_spawn_time = current_time;
-        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
+        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height,
+                                                      level_manager.getObstacleSpeed(),
                                                       level_manager.getGrowChance(), level_manager.getShrinkChance(),
                                                       grow_dims, shrink_dims, hurt_dims, last_checkpoint_gap_y);
         if (new_obstacle.type == ObstacleType::Shrink) {
             shrink_powerups_since_checkpoint.push_back(1);
+            // A shrink power-up was collected, so the next gap will be smaller.
+            game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
         }
-        obstacles.push_back(new_obstacle);
+        game_state.obstacles.push_back(new_obstacle);
     }
 }
 
@@ -160,7 +167,7 @@ void updateGame(GameState& game_state) {
     // Update player state (e.g., for dash cooldown)
     game_state.player.update(current_time);
 
-    game_state.spawner.spawn_obstacles(current_time, game_state.obstacles);
+    game_state.spawner.spawn_obstacles(current_time, game_state);
 
     // Update obstacle positions and remove off-screen ones
     Obstacle::updateAndRemove(game_state.obstacles);
@@ -204,8 +211,6 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
     // Draw the player
     game_state.player.draw(renderer);
 
-    // Present the back buffer to the screen
-    SDL_RenderPresent(renderer);
 }
 
 /// @brief Runs a single iteration of the main game loop, processing input and updating game state.

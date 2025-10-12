@@ -1,10 +1,14 @@
 // Simple 2D game window using SDL2
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <stdexcept> // For std::runtime_error
 #include <memory>  // For std::unique_ptr
 #include <ctime>   // For time()
+#include <string>
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "Scoreboard.h"
 
 int main(int argc, char* argv[]) {
     struct SdlDeleter {
@@ -17,8 +21,25 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (TTF_Init() == -1) {
+        SDL_Log("Unable to initialize SDL_ttf: %s", TTF_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    // Determine the project root path. The game executable is in `build/`.
+    std::string root_path;
+    char* base_path = SDL_GetBasePath();
+    if (base_path) {
+        root_path = std::string(base_path) + "../";
+        SDL_free(base_path);
+    } else {
+        SDL_Log("Warning: Could not get application base path. Asset paths may be incorrect.");
+        // Fallback to an empty root path.
+    }
+
     // Load configuration. The Config class will find the default config file.
-    Config config;
+    Config config(root_path);
 
     const int SCREEN_WIDTH = config.getScreenWidth();
     const int SCREEN_HEIGHT = config.getScreenHeight();
@@ -53,41 +74,60 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Seed for random numbers
-    srand(time(NULL));
-
-    // --- Game State Setup ---
-    GameState game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-    // --- Framerate Control ---
-    const int TARGET_FPS = config.getTargetFps();
-    const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
-    Uint32 frame_start_time;
-
-    // --- Main Game Loop ---
-    // The game will continue to run as long as this 'running' flag is true.
-    while (game_state.running) {
-        frame_start_time = SDL_GetTicks();
-
-        gameLoopIteration(game_state, config);
-
-        // Only render if the game is still running after the update phase
-        if (game_state.running) {
-            renderGame(renderer.get(), game_state, config);
+    // Use a dedicated scope for game objects that depend on the config.
+    // This ensures they are destroyed before the config object goes out of scope.
+    {
+        std::unique_ptr<Scoreboard> scoreboard;
+        try {
+            scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
+        } catch (const std::exception& e) {
+            SDL_Log("Error creating scoreboard: %s", e.what());
+            TTF_Quit();
+            SDL_Quit();
+            return 1;
         }
+        // Seed for random numbers
+        srand(time(NULL));
 
-        // --- FPS Calculation and Capping ---
-        Uint32 current_frametime = SDL_GetTicks();
-        if (auto fps_opt = calculateFps(game_state.frame_count, game_state.last_fps_update_time, current_frametime)) {
-            SDL_Log("FPS: %.2f", *fps_opt);
-        }
+        // --- Framerate Control ---
+        const int TARGET_FPS = config.getTargetFps();
+        const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
+        Uint32 frame_start_time;
 
-        Uint32 frame_time = SDL_GetTicks() - frame_start_time;
-        if (frame_time < FRAME_DELAY) {
-            SDL_Delay(FRAME_DELAY - frame_time);
+        // --- Game State Setup --- (Use a unique_ptr to control lifetime)
+        auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        // --- Main Game Loop ---
+        // The game will continue to run as long as this 'running' flag is true.
+        while (game_state->running) {
+            frame_start_time = SDL_GetTicks();
+
+            gameLoopIteration(*game_state, config);
+
+            // Only render if the game is still running after the update phase
+            if (game_state->running) {
+                renderGame(renderer.get(), *game_state, config);
+                // Draw score after the rest of the game is rendered
+                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size, game_state->checkpoints_passed,
+                                   game_state->level_manager.getCheckpointsPerLevel(), game_state->player.rect.w);
+                // Present the final frame
+                SDL_RenderPresent(renderer.get());
+            }
+
+            // --- FPS Calculation and Capping ---
+            Uint32 current_frametime = SDL_GetTicks();
+            if (auto fps_opt = calculateFps(game_state->frame_count, game_state->last_fps_update_time, current_frametime)) {
+                SDL_Log("FPS: %.2f", *fps_opt);
+            }
+
+            Uint32 frame_time = SDL_GetTicks() - frame_start_time;
+            if (frame_time < FRAME_DELAY) {
+                SDL_Delay(FRAME_DELAY - frame_time);
+            }
         }
     }
 
+    TTF_Quit();
     SDL_Quit();
     return 0;
 }

@@ -10,9 +10,9 @@ class GameStateTest : public SdlTest {};
 TEST_F(GameStateTest, Initialization) {
     const int screen_width = 800;
     const int screen_height = 600;
-    Config config(kTestConfigPath);
+    Config config(kTestRootPath);
 
-    GameState game_state(config, screen_width, screen_height);
+    GameState game_state(config, screen_width, screen_height); // This will call SDL_GetTicks
 
     // Check player initialization
     EXPECT_EQ(game_state.player.rect.x, config.getPlayerInitialX());

@@ -46,7 +46,7 @@ struct ObstacleSpawner {
     int calculateCheckpointGapSize() const;
 
     // Checks the current time and spawns obstacles if their respective intervals have passed.
-    void spawn_obstacles(Uint32 current_time, std::vector<Obstacle>& obstacles);
+    void spawn_obstacles(Uint32 current_time, GameState& game_state);
 };
 
 // Handles scoring when a player passes a checkpoint.

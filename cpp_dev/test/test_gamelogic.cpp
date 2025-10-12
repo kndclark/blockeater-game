@@ -135,7 +135,7 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
-    Config config;
+    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
     game_state.player.rect.x = params.player_x;
     game_state.score = params.initial_score;
@@ -180,7 +180,7 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 TEST(GameLogicTest, LevelUp) {
-    Config config(kTestConfigPath);
+    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
     int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
     ASSERT_EQ(checkpoints_for_lvl1, 5); // From levels.json
@@ -197,7 +197,8 @@ TEST(GameLogicTest, LevelUp) {
     EXPECT_TRUE(checkpoint1.passed);
 
     // After leveling up, LevelManager now uses level 2's config.
-    // checkpoints_per_level for level 2 is also 5.
+    int checkpoints_for_lvl2 = game_state.level_manager.getCheckpointsPerLevel();
+    ASSERT_EQ(checkpoints_for_lvl2, 5); // From levels.json for level 2
     // Pass another checkpoint. checkpoints_passed becomes 6. 6 % 5 != 0, so level stays 2.
     Obstacle checkpoint2 = Obstacle::createCheckpoint(0, 600, 3, 150, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint2.rect.x = 50;
@@ -227,16 +228,17 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    Config config; // Use default config
-    LevelManager level_manager(config); // This will apply level 1 config by default
-    ObstacleSpawner spawner(level_manager, params.checkpoint_interval, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30});
-    std::vector<Obstacle> obstacles;
-
+    Config config(kTestRootPath); // Use default config
+    LevelManager level_manager(config);
+    ObstacleSpawner test_spawner(level_manager, params.checkpoint_interval, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), config.getGrowDimensions(), config.getShrinkDimensions(), config.getHurtDimensions());
+    
+    GameState game_state(config, 800, 600);
+    injectSpawnerForTest(game_state, std::move(test_spawner));
     for (const auto& time : params.spawn_times) {
-        spawner.spawn_obstacles(time, obstacles);
+        game_state.spawner.spawn_obstacles(time, game_state);
     }
-    size_t regular_count = std::count_if(obstacles.begin(), obstacles.end(), [](const Obstacle& o){ return o.type != ObstacleType::Checkpoint; });
-    size_t checkpoint_count = obstacles.size() - regular_count;
+    size_t regular_count = std::count_if(game_state.obstacles.begin(), game_state.obstacles.end(), [](const Obstacle& o){ return o.type != ObstacleType::Checkpoint; });
+    size_t checkpoint_count = game_state.obstacles.size() - regular_count;
 
     EXPECT_EQ(regular_count, params.expected_regular) << "Mismatch in regular obstacle count";
     EXPECT_EQ(checkpoint_count, params.expected_checkpoints) << "Mismatch in checkpoint count";
@@ -276,7 +278,7 @@ protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestConfigPath};
+    Config config{kTestRootPath};
     LevelManager level_manager{config};
     ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30}};
 };
@@ -309,35 +311,72 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // This test is separate because it has a different structure (multiple spawns).
-class ObstacleSpawnerStateTest : public ::testing::Test {
+class ObstacleSpawnerStateTest : public SdlTest {
 protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestConfigPath};
+    Config config{kTestRootPath};
     LevelManager level_manager{config};
-    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), {40,40}, {20,20}, {30,30}};
-    std::vector<Obstacle> obstacles;
+    // We create a spawner with the test-specific interval and inject it into GameState.
+    ObstacleSpawner spawner{level_manager, CHECKPOINT_INTERVAL, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), config.getGrowDimensions(), config.getShrinkDimensions(), config.getHurtDimensions()};
+    GameState game_state;
+
+    ObstacleSpawnerStateTest() : game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT) { injectSpawnerForTest(game_state, std::move(spawner)); }
 };
 
 TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
-    spawner.shrink_powerups_since_checkpoint.push_back(1);
+    game_state.spawner.shrink_powerups_since_checkpoint.push_back(1);
 
     // First checkpoint spawn
-    spawner.spawn_obstacles(CHECKPOINT_INTERVAL, obstacles);
-    ASSERT_EQ(obstacles.size(), 1);
-    EXPECT_TRUE(spawner.shrink_powerups_since_checkpoint.empty());
+    game_state.spawner.spawn_obstacles(CHECKPOINT_INTERVAL, game_state);
+    ASSERT_EQ(game_state.obstacles.size(), 1);
+    EXPECT_TRUE(game_state.spawner.shrink_powerups_since_checkpoint.empty());
 
     // Second checkpoint spawn, should not be affected by the previous grow block
-    spawner.spawn_obstacles(CHECKPOINT_INTERVAL * 2, obstacles);
-    ASSERT_EQ(obstacles.size(), 2);
-    const auto& checkpoint2 = obstacles.back();
+    game_state.spawner.spawn_obstacles(CHECKPOINT_INTERVAL * 2, game_state);
+    ASSERT_EQ(game_state.obstacles.size(), 2);
+    const auto& checkpoint2 = game_state.obstacles.back();
     ASSERT_EQ(checkpoint2.type, ObstacleType::Checkpoint);
     ASSERT_TRUE(checkpoint2.rect2.has_value());
 
     const int expected_gap = config.getBaseCheckpointGap();
     const int actual_gap = checkpoint2.rect2->y - checkpoint2.rect.h;
     EXPECT_EQ(actual_gap, expected_gap);
+};
+
+TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
+    // This test uses the spawner injected in the test fixture's constructor.
+    // The checkpoint interval is set to 1000ms there.
+    const Uint32 test_checkpoint_interval = 2000;
+
+    // Grab the initial values before any changes.
+    const int initial_ui_gap_size = game_state.ui_next_checkpoint_gap_size;
+    const int initial_internal_gap_size = game_state.next_checkpoint_gap_size;
+
+    // Manually trigger the logic that happens when a shrink power-up is spawned.
+    // This avoids the fragile while-loop that depends on random generation.
+    // We simulate this happening at a time before the first checkpoint.
+    const Uint32 regular_spawn_time = 1000;
+    game_state.spawner.last_spawn_time = regular_spawn_time;
+    game_state.spawner.shrink_powerups_since_checkpoint.push_back(1);
+    // Manually call calculateCheckpointGapSize to update the internal prediction,
+    // just as spawn_obstacles would.
+    game_state.next_checkpoint_gap_size = game_state.spawner.calculateCheckpointGapSize();
+
+    // Assert that the UI value has NOT changed, but the internal one has.
+    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, initial_ui_gap_size) << "UI gap size should not change when a shrink power-up spawns.";
+    EXPECT_NE(game_state.next_checkpoint_gap_size, initial_internal_gap_size) << "Internal gap size should change when a shrink power-up spawns.";
+
+    // Now, spawn a checkpoint. This SHOULD update the UI value to the size of the checkpoint that was just created.
+    // The size of this new checkpoint is based on the *updated* internal prediction.
+    const int expected_spawned_gap_size = game_state.next_checkpoint_gap_size;
+    game_state.spawner.spawn_obstacles(test_checkpoint_interval, game_state);
+
+    // The UI should now show the size of the checkpoint that was just spawned.
+    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, expected_spawned_gap_size) << "UI gap size should match the size of the newly spawned checkpoint.";
+    // The internal prediction is now for the *next* checkpoint, which should be the base size again.
+    EXPECT_EQ(game_state.next_checkpoint_gap_size, config.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
 }
 
 // --- Top-Level Game Logic Tests ---
@@ -345,7 +384,7 @@ TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
 // Test fixture for game logic tests
 class TopLevelGameLogicTest : public SdlTest {
 protected:
-    Config config;
+    Config config{kTestRootPath};
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
 };

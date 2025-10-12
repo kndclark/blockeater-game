@@ -21,12 +21,9 @@ struct LevelConfig {
 
 class Config {
 public:
-    // Default constructor: loads from a standard path relative to the executable.
-    Config();
-
-    // Loads configuration from the given JSON file.
-    // If loading fails, it will use hardcoded default colors.
-    explicit Config(const std::string& filepath);
+    // Default constructor: loads from a standard path relative to the executable,
+    // optionally taking a root_path to locate assets.
+    explicit Config(const std::string& root_path = "");
 
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
@@ -51,13 +48,27 @@ public:
     int getPlayerWidth() const;
     int getPlayerHeight() const;
     int getPlayerSpeed() const;
+    const std::string& getScorePrefix() const;
+    virtual const std::string& getFontPath() const;
+    int getFontSize() const;
+    const std::string& getLevelPrefix() const;
+    const std::string& getGapSizePrefix() const;
+    const std::string& getLevelProgressPrefix() const;
+    const std::string& getPlayerSizePrefix() const;
+    const std::string& getPlayerSizeSuffix() const;
+    Color getUiTextColor() const;
+    const std::string& getLevelProgressSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
+
+protected:
+    void load_levels(const std::string& filepath);
 
 private:
     void load_from_path(const std::string& filepath);
-    void load_levels(const std::string& filepath);
+    void load_ui_texts(const std::string& base_path);
     void load_defaults();
 
+    std::string root_path_;
     Color playerColor;
     std::map<int, LevelConfig> level_configs_;
     std::map<ObstacleType, Color> obstacleColors;
@@ -82,4 +93,16 @@ private:
     int player_width;
     int player_height;
     int player_speed;
+
+    // UI Text
+    std::string score_prefix_;
+    std::string level_prefix_;
+    std::string level_progress_prefix_;
+    std::string level_progress_suffix_;
+    std::string gap_size_prefix_;
+    std::string player_size_prefix_;
+    std::string player_size_suffix_;
+    std::string font_path_;
+    Color ui_text_color_;
+    int font_size_;
 };
