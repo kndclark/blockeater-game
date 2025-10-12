@@ -14,6 +14,7 @@ struct GameState {
     std::vector<Obstacle> obstacles;
     int score = 0;
     int level = 1; 
+    int checkpoints_passed_in_level = 0;
     int checkpoints_passed = 0;
     int ui_next_checkpoint_gap_size = 0;
     int next_checkpoint_gap_size = 0;

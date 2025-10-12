@@ -64,6 +64,8 @@ void Config::load_defaults() {
     base_checkpoint_gap = 120;
     player_size_change_amount = 10;
     score_per_checkpoint = 10;
+    score_per_grow = 200;
+    score_per_shrink = 100;
     checkpoints_per_level = 10;
     spawn_interval_ms = 1500;
     checkpoint_interval_ms = 10000;
@@ -192,6 +194,8 @@ void Config::load_from_path(const std::string& filepath) {
             base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
             player_size_change_amount = data.value("/game/player_size_change_amount"_json_pointer, 10);
             score_per_checkpoint = data.value("/game/score_per_checkpoint"_json_pointer, 10);
+            score_per_grow = data.value("/game/score_per_grow"_json_pointer, 200);
+            score_per_shrink = data.value("/game/score_per_shrink"_json_pointer, 100);
             checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
             obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
             spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
@@ -303,6 +307,27 @@ ObstacleSize Config::getShrinkDimensions() const {
 
 ObstacleSize Config::getHurtDimensions() const {
     return hurt_dims;
+}
+
+int Config::getScorePerGrow() const {
+    return score_per_grow;
+}
+
+int Config::getScorePerShrink() const {
+    return score_per_shrink;
+}
+
+ObstacleConfig Config::getObstacleConfig() const {
+    return {
+        getGrowChance(),
+        getShrinkChance(),
+        getGrowDimensions(),
+        getShrinkDimensions(),
+        getHurtDimensions(),
+        getScorePerGrow(),
+        getScorePerShrink(),
+        getScorePerCheckpoint()
+    };
 }
 
 int Config::getPlayerInitialX() const {

@@ -2,19 +2,14 @@
 #include <stdexcept> // For std::runtime_error
 #include <memory>    // For std::unique_ptr
 
-Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config)
-    : renderer_(renderer), config_(config) {
-    font_ = TTF_OpenFont(config.getFontPath().c_str(), config.getFontSize());
+Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_(renderer), config_(config) {
+    font_.reset(TTF_OpenFont(config.getFontPath().c_str(), config.getFontSize()));
     if (!font_) {
         throw std::runtime_error("Failed to load font for scoreboard: " + std::string(TTF_GetError()));
     }
 }
 
-Scoreboard::~Scoreboard() {
-    if (font_) {
-        TTF_CloseFont(font_);
-    }
-}
+Scoreboard::~Scoreboard() = default;
 
 void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size) const {
     // Custom deleters for SDL resources. These are simple structs that define
@@ -32,7 +27,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_Color color = {c.r, c.g, c.b, c.a};
 
     // Create a temporary surface for the score text. A unique_ptr handles cleanup for us.
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> score_surface(TTF_RenderText_Solid(font_, score_text.c_str(), color));
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> score_surface(TTF_RenderText_Solid(font_.get(), score_text.c_str(), color));
     if (!score_surface) {
         SDL_Log("Unable to create text surface for score: %s", TTF_GetError());
         return;
@@ -51,7 +46,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Level ---
     std::string level_text = getLevelText(level, checkpoints_passed, checkpoints_per_level);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_, level_text.c_str(), color));
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_.get(), level_text.c_str(), color));
     if (!level_surface) {
         SDL_Log("Unable to create text surface for level: %s", TTF_GetError());
         return;
@@ -74,7 +69,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Next Gap Size ---
     std::string gap_text = config_.getGapSizePrefix() + std::to_string(current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_, gap_text.c_str(), color));
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
         return;
@@ -97,7 +92,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Player Size ---
     std::string player_size_text = getPlayerSizeText(player_size, current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_, player_size_text.c_str(), color));
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_.get(), player_size_text.c_str(), color));
     if (!player_size_surface) {
         SDL_Log("Unable to create text surface for player size: %s", TTF_GetError());
         return;

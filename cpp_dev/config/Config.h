@@ -19,6 +19,20 @@ struct LevelConfig {
     std::optional<int> checkpoints_per_level;
 };
 
+/// @brief Holds all configuration related to regular obstacle creation.
+struct ObstacleConfig {
+    int grow_chance;
+    int shrink_chance;
+    ObstacleSize grow_dims;
+    ObstacleSize shrink_dims;
+    ObstacleSize hurt_dims;
+    int grow_points;
+    int shrink_points;
+    int checkpoint_points;
+};
+
+
+
 class Config {
 public:
     // Default constructor: loads from a standard path relative to the executable,
@@ -42,6 +56,9 @@ public:
     int getShrinkChance() const;
     int getHurtChance() const;
     ObstacleSize getGrowDimensions() const;
+    int getScorePerGrow() const;
+    int getScorePerShrink() const;
+    ObstacleConfig getObstacleConfig() const;
     ObstacleSize getShrinkDimensions() const;
     ObstacleSize getHurtDimensions() const;
     int getPlayerInitialX() const;
@@ -79,6 +96,8 @@ private:
     int base_checkpoint_gap;
     int player_size_change_amount;
     int score_per_checkpoint;
+    int score_per_grow;
+    int score_per_shrink;
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
