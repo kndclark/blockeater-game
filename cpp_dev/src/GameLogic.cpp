@@ -1,5 +1,6 @@
 #include "GameLogic.h"
 #include "GameState.h"
+#include <string>
 
 std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles) {
     switch (it->type) {
@@ -9,26 +10,37 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
             return ++it; // Advance iterator to avoid re-processing in the game loop
         }
         case ObstacleType::Hurt: {
-            const int score_penalty = std::abs(game_state.config.getScorePerHurt());
-            if (game_state.score >= score_penalty) {
-                SDL_Log("Collision with Hurt obstacle! Score decreased by %d.", score_penalty);
-                game_state.score -= score_penalty;
+            if (game_state.score_manager.applyPenalty(game_state.score, game_state.config.getScorePerHurt())) {
+                SDL_Log("Collision with Hurt obstacle! Player survives.");
                 return obstacles.erase(it); // Erase and get next valid iterator
             }
+
             SDL_Log("Collision with Hurt obstacle! Not enough score. Game Over.");
             game_state.running = false; // End the game
             return ++it; // Advance iterator to avoid re-processing in the game loop
         }
         case ObstacleType::Grow:
-            SDL_Log("Collision with Grow obstacle! Player grows.");
+        {
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            game_state.score += score_result.score;
             game_state.player.grow(game_state.config.getPlayerSizeChangeAmount());
-            game_state.score += it->points;
+            std::string log_message = "Collision with Grow obstacle! Player grows.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
+        }
         case ObstacleType::Shrink:
-            SDL_Log("Collision with Shrink obstacle! Player shrinks.");
+        {
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            game_state.score += score_result.score;
             game_state.player.shrink(game_state.config.getPlayerSizeChangeAmount());
-            game_state.score += it->points;
+            std::string log_message = "Collision with Shrink obstacle! Player shrinks.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
+        }
     }
     // Should not be reached, but some compilers might complain.
     return ++it;
@@ -113,8 +125,9 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
     if (obstacle.type == ObstacleType::Checkpoint && !obstacle.passed) {
         // Check if the player's front has passed the obstacle's back
         if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
-            obstacle.passed = true; // The points for the checkpoint are now added when it's passed.
-            game_state.score += game_state.config.getScorePerCheckpoint();
+            obstacle.passed = true;
+            auto score_result = game_state.score_manager.calculateScore(game_state.config.getScorePerCheckpoint(), game_state);
+            game_state.score += score_result.score;
             game_state.checkpoints_passed_in_level++;
             game_state.checkpoints_passed++;
             player.resetSize();
@@ -125,7 +138,10 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
                 game_state.level_manager.updateForLevel(game_state.level);
                 SDL_Log("Level up! You are now on level %d.", game_state.level);
             }
-            SDL_Log("Checkpoint passed! Score: %d. Level: %d. Checkpoints: %d. Player size reset.", game_state.score, game_state.level, game_state.checkpoints_passed);
+            std::string log_message = "Checkpoint passed! Player size reset.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s Score: %d. Level: %d. Checkpoints: %d.", log_message.c_str(), game_state.score, game_state.level, game_state.checkpoints_passed);
         }
     }
 }

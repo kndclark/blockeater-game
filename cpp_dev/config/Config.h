@@ -61,6 +61,9 @@ public:
     int getScorePerHurt() const;
     ObstacleConfig getObstacleConfig() const;
     ObstacleSize getShrinkDimensions() const;
+    float getDashBoostMultiplier() const;
+    int getSizeBoostThreshold() const;
+    float getSizeBoostMultiplier() const;
     ObstacleSize getHurtDimensions() const;
     int getPlayerInitialX() const;
     int getPlayerWidth() const;
@@ -100,6 +103,9 @@ private:
     int score_per_grow;
     int score_per_shrink;
     int score_per_hurt;
+    float dash_boost_multiplier_;
+    int size_boost_threshold_;
+    float size_boost_multiplier_;
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
