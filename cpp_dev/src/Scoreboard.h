@@ -23,10 +23,10 @@ public:
     std::string getPlayerSizeText(int player_size, int gap_size) const;
     std::string getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const;
 
+    void drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color, std::vector<SDL_Point>* out_points = nullptr) const;
+
 private:
     SDL_Renderer* renderer_;
-
-    void drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color) const;
     const Config& config_;
 
     struct SdlFontDeleter {

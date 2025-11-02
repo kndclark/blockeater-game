@@ -177,7 +177,7 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         int circle_center_y = config_.getScreenHeight() - 10 - cooldown_indicator_radius;
 
         // Draw the circular loading bar
-        drawCooldownCircle(progress, circle_center_x, circle_center_y, cooldown_indicator_radius, color);
+        drawCooldownCircle(progress, circle_center_x, circle_center_y, cooldown_indicator_radius, color, nullptr);
 
         // Offset the text to be to the right of the circle
         dash_text_x_offset = circle_center_x + cooldown_indicator_radius + cooldown_indicator_padding;
@@ -199,20 +199,30 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
     SDL_RenderCopy(renderer_, dash_texture.get(), nullptr, &dash_dest_rect);
 }
 
-void Scoreboard::drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color) const {
+void Scoreboard::drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color, std::vector<SDL_Point>* out_points) const {
     SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
 
     // The number of segments to draw for the circle. More segments = smoother circle.
     const int segments = 30;
+    const int num_points_to_draw = static_cast<int>(segments * progress) + 1;
+
+    std::vector<SDL_Point> points;
+    if (out_points) {
+        out_points->clear();
+        points.reserve(num_points_to_draw);
+    }
 
     // Calculate points on the arc and draw them.
-    // We draw points instead of lines to keep it simple and avoid visual artifacts
-    // when the progress is very small or very large.
-    for (int i = 0; i <= static_cast<int>(segments * progress); ++i) {
+    for (int i = 0; i < num_points_to_draw; ++i) {
         // Start at -90 degrees (12 o'clock) and sweep clockwise.
         float angle = -M_PI / 2.0f + (static_cast<float>(i) / segments) * 2.0f * M_PI;
-        int point_x = x + static_cast<int>(radius * std::cos(angle));
-        int point_y = y + static_cast<int>(radius * std::sin(angle));
-        SDL_RenderDrawPoint(renderer_, point_x, point_y);
+        points.push_back({x + static_cast<int>(radius * std::cos(angle)),
+                          y + static_cast<int>(radius * std::sin(angle))});
+    }
+
+    SDL_RenderDrawPoints(renderer_, points.data(), static_cast<int>(points.size()));
+
+    if (out_points) {
+        *out_points = points;
     }
 }

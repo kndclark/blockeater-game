@@ -160,6 +160,26 @@ TEST_F(UiTest, ScoreboardRendersDashStatus) {
     });
 }
 
+// Test the calculation logic for the cooldown circle.
+TEST_F(UiTest, ScoreboardCalculatesCooldownCirclePoints) {
+    Scoreboard scoreboard(renderer_.get(), config_);
+    std::vector<SDL_Point> points;
+    const int segments = 30;
+
+    // Test 0% progress (should draw 1 point at the start)
+    scoreboard.drawCooldownCircle(0.0f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    EXPECT_EQ(points.size(), 1);
+
+    // Test 50% progress
+    scoreboard.drawCooldownCircle(0.5f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    // +1 because the loop is i <= segments * progress
+    EXPECT_EQ(points.size(), static_cast<int>(segments * 0.5f) + 1);
+
+    // Test 100% progress
+    scoreboard.drawCooldownCircle(1.0f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    EXPECT_EQ(points.size(), segments + 1);
+}
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
     Scoreboard scoreboard(renderer_.get(), config_);
