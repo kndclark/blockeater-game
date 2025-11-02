@@ -189,3 +189,58 @@ TEST_F(RendererTest, PauseMenuReturnsQuitOnQ) {
         EXPECT_EQ(showPauseMenu(renderer_, config_), PauseMenuAction::Quit);
     });
 }
+
+// --- Main Menu Tests ---
+
+TEST_F(RendererTest, MainMenuRendersAndQuitsOnQuitEvent) {
+    // This test verifies that the main menu screen displays and
+    // correctly handles the SDL_QUIT event.
+
+    // Ensure the text is loaded from config
+    EXPECT_FALSE(config_.getMainMenuTitle().empty());
+    EXPECT_FALSE(config_.getMainMenuInstructions().empty());
+
+    // Run the screen function and ensure it doesn't crash and returns Quit on SDL_QUIT
+    EXPECT_NO_THROW({
+        SDL_Event quit_event;
+        quit_event.type = SDL_QUIT;
+        SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
+        EXPECT_EQ(showMainMenu(renderer_, config_), MainMenuAction::Quit);
+    });
+}
+
+TEST_F(RendererTest, MainMenuReturnsStartGameOnS) {
+    // This test verifies that pressing 'S' on the main menu returns MainMenuAction::StartGame.
+    SDL_Event s_event;
+    s_event.type = SDL_KEYDOWN;
+    s_event.key.keysym.sym = SDLK_s;
+    SDL_PushEvent(&s_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showMainMenu(renderer_, config_), MainMenuAction::StartGame);
+    });
+}
+
+TEST_F(RendererTest, MainMenuReturnsQuitOnQ) {
+    // This test verifies that pressing 'Q' on the main menu returns MainMenuAction::Quit.
+    SDL_Event q_event;
+    q_event.type = SDL_KEYDOWN;
+    q_event.key.keysym.sym = SDLK_q;
+    SDL_PushEvent(&q_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showMainMenu(renderer_, config_), MainMenuAction::Quit);
+    });
+}
+
+TEST_F(RendererTest, MainMenuReturnsQuitOnEscape) {
+    // This test verifies that pressing 'Escape' on the main menu returns MainMenuAction::Quit.
+    SDL_Event escape_event;
+    escape_event.type = SDL_KEYDOWN;
+    escape_event.key.keysym.sym = SDLK_ESCAPE;
+    SDL_PushEvent(&escape_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showMainMenu(renderer_, config_), MainMenuAction::Quit);
+    });
+}

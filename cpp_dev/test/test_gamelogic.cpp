@@ -671,45 +671,45 @@ TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
     EXPECT_NE(gameState.obstacles[0].rect.x, initial_obstacle_x) << "updateGame should move obstacles even if paused flag is set; the main loop is responsible for not calling it.";
 }
 
-TEST_F(TopLevelGameLogicTest, HandlePauseMenuAction) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+// --- Pause Menu State Transition Test ---
+struct PauseMenuActionParams {
+    PauseMenuAction action;
+    AppStatus expected_app_status;
+    bool expected_game_running;
+    bool expected_game_paused;
+    std::string description;
+};
 
-    // --- Test Resume ---
-    gameState.paused = true;
-    bool restart_requested_resume = false;
-    bool app_is_running_resume = true;
-    handlePauseMenuAction(PauseMenuAction::Resume, gameState, restart_requested_resume, app_is_running_resume);
-    EXPECT_FALSE(gameState.paused);
-    EXPECT_FALSE(restart_requested_resume);
-    EXPECT_TRUE(app_is_running_resume);
-
-    // --- Test Restart ---
-    gameState.running = true;
-    bool restart_requested_restart = false;
-    bool app_is_running_restart = true;
-    handlePauseMenuAction(PauseMenuAction::Restart, gameState, restart_requested_restart, app_is_running_restart);
-    EXPECT_TRUE(restart_requested_restart);
-    EXPECT_FALSE(gameState.running) << "Game should stop running to allow restart";
-    EXPECT_TRUE(app_is_running_restart) << "App should keep running to allow restart";
-
-    // --- Test Main Menu ---
-    gameState.running = true;
-    bool restart_requested_menu = false;
-    bool app_is_running_menu = true;
-    handlePauseMenuAction(PauseMenuAction::MainMenu, gameState, restart_requested_menu, app_is_running_menu);
-    EXPECT_FALSE(restart_requested_menu);
-    EXPECT_FALSE(gameState.running) << "Game should stop running";
-    EXPECT_FALSE(app_is_running_menu) << "App should stop running";
-
-    // --- Test Quit ---
-    gameState.running = true;
-    bool restart_requested_quit = false;
-    bool app_is_running_quit = true;
-    handlePauseMenuAction(PauseMenuAction::Quit, gameState, restart_requested_quit, app_is_running_quit);
-    EXPECT_FALSE(restart_requested_quit);
-    EXPECT_FALSE(gameState.running) << "Game should stop running";
-    EXPECT_FALSE(app_is_running_quit) << "App should stop running";
+void PrintTo(const PauseMenuActionParams& params, std::ostream* os) {
+    *os << params.description;
 }
+
+class PauseMenuActionTest : public TopLevelGameLogicTest, public ::testing::WithParamInterface<PauseMenuActionParams> {};
+
+TEST_P(PauseMenuActionTest, HandlesStateTransitionsCorrectly) {
+    auto params = GetParam();
+    GameState game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    game_state.paused = true; // All actions start from a paused state
+    AppStatus app_status = AppStatus::Running; // Initial status before action
+
+    handlePauseMenuAction(params.action, game_state, app_status);
+
+    EXPECT_EQ(app_status, params.expected_app_status);
+    EXPECT_EQ(game_state.running, params.expected_game_running);
+    EXPECT_EQ(game_state.paused, params.expected_game_paused);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    StateTransitionTests,
+    PauseMenuActionTest,
+    ::testing::Values(
+        PauseMenuActionParams{PauseMenuAction::Resume, AppStatus::Running, true, false, "ResumeAction"},
+        PauseMenuActionParams{PauseMenuAction::Restart, AppStatus::Restarting, false, true, "RestartAction"},
+        PauseMenuActionParams{PauseMenuAction::MainMenu, AppStatus::ShowingMainMenu, false, true, "MainMenuAction"},
+        PauseMenuActionParams{PauseMenuAction::Quit, AppStatus::Quitting, false, true, "QuitAction"}
+    ),
+    [](const testing::TestParamInfo<PauseMenuActionTest::ParamType>& info) { return info.param.description; }
+);
 
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
