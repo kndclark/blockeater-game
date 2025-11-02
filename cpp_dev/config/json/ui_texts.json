@@ -10,6 +10,10 @@
         "dash_ready_text": "dash -> ready",
         "dash_cooldown_prefix": "dash -> cooldown (",
         "dash_cooldown_suffix": "s)",
+        "dash_cooldown_indicator": {
+            "radius": 12,
+            "color": { "r": 255, "g": 255, "b": 0, "a": 255 }
+        },
         "font": {
             "path": "assets/font.ttf",
             "size": 24

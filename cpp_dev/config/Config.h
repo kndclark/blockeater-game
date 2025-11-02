@@ -82,6 +82,8 @@ public:
     const std::string& getDashReadyText() const;
     const std::string& getDashCooldownPrefix() const;
     const std::string& getDashCooldownSuffix() const;
+    int getCooldownIndicatorRadius() const;
+    Color getCooldownIndicatorColor() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -132,6 +134,8 @@ private:
     std::string dash_ready_text_;
     std::string dash_cooldown_prefix_;
     std::string dash_cooldown_suffix_;
+    int cooldown_indicator_radius_;
+    Color cooldown_indicator_color_;
     std::string gap_size_prefix_;
     std::string player_size_prefix_;
     std::string player_size_suffix_;

@@ -91,6 +91,8 @@ void Config::load_defaults() {
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
     dash_cooldown_suffix_ = "s)";
+    cooldown_indicator_radius_ = 12;
+    cooldown_indicator_color_ = {255, 255, 255, 255}; // Default white
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
@@ -142,6 +144,8 @@ void Config::load_ui_texts(const std::string& base_path) {
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
+            cooldown_indicator_radius_ = data.value("/ui_text/dash_cooldown_indicator/radius"_json_pointer, cooldown_indicator_radius_);
+            cooldown_indicator_color_ = data.value("/ui_text/dash_cooldown_indicator/color"_json_pointer, cooldown_indicator_color_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
@@ -431,4 +435,12 @@ const std::string& Config::getDashCooldownPrefix() const {
 
 const std::string& Config::getDashCooldownSuffix() const {
     return dash_cooldown_suffix_;
+}
+
+int Config::getCooldownIndicatorRadius() const {
+    return cooldown_indicator_radius_;
+}
+
+Color Config::getCooldownIndicatorColor() const {
+    return cooldown_indicator_color_;
 }

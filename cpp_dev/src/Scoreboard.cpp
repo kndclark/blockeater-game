@@ -161,10 +161,6 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         void operator()(SDL_Texture* t) const { if (t) SDL_DestroyTexture(t); }
     };
 
-    Color c = config_.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
-
-    const int cooldown_indicator_radius = 12;
     const int cooldown_indicator_padding = 8;
     int dash_text_x_offset = 10;
 
@@ -172,17 +168,23 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         // Calculate cooldown progress (0.0 to 1.0)
         float progress = 1.0f - (static_cast<float>(cooldown_remaining) / static_cast<float>(Player::DASH_COOLDOWN_MS));
 
+        const int radius = config_.getCooldownIndicatorRadius();
+        Color c = config_.getCooldownIndicatorColor();
+        SDL_Color circle_color = {c.r, c.g, c.b, c.a};
+
         // Position the circle in the bottom-left corner
-        int circle_center_x = 10 + cooldown_indicator_radius;
-        int circle_center_y = config_.getScreenHeight() - 10 - cooldown_indicator_radius;
+        int circle_center_x = 10 + radius;
+        int circle_center_y = config_.getScreenHeight() - 10 - radius;
 
         // Draw the circular loading bar
-        drawCooldownCircle(progress, circle_center_x, circle_center_y, cooldown_indicator_radius, color, nullptr);
+        drawCooldownCircle(progress, circle_center_x, circle_center_y, radius, circle_color, nullptr);
 
         // Offset the text to be to the right of the circle
-        dash_text_x_offset = circle_center_x + cooldown_indicator_radius + cooldown_indicator_padding;
+        dash_text_x_offset = circle_center_x + radius + cooldown_indicator_padding;
     }
     std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
+    Color c = config_.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
     if (!dash_surface) {
         SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());
