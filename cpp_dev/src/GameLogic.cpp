@@ -270,6 +270,10 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 /// @param config The game configuration.
 
 GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+    // Clear the screen with a dark gray color to ensure no old graphics remain.
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
     const int screen_width = config.getScreenWidth();
@@ -328,6 +332,10 @@ GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, 
 }
 
 MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config) {
+    // Clear the screen with a dark gray color to ensure no old graphics remain.
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
     const int screen_width = config.getScreenWidth();
@@ -385,6 +393,10 @@ MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config) {
 }
 
 PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
+    // Clear the screen with a dark gray color to ensure no old graphics remain.
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
     const int screen_width = config.getScreenWidth();
