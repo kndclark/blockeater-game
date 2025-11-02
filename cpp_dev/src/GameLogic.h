@@ -9,6 +9,7 @@
 #include "Obstacle.h" // For ObstacleType
 #include "Player.h"   // For Player
 #include "LevelManager.h"
+#include "Scoreboard.h"
 
 struct GameState; // Forward declaration needed for handleCheckpointPassing
 class Config;     // Forward declaration for batchRenderObstacles
@@ -88,9 +89,6 @@ void updateGame(GameState& game_state);
 /// @brief Renders all game objects to the screen.
 void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
 
-/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
-void gameLoopIteration(GameState& game_state, const Config& config);
-
 enum class GameOverAction {
     Restart,
     MainMenu,
@@ -111,3 +109,12 @@ GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, 
 /// @brief Displays the pause menu and waits for user input.
 /// @return The action selected by the user.
 PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config);
+
+/// @brief Handles the action selected from the pause menu, updating game state flags.
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, bool& restart_requested, bool& app_is_running);
+
+/// @brief Checks if the victory condition has been met and updates the game state accordingly.
+void checkVictoryCondition(GameState& game_state);
+
+/// @brief Runs a single iteration of the main game loop, handling input, updates, rendering, and frame capping.
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config);

@@ -7,6 +7,7 @@
 #include "../src/Obstacle.h"
 #include "../config/Config.h"
 #include "../src/GameState.h"
+#include "../src/Scoreboard.h"
 #include "../src/GameLogic.h" 
 #include "test_helpers.h"
 
@@ -473,6 +474,32 @@ protected:
     const int SCREEN_HEIGHT = 600;
 };
 
+// Test fixture for game logic tests that require a renderer
+class GameLogicRendererTest : public SdlTest {
+protected:
+    Config config_{kTestRootPath};
+    const int SCREEN_WIDTH = 800;
+    const int SCREEN_HEIGHT = 600;
+    SDL_Window* window_ = nullptr;
+    SDL_Renderer* renderer_ = nullptr;
+
+    void SetUp() override {
+        SdlTest::SetUp();
+        ASSERT_EQ(TTF_Init(), 0);
+        window_ = SDL_CreateWindow("Test", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_HIDDEN);
+        ASSERT_NE(window_, nullptr);
+        renderer_ = SDL_CreateRenderer(window_, -1, 0);
+        ASSERT_NE(renderer_, nullptr);
+    }
+
+    void TearDown() override {
+        if (renderer_) SDL_DestroyRenderer(renderer_);
+        if (window_) SDL_DestroyWindow(window_);
+        TTF_Quit();
+        SdlTest::TearDown();
+    }
+};
+
 TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -512,7 +539,8 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
     ASSERT_TRUE(gameState.running);
 
     // Act: Run one iteration of the game loop.
-    gameLoopIteration(gameState, config);
+    updateGame(gameState);
+    checkVictoryCondition(gameState);
 
     // Assert: The game should no longer be running.
     EXPECT_FALSE(gameState.running);
@@ -531,6 +559,22 @@ TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
 
     EXPECT_FALSE(gameState.running);
 };
+
+TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
+    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // 1. Test when level is NOT greater than max level
+    gameState.level = gameState.level_manager.getMaxLevel();
+    checkVictoryCondition(gameState);
+    EXPECT_FALSE(gameState.victory);
+    EXPECT_TRUE(gameState.running);
+
+    // 2. Test when level IS greater than max level
+    gameState.level = gameState.level_manager.getMaxLevel() + 1;
+    checkVictoryCondition(gameState);
+    EXPECT_TRUE(gameState.victory);
+    EXPECT_FALSE(gameState.running);
+}
 
 TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -627,46 +671,59 @@ TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
     EXPECT_NE(gameState.obstacles[0].rect.x, initial_obstacle_x) << "updateGame should move obstacles even if paused flag is set; the main loop is responsible for not calling it.";
 }
 
-TEST_F(TopLevelGameLogicTest, PauseMenuActionsCorrectlyBypassGameOverScreen) {
-    // This test simulates the logic from the main game loop in game.cpp
-    // to ensure that quitting or restarting from the pause menu does not
-    // incorrectly trigger the game over screen.
+TEST_F(TopLevelGameLogicTest, HandlePauseMenuAction) {
+    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    // --- Scenario 1: Player quits from the pause menu ---
-    {
-        bool app_is_running = true;
-        bool restart_requested = false;
-        // Simulate action from showPauseMenu
-        PauseMenuAction action = PauseMenuAction::Quit;
+    // --- Test Resume ---
+    gameState.paused = true;
+    bool restart_requested_resume = false;
+    bool app_is_running_resume = true;
+    handlePauseMenuAction(PauseMenuAction::Resume, gameState, restart_requested_resume, app_is_running_resume);
+    EXPECT_FALSE(gameState.paused);
+    EXPECT_FALSE(restart_requested_resume);
+    EXPECT_TRUE(app_is_running_resume);
 
-        // Apply the logic from game.cpp
-        if (action == PauseMenuAction::Quit) {
-            app_is_running = false;
-        } else if (action == PauseMenuAction::Restart) {
-            restart_requested = true;
-        }
+    // --- Test Restart ---
+    gameState.running = true;
+    bool restart_requested_restart = false;
+    bool app_is_running_restart = true;
+    handlePauseMenuAction(PauseMenuAction::Restart, gameState, restart_requested_restart, app_is_running_restart);
+    EXPECT_TRUE(restart_requested_restart);
+    EXPECT_FALSE(gameState.running) << "Game should stop running to allow restart";
+    EXPECT_TRUE(app_is_running_restart) << "App should keep running to allow restart";
 
-        // Assert that the condition to show the game over screen is false
-        EXPECT_FALSE(app_is_running && !restart_requested) << "Game over screen should be skipped when quitting from pause menu.";
-    }
+    // --- Test Main Menu ---
+    gameState.running = true;
+    bool restart_requested_menu = false;
+    bool app_is_running_menu = true;
+    handlePauseMenuAction(PauseMenuAction::MainMenu, gameState, restart_requested_menu, app_is_running_menu);
+    EXPECT_FALSE(restart_requested_menu);
+    EXPECT_FALSE(gameState.running) << "Game should stop running";
+    EXPECT_FALSE(app_is_running_menu) << "App should stop running";
 
-    // --- Scenario 2: Player restarts from the pause menu ---
-    {
-        bool app_is_running = true;
-        bool restart_requested = false;
-        // Simulate action from showPauseMenu
-        PauseMenuAction action = PauseMenuAction::Restart;
+    // --- Test Quit ---
+    gameState.running = true;
+    bool restart_requested_quit = false;
+    bool app_is_running_quit = true;
+    handlePauseMenuAction(PauseMenuAction::Quit, gameState, restart_requested_quit, app_is_running_quit);
+    EXPECT_FALSE(restart_requested_quit);
+    EXPECT_FALSE(gameState.running) << "Game should stop running";
+    EXPECT_FALSE(app_is_running_quit) << "App should stop running";
+}
 
-        // Apply the logic from game.cpp
-        if (action == PauseMenuAction::Quit) {
-            app_is_running = false;
-        } else if (action == PauseMenuAction::Restart) {
-            restart_requested = true;
-        }
+TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
+    // This is a smoke test to ensure the main game loop function can be called
+    // without crashing. It doesn't verify deep logic but checks the integration.
+    GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT);
+    Scoreboard scoreboard(renderer_, config_);
 
-        // Assert that the condition to show the game over screen is false
-        EXPECT_FALSE(app_is_running && !restart_requested) << "Game over screen should be skipped when restarting from pause menu.";
-    }
+    // Simulate one frame when not paused
+    gameState.paused = false;
+    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
+
+    // Simulate one frame when paused (handleGameLoop should do nothing)
+    gameState.paused = true;
+    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {
