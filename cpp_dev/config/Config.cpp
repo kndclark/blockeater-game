@@ -96,7 +96,7 @@ void Config::load_defaults() {
     victory_text_ = "YOU WIN!";
     game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
     pause_menu_title_ = "Paused";
-    pause_menu_instructions_ = "ESC = Resume | M = Menu | Q = Quit";
+    pause_menu_instructions_ = "ESC = Resume | R = Restart | M = Menu | Q = Quit";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
     dash_cooldown_suffix_ = "s)";

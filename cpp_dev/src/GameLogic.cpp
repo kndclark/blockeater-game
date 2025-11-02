@@ -389,6 +389,7 @@ PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
             if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_ESCAPE: return PauseMenuAction::Resume;
+                    case SDLK_r: return PauseMenuAction::Restart;
                     case SDLK_m: return PauseMenuAction::MainMenu;
                     case SDLK_q: return PauseMenuAction::Quit;
                     default: break;

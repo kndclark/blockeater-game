@@ -154,6 +154,18 @@ TEST_F(RendererTest, PauseMenuReturnsResumeOnEscape) {
     });
 }
 
+TEST_F(RendererTest, PauseMenuReturnsRestartOnR) {
+    // This test verifies that pressing 'R' on the pause menu returns PauseMenuAction::Restart.
+    SDL_Event r_event;
+    r_event.type = SDL_KEYDOWN;
+    r_event.key.keysym.sym = SDLK_r;
+    SDL_PushEvent(&r_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showPauseMenu(renderer_, config_), PauseMenuAction::Restart);
+    });
+}
+
 TEST_F(RendererTest, PauseMenuReturnsMainMenuOnM) {
     // This test verifies that pressing 'M' on the pause menu returns PauseMenuAction::MainMenu.
     SDL_Event m_event;

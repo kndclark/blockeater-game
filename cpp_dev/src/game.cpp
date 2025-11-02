@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
     bool app_is_running = true;
     while (app_is_running) {
         // Use a dedicated scope for game objects that depend on the config.
+        bool restart_requested = false;
         // This ensures they are destroyed and re-created on restart.
         {
             // Seed for random numbers
@@ -119,6 +120,10 @@ int main(int argc, char* argv[]) {
                     switch (action) {
                         case PauseMenuAction::Resume:
                             game_state->paused = false;
+                            break;
+                        case PauseMenuAction::Restart:
+                            restart_requested = true;
+                            game_state->running = false; // Break inner loop to restart
                             break;
                         case PauseMenuAction::MainMenu:
                             SDL_Log("Main Menu selected. Exiting for now.");
@@ -161,7 +166,7 @@ int main(int argc, char* argv[]) {
                                 }
             }
             // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
-            if (app_is_running) {
+            if (app_is_running && !restart_requested) {
                 // Display either the game over or victory screen, and wait for user action.
                 GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
 

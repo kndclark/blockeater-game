@@ -627,6 +627,48 @@ TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
     EXPECT_NE(gameState.obstacles[0].rect.x, initial_obstacle_x) << "updateGame should move obstacles even if paused flag is set; the main loop is responsible for not calling it.";
 }
 
+TEST_F(TopLevelGameLogicTest, PauseMenuActionsCorrectlyBypassGameOverScreen) {
+    // This test simulates the logic from the main game loop in game.cpp
+    // to ensure that quitting or restarting from the pause menu does not
+    // incorrectly trigger the game over screen.
+
+    // --- Scenario 1: Player quits from the pause menu ---
+    {
+        bool app_is_running = true;
+        bool restart_requested = false;
+        // Simulate action from showPauseMenu
+        PauseMenuAction action = PauseMenuAction::Quit;
+
+        // Apply the logic from game.cpp
+        if (action == PauseMenuAction::Quit) {
+            app_is_running = false;
+        } else if (action == PauseMenuAction::Restart) {
+            restart_requested = true;
+        }
+
+        // Assert that the condition to show the game over screen is false
+        EXPECT_FALSE(app_is_running && !restart_requested) << "Game over screen should be skipped when quitting from pause menu.";
+    }
+
+    // --- Scenario 2: Player restarts from the pause menu ---
+    {
+        bool app_is_running = true;
+        bool restart_requested = false;
+        // Simulate action from showPauseMenu
+        PauseMenuAction action = PauseMenuAction::Restart;
+
+        // Apply the logic from game.cpp
+        if (action == PauseMenuAction::Quit) {
+            app_is_running = false;
+        } else if (action == PauseMenuAction::Restart) {
+            restart_requested = true;
+        }
+
+        // Assert that the condition to show the game over screen is false
+        EXPECT_FALSE(app_is_running && !restart_requested) << "Game over screen should be skipped when restarting from pause menu.";
+    }
+}
+
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
     int initial_width = gameState.player.rect.w;

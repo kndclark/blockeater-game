@@ -23,6 +23,6 @@
         "victory_text": "VICTORY! You have completed all levels!",
         "game_over_instructions": "R = Restart | M = Menu | Q = Quit",
         "pause_menu_title": "Paused",
-        "pause_menu_instructions": "ESC = Resume | M = Menu | Q = Quit"
+        "pause_menu_instructions": "ESC = Resume | R = Restart | M = Menu | Q = Quit"
     }
 }

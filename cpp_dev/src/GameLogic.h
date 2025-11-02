@@ -99,6 +99,7 @@ enum class GameOverAction {
 
 enum class PauseMenuAction {
     Resume,
+    Restart,
     MainMenu,
     Quit
 };
