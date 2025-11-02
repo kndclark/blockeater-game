@@ -92,6 +92,7 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 enum class AppStatus {
     ShowingMainMenu,
     Running,
+    Restarting,
     Quitting
 };
 

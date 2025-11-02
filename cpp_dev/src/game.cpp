@@ -140,6 +140,11 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             }
+            case AppStatus::Restarting: {
+                // Simply transition back to Running to start a new game loop.
+                app_status = AppStatus::Running;
+                break;
+            }
             case AppStatus::Quitting:
                 // Loop will terminate
                 break;

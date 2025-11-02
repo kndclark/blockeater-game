@@ -270,9 +270,13 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 /// @param config The game configuration.
 
 GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
-    // Clear the screen with a dark gray color to ensure no old graphics remain.
-    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-    SDL_RenderClear(renderer);
+    // Draw a semi-transparent overlay to dim the background game state.
+    // This makes the menu text more readable without completely hiding the game.
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    // ~60% opacity black
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+    SDL_Rect overlay_rect = {0, 0, config.getScreenWidth(), config.getScreenHeight()};
+    SDL_RenderFillRect(renderer, &overlay_rect);
 
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
@@ -393,9 +397,13 @@ MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config) {
 }
 
 PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
-    // Clear the screen with a dark gray color to ensure no old graphics remain.
-    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-    SDL_RenderClear(renderer);
+    // Draw a semi-transparent overlay to dim the background game state.
+    // This makes the menu text more readable without completely hiding the game.
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    // ~60% opacity black
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150);
+    SDL_Rect overlay_rect = {0, 0, config.getScreenWidth(), config.getScreenHeight()};
+    SDL_RenderFillRect(renderer, &overlay_rect);
 
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
@@ -461,7 +469,7 @@ void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppSta
             game_state.paused = false;
             break;
         case PauseMenuAction::Restart:
-            app_status = AppStatus::Running; // Signal to main loop to restart the game
+            app_status = AppStatus::Restarting; // Signal to main loop to restart the game
             game_state.running = false;      // Break inner game loop
             break;
         case PauseMenuAction::MainMenu:
