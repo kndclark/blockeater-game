@@ -64,6 +64,9 @@ void Config::load_defaults() {
     base_checkpoint_gap = 120;
     player_size_change_amount = 10;
     score_per_checkpoint = 10;
+    score_per_grow = 200;
+    score_per_shrink = 100;
+    score_per_hurt = -500;
     checkpoints_per_level = 10;
     spawn_interval_ms = 1500;
     checkpoint_interval_ms = 10000;
@@ -78,6 +81,9 @@ void Config::load_defaults() {
     player_width = 40;
     player_height = 40;
     player_speed = 5;
+    dash_speed_multiplier_ = 2.5f;
+    dash_duration_ms_ = 500;
+    dash_cooldown_ms_ = 2000;
     score_prefix_ = "Score: ";
     level_prefix_ = "Level: ";
     level_progress_prefix_ = " (";
@@ -86,6 +92,11 @@ void Config::load_defaults() {
     player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
     game_over_text_ = "GAME OVER";
+    dash_ready_text_ = "dash -> ready";
+    dash_cooldown_prefix_ = "dash -> cooldown (";
+    dash_cooldown_suffix_ = "s)";
+    cooldown_indicator_radius_ = 12;
+    cooldown_indicator_color_ = {255, 255, 255, 255}; // Default white
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
@@ -135,6 +146,11 @@ void Config::load_ui_texts(const std::string& base_path) {
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
             player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
             game_over_text_ = data.value("/ui_text/game_over_text"_json_pointer, game_over_text_);
+            dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
+            dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
+            dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
+            cooldown_indicator_radius_ = data.value("/ui_text/dash_cooldown_indicator/radius"_json_pointer, cooldown_indicator_radius_);
+            cooldown_indicator_color_ = data.value("/ui_text/dash_cooldown_indicator/color"_json_pointer, cooldown_indicator_color_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
@@ -194,6 +210,12 @@ void Config::load_from_path(const std::string& filepath) {
             base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
             player_size_change_amount = data.value("/game/player_size_change_amount"_json_pointer, 10);
             score_per_checkpoint = data.value("/game/score_per_checkpoint"_json_pointer, 10);
+            score_per_grow = data.value("/game/score_per_grow"_json_pointer, 200);
+            score_per_shrink = data.value("/game/score_per_shrink"_json_pointer, 100);
+            dash_boost_multiplier_ = data.value("/game/score_boosts/dash_multiplier"_json_pointer, 1.0f);
+            size_boost_threshold_ = data.value("/game/score_boosts/size_threshold_percent"_json_pointer, 80);
+            size_boost_multiplier_ = data.value("/game/score_boosts/size_multiplier"_json_pointer, 1.0f);
+            score_per_hurt = data.value("/game/score_per_hurt"_json_pointer, -500);
             checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
             obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
             spawn_interval_ms = data.value("/game/spawn_interval_ms"_json_pointer, 1500);
@@ -209,6 +231,9 @@ void Config::load_from_path(const std::string& filepath) {
             player_width = data.value("/game/player/width"_json_pointer, 40);
             player_height = data.value("/game/player/height"_json_pointer, 40);
             player_speed = data.value("/game/player/speed"_json_pointer, 5);
+            dash_speed_multiplier_ = data.value("/game/player/dash/speed_multiplier"_json_pointer, dash_speed_multiplier_);
+            dash_duration_ms_ = data.value("/game/player/dash/duration_ms"_json_pointer, dash_duration_ms_);
+            dash_cooldown_ms_ = data.value("/game/player/dash/cooldown_ms"_json_pointer, dash_cooldown_ms_);
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
@@ -307,6 +332,43 @@ ObstacleSize Config::getHurtDimensions() const {
     return hurt_dims;
 }
 
+int Config::getScorePerGrow() const {
+    return score_per_grow;
+}
+
+int Config::getScorePerShrink() const {
+    return score_per_shrink;
+}
+
+int Config::getScorePerHurt() const {
+    return score_per_hurt;
+}
+
+float Config::getDashBoostMultiplier() const {
+    return dash_boost_multiplier_;
+}
+
+int Config::getSizeBoostThreshold() const {
+    return size_boost_threshold_;
+}
+
+float Config::getSizeBoostMultiplier() const {
+    return size_boost_multiplier_;
+}
+
+ObstacleConfig Config::getObstacleConfig() const {
+    return {
+        getGrowChance(),
+        getShrinkChance(),
+        getGrowDimensions(),
+        getShrinkDimensions(),
+        getHurtDimensions(),
+        getScorePerGrow(),
+        getScorePerShrink(),
+        getScorePerCheckpoint()
+    };
+}
+
 int Config::getPlayerInitialX() const {
     return player_initial_x;
 }
@@ -321,6 +383,18 @@ int Config::getPlayerHeight() const {
 
 int Config::getPlayerSpeed() const {
     return player_speed;
+}
+
+float Config::getDashSpeedMultiplier() const {
+    return dash_speed_multiplier_;
+}
+
+Uint32 Config::getDashDurationMs() const {
+    return dash_duration_ms_;
+}
+
+Uint32 Config::getDashCooldownMs() const {
+    return dash_cooldown_ms_;
 }
 
 const LevelConfig* Config::getLevelConfig(int level) const {
@@ -373,4 +447,24 @@ const std::string& Config::getLevelProgressPrefix() const {
 
 const std::string& Config::getLevelProgressSuffix() const {
     return level_progress_suffix_;
+}
+
+const std::string& Config::getDashReadyText() const {
+    return dash_ready_text_;
+}
+
+const std::string& Config::getDashCooldownPrefix() const {
+    return dash_cooldown_prefix_;
+}
+
+const std::string& Config::getDashCooldownSuffix() const {
+    return dash_cooldown_suffix_;
+}
+
+int Config::getCooldownIndicatorRadius() const {
+    return cooldown_indicator_radius_;
+}
+
+Color Config::getCooldownIndicatorColor() const {
+    return cooldown_indicator_color_;
 }

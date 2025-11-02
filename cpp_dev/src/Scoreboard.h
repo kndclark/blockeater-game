@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <memory>
 #include <SDL2/SDL_ttf.h>
 #include <string>
 #include "../config/Config.h"
@@ -14,14 +15,23 @@ public:
     Scoreboard(const Scoreboard&) = delete;
     Scoreboard& operator=(const Scoreboard&) = delete;
 
-    void render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size) const;
+    void render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const;
 
     // Generates the text for the level display. Made public for easier testing.
     std::string getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const;
+    void renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const;
     std::string getPlayerSizeText(int player_size, int gap_size) const;
+    std::string getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const;
+
+    void drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color, std::vector<SDL_Point>* out_points = nullptr) const;
 
 private:
     SDL_Renderer* renderer_;
     const Config& config_;
-    TTF_Font* font_;
+
+    struct SdlFontDeleter {
+        void operator()(TTF_Font* f) const { if (f) TTF_CloseFont(f); }
+    };
+
+    std::unique_ptr<TTF_Font, SdlFontDeleter> font_;
 };

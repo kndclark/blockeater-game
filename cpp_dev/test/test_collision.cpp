@@ -1,12 +1,16 @@
 #include <gtest/gtest.h>
 #include "../src/Player.h"
 #include "../src/Obstacle.h"
+#include "../config/Config.h"
 #include "test_helpers.h"
 
 // Use the fixture for the collision detection test
 TEST_F(SdlTest, CollisionDetection) {
     // NOLINTNEXTLINE(readability-magic-numbers)
-    Player player(100, 100, 40, 40, 5, {0,0,0,0});
+    Config config(kTestRootPath);
+    Player player(100, 100, 40, 40, 5, {0,0,0,0},
+                  config.getDashSpeedMultiplier(), config.getDashDurationMs(),
+                  config.getDashCooldownMs());
 
     // No collision
     Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt);
@@ -23,7 +27,10 @@ TEST_F(SdlTest, CollisionDetection) {
 
 TEST_F(SdlTest, CheckpointCollisionDetection) {
     // NOLINTNEXTLINE(readability-magic-numbers)
-    Player player(100, 100, 40, 40, 5, {0,0,0,0});
+    Config config(kTestRootPath);
+    Player player(100, 100, 40, 40, 5, {0,0,0,0},
+                  config.getDashSpeedMultiplier(), config.getDashDurationMs(),
+                  config.getDashCooldownMs());
 
     // Checkpoint with a gap the player can fit through
     SDL_Rect top_wall = {110, 0, 20, 90};
