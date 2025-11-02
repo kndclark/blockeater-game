@@ -19,6 +19,8 @@
             "size": 24
         },
         "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 },
-        "game_over_text": "GAME OVER"
+        "game_over_text": "Game Over",
+        "victory_text": "VICTORY! You have completed all levels!",
+        "game_over_instructions": "R = Restart | M = Menu | Q = Quit"
     }
 }

@@ -94,6 +94,7 @@ void Config::load_defaults() {
     player_size_suffix_ = "% of gap size";
     game_over_text_ = "GAME OVER";
     victory_text_ = "YOU WIN!";
+    game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
     dash_cooldown_suffix_ = "s)";
@@ -148,6 +149,8 @@ void Config::load_ui_texts(const std::string& base_path) {
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
             player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
             game_over_text_ = data.value("/ui_text/game_over_text"_json_pointer, game_over_text_);
+            victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
+            game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -237,8 +240,6 @@ void Config::load_from_path(const std::string& filepath) {
             dash_speed_multiplier_ = data.value("/game/player/dash/speed_multiplier"_json_pointer, dash_speed_multiplier_);
             dash_duration_ms_ = data.value("/game/player/dash/duration_ms"_json_pointer, dash_duration_ms_);
             dash_cooldown_ms_ = data.value("/game/player/dash/cooldown_ms"_json_pointer, dash_cooldown_ms_);
-            game_over_text_ = data.value("/game/game_over_text"_json_pointer, game_over_text_);
-            victory_text_ = data.value("/game/victory_text"_json_pointer, victory_text_);
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
@@ -440,6 +441,10 @@ const std::string& Config::getGameOverText() const {
 
 const std::string& Config::getVictoryText() const {
     return victory_text_;
+}
+
+const std::string& Config::getGameOverInstructions() const {
+    return game_over_instructions_;
 }
 
 const std::string& Config::getGapSizePrefix() const {

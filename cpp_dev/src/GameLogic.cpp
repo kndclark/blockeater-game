@@ -276,41 +276,60 @@ void gameLoopIteration(GameState& game_state, const Config& config) {
     }
 }
 
-void showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
-     // Create a "Game Over" texture
-     Color c = config.getUiTextColor();
-     SDL_Color color = {c.r, c.g, c.b, c.a};
-     // Use a larger font
-     TTF_Font* font = TTF_OpenFont(config.getFontPath().c_str(), 48);
-     if (!font) {
-         SDL_Log("Failed to load font for game over: %s", TTF_GetError());
-     } else {
-         SDL_Surface* surface = TTF_RenderText_Solid(font, message.c_str(), color);
-         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-         int text_width = surface->w;
-         int text_height = surface->h;
-         SDL_FreeSurface(surface);
+GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+    Color c = config.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+    const int screen_width = config.getScreenWidth();
+    const int screen_height = config.getScreenHeight();
+
+    // --- Main Message (Game Over / Victory) ---
+    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 48);
+    if (!main_font) {
+        SDL_Log("Failed to load main font for game over: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(main_font, message.c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(main_font);
+    }
+
+    // --- Instructions Text ---
+    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
+    if (!instruction_font) {
+        SDL_Log("Failed to load instruction font for game over: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getGameOverInstructions().c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(instruction_font);
+    }
  
-         const int screen_width = config.getScreenWidth();
-         const int screen_height = config.getScreenHeight();
-         SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height - text_height) / 2, text_width, text_height };
- 
-         SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-         SDL_RenderPresent(renderer);
- 
-         SDL_DestroyTexture(texture);
-         TTF_CloseFont(font);
-     }
- 
-     // --- Game Over Loop ---
-     bool game_over_loop = true;
-     SDL_Event event;
-     while (game_over_loop) {
-         while (SDL_PollEvent(&event)) {
-             if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-                 game_over_loop = false;
-             }
-         }
-         SDL_Delay(100); // Prevent the loop from running at full speed
-     }
- }
+    SDL_RenderPresent(renderer);
+
+    // --- Game Over Event Loop ---
+    SDL_Event event;
+    while (true) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) return GameOverAction::Quit;
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_r: return GameOverAction::Restart;
+                    case SDLK_m: return GameOverAction::MainMenu; // Does nothing for now
+                    case SDLK_q: case SDLK_ESCAPE: return GameOverAction::Quit;
+                    default: break;
+                }
+            }
+        }
+        SDL_Delay(100);
+    }
+}

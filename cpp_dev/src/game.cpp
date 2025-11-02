@@ -84,65 +84,72 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Use a dedicated scope for game objects that depend on the config.
-    // This ensures they are destroyed before the config object goes out of scope.
-    {
-        std::unique_ptr<Scoreboard> scoreboard;
-        try {
-            scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
-        } catch (const std::exception& e) {
-            SDL_Log("Error creating scoreboard: %s", e.what());
-            TTF_Quit();
-            SDL_Quit();
-            return 1;
+    std::unique_ptr<Scoreboard> scoreboard;
+    try {
+        scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
+    } catch (const std::exception& e) {
+        SDL_Log("Error creating scoreboard: %s", e.what());
+        return 1;
+    }
+
+    bool app_is_running = true;
+    while (app_is_running) {
+        // Use a dedicated scope for game objects that depend on the config.
+        // This ensures they are destroyed and re-created on restart.
+        {
+            // Seed for random numbers
+            srand(time(NULL));
+
+            // --- Framerate Control ---
+            const int TARGET_FPS = config.getTargetFps();
+            const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
+            Uint32 frame_start_time;
+
+            // --- Game State Setup --- (Use a unique_ptr to control lifetime)
+            auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // --- Main Game Loop ---
+            while (game_state->running) {
+                frame_start_time = SDL_GetTicks();
+
+                gameLoopIteration(*game_state, config);
+
+                // Only render if the game is still running after the update phase
+                if (game_state->running) {
+                    renderGame(renderer.get(), *game_state, config);
+                    scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size,
+                                       game_state->checkpoints_passed_in_level, game_state->level_manager.getCheckpointsPerLevel(),
+                                       game_state->player.rect.w, game_state->player.on_cooldown, game_state->player.getDashCooldownRemaining());
+                    SDL_RenderPresent(renderer.get());
+                }
+
+                // --- FPS Calculation and Capping ---
+                if (auto fps_opt = calculateFps(game_state->frame_count, game_state->last_fps_update_time, SDL_GetTicks())) {
+                    SDL_Log("FPS: %.2f", *fps_opt);
+                }
+
+                Uint32 frame_time = SDL_GetTicks() - frame_start_time;
+                if (frame_time < FRAME_DELAY) {
+                    SDL_Delay(FRAME_DELAY - frame_time);
+                }
+            }
+
+            // Display either the game over or victory screen, and wait for exit signal
+            GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
+
+            if (action == GameOverAction::Quit) {
+                app_is_running = false;
+            } else if (action == GameOverAction::MainMenu) {
+                // For now, main menu also quits.
+                SDL_Log("Main Menu selected. Exiting for now.");
+                app_is_running = false;
+            }
+            // If action is Restart, the outer while loop will simply continue,
+            // re-creating the GameState and starting a new game.
         }
-        // Seed for random numbers
-        srand(time(NULL));
-
-        // --- Framerate Control ---
-        const int TARGET_FPS = config.getTargetFps();
-        const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
-        Uint32 frame_start_time;
-
-        // --- Game State Setup --- (Use a unique_ptr to control lifetime)
-        auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-        // --- Main Game Loop ---
-        // The game will continue to run as long as this 'running' flag is true.
-        while (game_state->running) {
-            frame_start_time = SDL_GetTicks();
-
-            gameLoopIteration(*game_state, config);
-
-            // Only render if the game is still running after the update phase
-            if (game_state->running) {
-                renderGame(renderer.get(), *game_state, config);
-                // Draw score after the rest of the game is rendered
-                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size,
-                                   game_state->checkpoints_passed_in_level, game_state->level_manager.getCheckpointsPerLevel(),
-                                   game_state->player.rect.w, game_state->player.on_cooldown, game_state->player.getDashCooldownRemaining());
-                // Present the final frame
-                SDL_RenderPresent(renderer.get());
-            }
-
-            // --- FPS Calculation and Capping ---
-            Uint32 current_frametime = SDL_GetTicks();
-            if (auto fps_opt = calculateFps(game_state->frame_count, game_state->last_fps_update_time, current_frametime)) {
-                SDL_Log("FPS: %.2f", *fps_opt);
-            }
-
-            Uint32 frame_time = SDL_GetTicks() - frame_start_time;
-            if (frame_time < FRAME_DELAY) {
-                SDL_Delay(FRAME_DELAY - frame_time);
-            }
-        }
-
-        // Display either the game over or victory screen, and wait for exit signal
-        showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
     }
     } catch (const std::exception& e) {
         SDL_Log("An error occurred: %s", e.what());
-        // SdlInitializer destructor will still be called, cleaning up SDL and TTF.
         return 1;
     }
 
