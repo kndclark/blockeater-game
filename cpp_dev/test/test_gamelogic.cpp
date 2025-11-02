@@ -477,7 +477,7 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
-    gameState.level = LevelManager::MAX_LEVEL;
+    gameState.level = gameState.level_manager.getMaxLevel();
     // Ensure the level manager is updated to the final level's config.
     gameState.level_manager.updateForLevel(gameState.level);
     gameState.checkpoints_passed_in_level = gameState.level_manager.getCheckpointsPerLevel() - 1;
@@ -492,14 +492,14 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
 
     // Assert: The level should now be greater than the max level.
     // The main game loop is responsible for setting `running` to false.
-    EXPECT_GT(gameState.level, LevelManager::MAX_LEVEL);
+    EXPECT_GT(gameState.level, gameState.level_manager.getMaxLevel());
 };
 
 TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
-    gameState.level = LevelManager::MAX_LEVEL;
+    gameState.level = gameState.level_manager.getMaxLevel();
     // Ensure the level manager is updated to the final level's config.
     gameState.level_manager.updateForLevel(gameState.level);
     gameState.checkpoints_passed_in_level = gameState.level_manager.getCheckpointsPerLevel() - 1;

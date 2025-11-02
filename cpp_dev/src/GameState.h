@@ -32,6 +32,7 @@ struct GameState {
 
     // Game loop control
     bool running = true;
+    bool victory = false;
 
     // Framerate control
     Uint32 frame_count = 0;

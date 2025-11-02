@@ -1,9 +1,6 @@
 #include "LevelManager.h"
 #include "../config/Config.h"
 
-// Definition for the static member.
-constexpr int LevelManager::MAX_LEVEL;
-
 LevelManager::LevelManager(const Config& base_config)
     : base_config_(base_config),
       effective_spawn_interval_(base_config.getSpawnInterval()),
@@ -16,6 +13,10 @@ LevelManager::LevelManager(const Config& base_config)
       effective_checkpoint_interval_ms_(base_config.getCheckpointInterval())
 {
     updateForLevel(1);
+}
+
+int LevelManager::getMaxLevel() const {
+    return base_config_.getMaxLevel();
 }
 
 void LevelManager::updateForLevel(int level) {

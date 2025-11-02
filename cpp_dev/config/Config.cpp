@@ -60,6 +60,7 @@ void Config::load_defaults() {
     target_fps = 60;
     screen_width = 640;
     screen_height = 480;
+    max_level_ = 10;
     obstacle_speed = 3;
     base_checkpoint_gap = 120;
     player_size_change_amount = 10;
@@ -91,6 +92,9 @@ void Config::load_defaults() {
     gap_size_prefix_ = "Gap Size: ";
     player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
+    game_over_text_ = "GAME OVER";
+    victory_text_ = "YOU WIN!";
+    game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
     dash_cooldown_suffix_ = "s)";
@@ -144,6 +148,9 @@ void Config::load_ui_texts(const std::string& base_path) {
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
             player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
+            game_over_text_ = data.value("/ui_text/game_over_text"_json_pointer, game_over_text_);
+            victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
+            game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -172,6 +179,7 @@ void Config::load_levels(const std::string& filepath) {
     if (f.is_open()) {
         try {
             json data = json::parse(f);
+            max_level_ = data.value("max_level", max_level_);
             if (data.contains("levels")) {
                 for (auto& [level_str, level_data] : data["levels"].items()) {
                     int level = std::stoi(level_str);
@@ -272,6 +280,10 @@ int Config::getScreenWidth() const {
 
 int Config::getScreenHeight() const {
     return screen_height;
+}
+
+int Config::getMaxLevel() const {
+    return max_level_;
 }
 
 int Config::getObstacleSpeed() const {
@@ -421,6 +433,18 @@ const std::string& Config::getLevelPrefix() const {
 
 Color Config::getUiTextColor() const {
     return ui_text_color_;
+}
+
+const std::string& Config::getGameOverText() const {
+    return game_over_text_;
+}
+
+const std::string& Config::getVictoryText() const {
+    return victory_text_;
+}
+
+const std::string& Config::getGameOverInstructions() const {
+    return game_over_instructions_;
 }
 
 const std::string& Config::getGapSizePrefix() const {

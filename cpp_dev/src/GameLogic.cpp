@@ -1,5 +1,6 @@
 #include "GameLogic.h"
 #include "GameState.h"
+#include <SDL2/SDL_ttf.h>
 #include <string>
 
 std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles) {
@@ -267,9 +268,68 @@ void gameLoopIteration(GameState& game_state, const Config& config) {
 
     // Only check for victory if the game is still running after the update phase
     if (game_state.running) {
-        if (game_state.level > LevelManager::MAX_LEVEL) {
-            SDL_Log("VICTORY! You have completed all levels!");
+        if (game_state.level > game_state.level_manager.getMaxLevel()) {
+            SDL_Log("%s", config.getVictoryText().c_str());
+            game_state.victory = true;
             game_state.running = false; // End the game
         }
+    }
+}
+
+GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+    Color c = config.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+    const int screen_width = config.getScreenWidth();
+    const int screen_height = config.getScreenHeight();
+
+    // --- Main Message (Game Over / Victory) ---
+    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 48);
+    if (!main_font) {
+        SDL_Log("Failed to load main font for game over: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(main_font, message.c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(main_font);
+    }
+
+    // --- Instructions Text ---
+    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
+    if (!instruction_font) {
+        SDL_Log("Failed to load instruction font for game over: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getGameOverInstructions().c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(instruction_font);
+    }
+ 
+    SDL_RenderPresent(renderer);
+
+    // --- Game Over Event Loop ---
+    SDL_Event event;
+    while (true) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) return GameOverAction::Quit;
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_r: return GameOverAction::Restart;
+                    case SDLK_m: return GameOverAction::MainMenu; // Does nothing for now
+                    case SDLK_q: case SDLK_ESCAPE: return GameOverAction::Quit;
+                    default: break;
+                }
+            }
+        }
+        SDL_Delay(100);
     }
 }

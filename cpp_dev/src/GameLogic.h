@@ -90,3 +90,14 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 
 /// @brief Runs a single iteration of the main game loop, processing input and updating game state.
 void gameLoopIteration(GameState& game_state, const Config& config);
+
+/// @brief Displays the game over screen and waits for user input to exit.
+enum class GameOverAction {
+    Restart,
+    MainMenu,
+    Quit
+};
+
+/// @brief Displays the game over screen and waits for user input.
+/// @return The action selected by the user.
+GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message);

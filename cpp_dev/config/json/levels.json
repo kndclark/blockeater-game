@@ -1,4 +1,5 @@
 {
+    "max_level": 10,
     "levels": {
         "1": {
             "obstacle_speed": 3, "spawn_interval_ms": 2000, "base_checkpoint_gap": 200,
