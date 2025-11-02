@@ -268,20 +268,6 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 /// @brief Runs a single iteration of the main game loop, processing input and updating game state.
 /// @param game_state The current state of the game to be updated.
 /// @param config The game configuration.
-void gameLoopIteration(GameState& game_state, const Config& config) {
-    processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
-
-    updateGame(game_state);
-
-    // Only check for victory if the game is still running after the update phase
-    if (game_state.running) {
-        if (game_state.level > game_state.level_manager.getMaxLevel()) {
-            SDL_Log("%s", config.getVictoryText().c_str());
-            game_state.victory = true;
-            game_state.running = false; // End the game
-        }
-    }
-}
 
 GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
     Color c = config.getUiTextColor();
@@ -397,5 +383,64 @@ PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
             }
         }
         SDL_Delay(100);
+    }
+}
+
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, bool& restart_requested, bool& app_is_running) {
+    switch (action) {
+        case PauseMenuAction::Resume:
+            game_state.paused = false;
+            break;
+        case PauseMenuAction::Restart:
+            restart_requested = true;
+            game_state.running = false; // Break inner loop to restart
+            break;
+        case PauseMenuAction::MainMenu:
+            SDL_Log("Main Menu selected. Exiting for now.");
+            game_state.running = false; // This will break the inner loop
+            app_is_running = false;    // This will break the outer loop
+            break;
+        case PauseMenuAction::Quit:
+            game_state.running = false;
+            app_is_running = false;
+            break;
+    }
+}
+
+void checkVictoryCondition(GameState& game_state) {
+    if (game_state.level > game_state.level_manager.getMaxLevel()) {
+        game_state.victory = true;
+        game_state.running = false; // End the game
+    }
+}
+
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config) {
+    const int TARGET_FPS = config.getTargetFps();
+    const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
+    Uint32 frame_start_time = SDL_GetTicks();
+
+    processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
+
+    if (!game_state.paused) {
+        updateGame(game_state);
+    }
+
+    // Only render if the game is still running after the update phase
+    if (game_state.running) {
+        renderGame(renderer, game_state, config);
+        scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
+                           game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
+                           game_state.player.rect.w, game_state.player.on_cooldown, game_state.player.getDashCooldownRemaining());
+        SDL_RenderPresent(renderer);
+    }
+
+    // --- FPS Calculation and Capping ---
+    if (auto fps_opt = calculateFps(game_state.frame_count, game_state.last_fps_update_time, SDL_GetTicks())) {
+        SDL_Log("FPS: %.2f", *fps_opt);
+    }
+
+    Uint32 frame_time = SDL_GetTicks() - frame_start_time;
+    if (frame_time < FRAME_DELAY) {
+        SDL_Delay(FRAME_DELAY - frame_time);
     }
 }
