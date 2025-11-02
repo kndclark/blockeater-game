@@ -132,10 +132,7 @@ int main(int argc, char* argv[]) {
                     if (app_status == AppStatus::Running) { // If not quitting or restarting
                         // Display either the game over or victory screen, and wait for user action.
                         GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
-
-                        if (action == GameOverAction::Quit) app_status = AppStatus::Quitting;
-                        else if (action == GameOverAction::MainMenu) app_status = AppStatus::ShowingMainMenu;
-                        // If action is Restart, the outer while loop will simply continue, re-creating the GameState.
+                        handleGameOverAction(action, app_status);
                     }
                 }
                 break;

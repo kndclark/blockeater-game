@@ -483,6 +483,20 @@ void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppSta
     }
 }
 
+void handleGameOverAction(GameOverAction action, AppStatus& app_status) {
+    switch (action) {
+        case GameOverAction::Restart:
+            app_status = AppStatus::Running; // The main loop will handle the restart.
+            break;
+        case GameOverAction::MainMenu:
+            app_status = AppStatus::ShowingMainMenu;
+            break;
+        case GameOverAction::Quit:
+            app_status = AppStatus::Quitting;
+            break;
+    }
+}
+
 void checkVictoryCondition(GameState& game_state) {
     if (game_state.level > game_state.level_manager.getMaxLevel()) {
         game_state.victory = true;

@@ -129,6 +129,9 @@ PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config);
 /// @brief Handles the action selected from the pause menu, updating game state flags.
 void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status);
 
+/// @brief Handles the action selected from the game over screen, updating the application status.
+void handleGameOverAction(GameOverAction action, AppStatus& app_status);
+
 /// @brief Checks if the victory condition has been met and updates the game state accordingly.
 void checkVictoryCondition(GameState& game_state);
 

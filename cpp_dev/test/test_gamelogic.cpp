@@ -711,6 +711,41 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<PauseMenuActionTest::ParamType>& info) { return info.param.description; }
 );
 
+// --- Game Over Menu State Transition Test ---
+struct GameOverActionParams {
+    GameOverAction action;
+    AppStatus expected_app_status;
+    std::string description;
+};
+
+void PrintTo(const GameOverActionParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class GameOverActionTest : public TopLevelGameLogicTest, public ::testing::WithParamInterface<GameOverActionParams> {};
+
+TEST_P(GameOverActionTest, HandlesStateTransitionsCorrectly) {
+    auto params = GetParam();
+    // The initial status doesn't matter as much here, but we'll set it to Running
+    // as that's the state it would be in before this function is called.
+    AppStatus app_status = AppStatus::Running;
+
+    handleGameOverAction(params.action, app_status);
+
+    EXPECT_EQ(app_status, params.expected_app_status);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    StateTransitionTests,
+    GameOverActionTest,
+    ::testing::Values(
+        GameOverActionParams{GameOverAction::Restart, AppStatus::Running, "RestartAction"},
+        GameOverActionParams{GameOverAction::MainMenu, AppStatus::ShowingMainMenu, "MainMenuAction"},
+        GameOverActionParams{GameOverAction::Quit, AppStatus::Quitting, "QuitAction"}
+    ),
+    [](const testing::TestParamInfo<GameOverActionTest::ParamType>& info) { return info.param.description; }
+);
+
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
     // without crashing. It doesn't verify deep logic but checks the integration.
