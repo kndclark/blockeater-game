@@ -86,6 +86,8 @@ public:
     const std::string& getVictoryText() const;
     const std::string& getGameOverInstructions() const;
     const std::string& getPauseMenuTitle() const;
+    const std::string& getMainMenuTitle() const;
+    const std::string& getMainMenuInstructions() const;
     const std::string& getPauseMenuInstructions() const;
     const std::string& getLevelProgressSuffix() const;
     const std::string& getDashReadyText() const;
@@ -156,6 +158,8 @@ private:
     std::string victory_text_;
     std::string game_over_instructions_;
     std::string pause_menu_title_;
+    std::string main_menu_title_;
+    std::string main_menu_instructions_;
     std::string pause_menu_instructions_;
     std::string font_path_;
     Color ui_text_color_;

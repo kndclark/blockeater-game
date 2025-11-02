@@ -89,6 +89,12 @@ void updateGame(GameState& game_state);
 /// @brief Renders all game objects to the screen.
 void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
 
+enum class AppStatus {
+    ShowingMainMenu,
+    Running,
+    Quitting
+};
+
 enum class GameOverAction {
     Restart,
     MainMenu,
@@ -102,16 +108,25 @@ enum class PauseMenuAction {
     Quit
 };
 
+enum class MainMenuAction {
+    StartGame,
+    Quit
+};
+
 /// @brief Displays the game over screen and waits for user input.
 /// @return The action selected by the user.
 GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message);
+
+/// @brief Displays the main menu and waits for user input.
+/// @return The action selected by the user.
+MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config);
 
 /// @brief Displays the pause menu and waits for user input.
 /// @return The action selected by the user.
 PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config);
 
 /// @brief Handles the action selected from the pause menu, updating game state flags.
-void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, bool& restart_requested, bool& app_is_running);
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status);
 
 /// @brief Checks if the victory condition has been met and updates the game state accordingly.
 void checkVictoryCondition(GameState& game_state);

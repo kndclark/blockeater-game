@@ -96,6 +96,8 @@ void Config::load_defaults() {
     victory_text_ = "YOU WIN!";
     game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
     pause_menu_title_ = "Paused";
+    main_menu_title_ = "THE BLOCKEATER";
+    main_menu_instructions_ = "S = Start Game | Q = Quit";
     pause_menu_instructions_ = "ESC = Resume | R = Restart | M = Menu | Q = Quit";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
@@ -154,6 +156,8 @@ void Config::load_ui_texts(const std::string& base_path) {
             victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
             game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
             pause_menu_title_ = data.value("/ui_text/pause_menu_title"_json_pointer, pause_menu_title_);
+            main_menu_title_ = data.value("/ui_text/main_menu_title"_json_pointer, main_menu_title_);
+            main_menu_instructions_ = data.value("/ui_text/main_menu_instructions"_json_pointer, main_menu_instructions_);
             pause_menu_instructions_ = data.value("/ui_text/pause_menu_instructions"_json_pointer, pause_menu_instructions_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
@@ -453,6 +457,14 @@ const std::string& Config::getGameOverInstructions() const {
 
 const std::string& Config::getPauseMenuTitle() const {
     return pause_menu_title_;
+}
+
+const std::string& Config::getMainMenuTitle() const {
+    return main_menu_title_;
+}
+
+const std::string& Config::getMainMenuInstructions() const {
+    return main_menu_instructions_;
 }
 
 const std::string& Config::getPauseMenuInstructions() const {

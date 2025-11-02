@@ -327,6 +327,63 @@ GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, 
     }
 }
 
+MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config) {
+    Color c = config.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+    const int screen_width = config.getScreenWidth();
+    const int screen_height = config.getScreenHeight();
+
+    // --- Main Title ---
+    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 64);
+    if (!main_font) {
+        SDL_Log("Failed to load main font for main menu: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(main_font, config.getMainMenuTitle().c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height - 20, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(main_font);
+    }
+
+    // --- Instructions Text ---
+    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
+    if (!instruction_font) {
+        SDL_Log("Failed to load instruction font for main menu: %s", TTF_GetError());
+    } else {
+        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getMainMenuInstructions().c_str(), color);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        int text_width = surface->w;
+        int text_height = surface->h;
+        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
+        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+        TTF_CloseFont(instruction_font);
+    }
+
+    SDL_RenderPresent(renderer);
+
+    // --- Main Menu Event Loop ---
+    SDL_Event event;
+    while (true) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) return MainMenuAction::Quit;
+            if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_s: return MainMenuAction::StartGame;
+                    case SDLK_q: case SDLK_ESCAPE: return MainMenuAction::Quit;
+                    default: break;
+                }
+            }
+        }
+        SDL_Delay(100);
+    }
+}
+
 PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
@@ -386,23 +443,22 @@ PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
     }
 }
 
-void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, bool& restart_requested, bool& app_is_running) {
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status) {
     switch (action) {
         case PauseMenuAction::Resume:
             game_state.paused = false;
             break;
         case PauseMenuAction::Restart:
-            restart_requested = true;
-            game_state.running = false; // Break inner loop to restart
+            app_status = AppStatus::Running; // Signal to main loop to restart the game
+            game_state.running = false;      // Break inner game loop
             break;
         case PauseMenuAction::MainMenu:
-            SDL_Log("Main Menu selected. Exiting for now.");
-            game_state.running = false; // This will break the inner loop
-            app_is_running = false;    // This will break the outer loop
+            app_status = AppStatus::ShowingMainMenu;
+            game_state.running = false; // Break inner game loop
             break;
         case PauseMenuAction::Quit:
+            app_status = AppStatus::Quitting;
             game_state.running = false;
-            app_is_running = false;
             break;
     }
 }
