@@ -139,3 +139,41 @@ TEST_F(RendererTest, GameOverScreenReturnsQuitOnQ) {
         EXPECT_EQ(showGameOverScreen(renderer_, config_, message), GameOverAction::Quit);
     });
 }
+
+// --- Pause Menu Tests ---
+
+TEST_F(RendererTest, PauseMenuReturnsResumeOnEscape) {
+    // This test verifies that pressing 'Escape' on the pause menu returns PauseMenuAction::Resume.
+    SDL_Event escape_event;
+    escape_event.type = SDL_KEYDOWN;
+    escape_event.key.keysym.sym = SDLK_ESCAPE;
+    SDL_PushEvent(&escape_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showPauseMenu(renderer_, config_), PauseMenuAction::Resume);
+    });
+}
+
+TEST_F(RendererTest, PauseMenuReturnsMainMenuOnM) {
+    // This test verifies that pressing 'M' on the pause menu returns PauseMenuAction::MainMenu.
+    SDL_Event m_event;
+    m_event.type = SDL_KEYDOWN;
+    m_event.key.keysym.sym = SDLK_m;
+    SDL_PushEvent(&m_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showPauseMenu(renderer_, config_), PauseMenuAction::MainMenu);
+    });
+}
+
+TEST_F(RendererTest, PauseMenuReturnsQuitOnQ) {
+    // This test verifies that pressing 'Q' on the pause menu returns PauseMenuAction::Quit.
+    SDL_Event q_event;
+    q_event.type = SDL_KEYDOWN;
+    q_event.key.keysym.sym = SDLK_q;
+    SDL_PushEvent(&q_event);
+
+    EXPECT_NO_THROW({
+        EXPECT_EQ(showPauseMenu(renderer_, config_), PauseMenuAction::Quit);
+    });
+}

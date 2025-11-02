@@ -112,7 +112,27 @@ int main(int argc, char* argv[]) {
             while (game_state->running) {
                 frame_start_time = SDL_GetTicks();
 
-                gameLoopIteration(*game_state, config);
+                processInput(*game_state, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+                if (game_state->paused) {
+                    PauseMenuAction action = showPauseMenu(renderer.get(), config);
+                    switch (action) {
+                        case PauseMenuAction::Resume:
+                            game_state->paused = false;
+                            break;
+                        case PauseMenuAction::MainMenu:
+                            SDL_Log("Main Menu selected. Exiting for now.");
+                            game_state->running = false; // This will break the inner loop
+                            app_is_running = false;    // This will break the outer loop
+                            break;
+                        case PauseMenuAction::Quit:
+                            game_state->running = false;
+                            app_is_running = false;
+                            break;
+                    }
+                } else {
+                    updateGame(*game_state);
+                }
 
                 // Only render if the game is still running after the update phase
                 if (game_state->running) {
@@ -123,6 +143,13 @@ int main(int argc, char* argv[]) {
                     SDL_RenderPresent(renderer.get());
                 }
 
+                // Only check for victory if the game is still running after the update phase
+                if (game_state->running && !game_state->paused) {
+                    if (game_state->level > game_state->level_manager.getMaxLevel()) {
+                        game_state->victory = true;
+                        game_state->running = false; // End the game
+                    }
+                }
                 // --- FPS Calculation and Capping ---
                 if (auto fps_opt = calculateFps(game_state->frame_count, game_state->last_fps_update_time, SDL_GetTicks())) {
                     SDL_Log("FPS: %.2f", *fps_opt);
@@ -131,21 +158,22 @@ int main(int argc, char* argv[]) {
                 Uint32 frame_time = SDL_GetTicks() - frame_start_time;
                 if (frame_time < FRAME_DELAY) {
                     SDL_Delay(FRAME_DELAY - frame_time);
+                                }
+            }
+            // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
+            if (app_is_running) {
+                // Display either the game over or victory screen, and wait for user action.
+                GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
+
+                if (action == GameOverAction::Quit) {
+                    app_is_running = false;
+                } else if (action == GameOverAction::MainMenu) {
+                    // For now, main menu also quits.
+                    SDL_Log("Main Menu selected. Exiting for now.");
+                    app_is_running = false;
                 }
+                // If action is Restart, the outer while loop will simply continue, re-creating the GameState.
             }
-
-            // Display either the game over or victory screen, and wait for exit signal
-            GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
-
-            if (action == GameOverAction::Quit) {
-                app_is_running = false;
-            } else if (action == GameOverAction::MainMenu) {
-                // For now, main menu also quits.
-                SDL_Log("Main Menu selected. Exiting for now.");
-                app_is_running = false;
-            }
-            // If action is Restart, the outer while loop will simply continue,
-            // re-creating the GameState and starting a new game.
         }
     }
     } catch (const std::exception& e) {

@@ -21,6 +21,8 @@
         "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 },
         "game_over_text": "Game Over",
         "victory_text": "VICTORY! You have completed all levels!",
-        "game_over_instructions": "R = Restart | M = Menu | Q = Quit"
+        "game_over_instructions": "R = Restart | M = Menu | Q = Quit",
+        "pause_menu_title": "Paused",
+        "pause_menu_instructions": "ESC = Resume | M = Menu | Q = Quit"
     }
 }
