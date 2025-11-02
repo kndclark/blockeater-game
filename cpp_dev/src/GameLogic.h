@@ -28,7 +28,7 @@ struct ObstacleSpawner {
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
-    ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration, int width, int height, int size_change);
+    ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration, int width, int height, int size_change, Uint32 start_time);
     
     // Calculates the gap size for the next checkpoint based on power-ups collected.
     int calculateCheckpointGapSize() const;

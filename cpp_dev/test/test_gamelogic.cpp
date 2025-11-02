@@ -316,7 +316,7 @@ TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config(kTestRootPath); // Use default config
     TestLevelManager test_level_manager = createTestLevelManager(config, params.regular_interval, params.checkpoint_interval);
-    ObstacleSpawner test_spawner(test_level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount());
+    ObstacleSpawner test_spawner(test_level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), 0);
     
     GameState game_state(config, 800, 600);
     injectSpawnerForTest(game_state, std::move(test_spawner));
@@ -366,7 +366,7 @@ protected:
     const Uint32 CHECKPOINT_INTERVAL = 1000;
     Config config{kTestRootPath};
     LevelManager level_manager{config};
-    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount()};
+    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
@@ -404,7 +404,7 @@ protected:
     Config config{kTestRootPath};
     LevelManager level_manager{config};
     // We create a spawner with the test-specific interval and inject it into GameState.
-    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount()};
+    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
     GameState game_state;
 
     ObstacleSpawnerStateTest() : game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT) { injectSpawnerForTest(game_state, std::move(spawner)); }

@@ -48,9 +48,11 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
 }
 
 ObstacleSpawner::ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration,
-                  int width, int height, int size_change)
-    : level_manager(lm), checkpoint_safe_zone_duration(safe_zone_duration),
-      screen_width(width), screen_height(height),
+                  int width, int height, int size_change, Uint32 start_time)
+    : level_manager(lm), last_spawn_time(start_time),
+      last_checkpoint_spawn_time(start_time),
+      checkpoint_safe_zone_duration(safe_zone_duration), screen_width(width),
+      screen_height(height),
       player_size_change_amount(size_change) {}
 
 
