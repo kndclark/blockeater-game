@@ -11,13 +11,12 @@
 /// for the current level.
 class LevelManager {
 public:
-    static constexpr int MAX_LEVEL = 10;
-
     explicit LevelManager(const Config& base_config);
 
     void updateForLevel(int level);
 
     Uint32 getSpawnInterval() const { return effective_spawn_interval_; }
+    int getMaxLevel() const;
     int getObstacleSpeed() const { return effective_obstacle_speed_; }
     int getGrowChance() const { return effective_grow_chance_; }
     int getShrinkChance() const { return effective_shrink_chance_; }

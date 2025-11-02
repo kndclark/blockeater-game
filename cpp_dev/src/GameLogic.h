@@ -92,4 +92,4 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 void gameLoopIteration(GameState& game_state, const Config& config);
 
 /// @brief Displays the game over screen and waits for user input to exit.
-void showGameOverScreen(SDL_Renderer* renderer, const Config& config);
+void showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message);

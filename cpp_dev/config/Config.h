@@ -44,6 +44,7 @@ public:
     int getTargetFps() const;
     int getScreenWidth() const;
     int getScreenHeight() const;
+    int getMaxLevel() const;
     int getObstacleSpeed() const;
     int getBaseCheckpointGap() const;
     Uint32 getSpawnInterval() const;
@@ -82,6 +83,7 @@ public:
     const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
     const std::string& getGameOverText() const;
+    const std::string& getVictoryText() const;
     const std::string& getLevelProgressSuffix() const;
     const std::string& getDashReadyText() const;
     const std::string& getDashCooldownPrefix() const;
@@ -104,6 +106,7 @@ private:
     std::map<ObstacleType, Color> obstacleColors;
     int target_fps;
     int screen_width;
+    int max_level_;
     int screen_height;
     int obstacle_speed;
     int base_checkpoint_gap;
@@ -147,6 +150,7 @@ private:
     std::string player_size_prefix_;
     std::string player_size_suffix_;
     std::string game_over_text_;
+    std::string victory_text_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;

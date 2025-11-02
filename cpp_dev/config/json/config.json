@@ -47,6 +47,8 @@
         "duration_ms": 500,
         "cooldown_ms": 2000
       }
-    }
+    },
+    "game_over_text": "Game Over",
+    "victory_text": "VICTORY! You have completed all levels!"
   }
 }

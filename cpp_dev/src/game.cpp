@@ -137,8 +137,8 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Show the game over screen and wait for exit signal
-        showGameOverScreen(renderer.get(), config);
+        // Display either the game over or victory screen, and wait for exit signal
+        showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
     }
     } catch (const std::exception& e) {
         SDL_Log("An error occurred: %s", e.what());

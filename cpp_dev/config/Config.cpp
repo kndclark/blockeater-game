@@ -60,6 +60,7 @@ void Config::load_defaults() {
     target_fps = 60;
     screen_width = 640;
     screen_height = 480;
+    max_level_ = 10;
     obstacle_speed = 3;
     base_checkpoint_gap = 120;
     player_size_change_amount = 10;
@@ -92,6 +93,7 @@ void Config::load_defaults() {
     player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
     game_over_text_ = "GAME OVER";
+    victory_text_ = "YOU WIN!";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
     dash_cooldown_suffix_ = "s)";
@@ -174,6 +176,7 @@ void Config::load_levels(const std::string& filepath) {
     if (f.is_open()) {
         try {
             json data = json::parse(f);
+            max_level_ = data.value("max_level", max_level_);
             if (data.contains("levels")) {
                 for (auto& [level_str, level_data] : data["levels"].items()) {
                     int level = std::stoi(level_str);
@@ -234,6 +237,8 @@ void Config::load_from_path(const std::string& filepath) {
             dash_speed_multiplier_ = data.value("/game/player/dash/speed_multiplier"_json_pointer, dash_speed_multiplier_);
             dash_duration_ms_ = data.value("/game/player/dash/duration_ms"_json_pointer, dash_duration_ms_);
             dash_cooldown_ms_ = data.value("/game/player/dash/cooldown_ms"_json_pointer, dash_cooldown_ms_);
+            game_over_text_ = data.value("/game/game_over_text"_json_pointer, game_over_text_);
+            victory_text_ = data.value("/game/victory_text"_json_pointer, victory_text_);
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
@@ -274,6 +279,10 @@ int Config::getScreenWidth() const {
 
 int Config::getScreenHeight() const {
     return screen_height;
+}
+
+int Config::getMaxLevel() const {
+    return max_level_;
 }
 
 int Config::getObstacleSpeed() const {
@@ -427,6 +436,10 @@ Color Config::getUiTextColor() const {
 
 const std::string& Config::getGameOverText() const {
     return game_over_text_;
+}
+
+const std::string& Config::getVictoryText() const {
+    return victory_text_;
 }
 
 const std::string& Config::getGapSizePrefix() const {

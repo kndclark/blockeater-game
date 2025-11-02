@@ -268,48 +268,49 @@ void gameLoopIteration(GameState& game_state, const Config& config) {
 
     // Only check for victory if the game is still running after the update phase
     if (game_state.running) {
-        if (game_state.level > LevelManager::MAX_LEVEL) {
-            SDL_Log("VICTORY! You have completed all levels!");
+        if (game_state.level > game_state.level_manager.getMaxLevel()) {
+            SDL_Log("%s", config.getVictoryText().c_str());
+            game_state.victory = true;
             game_state.running = false; // End the game
         }
     }
 }
 
-void showGameOverScreen(SDL_Renderer* renderer, const Config& config) {
-    // Create a "Game Over" texture
-    Color c = config.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
-    // Use a larger font
-    TTF_Font* font = TTF_OpenFont(config.getFontPath().c_str(), 48);
-    if (!font) {
-        SDL_Log("Failed to load font for game over: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(font, config.getGameOverText().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_FreeSurface(surface);
-
-        const int screen_width = config.getScreenWidth();
-        const int screen_height = config.getScreenHeight();
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height - text_height) / 2, text_width, text_height };
-
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_RenderPresent(renderer);
-
-        SDL_DestroyTexture(texture);
-        TTF_CloseFont(font);
-    }
-
-    // --- Game Over Loop ---
-    bool game_over_loop = true;
-    SDL_Event event;
-    while (game_over_loop) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
-                game_over_loop = false;
-            }
-        }
-        SDL_Delay(100); // Prevent the loop from running at full speed
-    }
-}
+void showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+     // Create a "Game Over" texture
+     Color c = config.getUiTextColor();
+     SDL_Color color = {c.r, c.g, c.b, c.a};
+     // Use a larger font
+     TTF_Font* font = TTF_OpenFont(config.getFontPath().c_str(), 48);
+     if (!font) {
+         SDL_Log("Failed to load font for game over: %s", TTF_GetError());
+     } else {
+         SDL_Surface* surface = TTF_RenderText_Solid(font, message.c_str(), color);
+         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+         int text_width = surface->w;
+         int text_height = surface->h;
+         SDL_FreeSurface(surface);
+ 
+         const int screen_width = config.getScreenWidth();
+         const int screen_height = config.getScreenHeight();
+         SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height - text_height) / 2, text_width, text_height };
+ 
+         SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
+         SDL_RenderPresent(renderer);
+ 
+         SDL_DestroyTexture(texture);
+         TTF_CloseFont(font);
+     }
+ 
+     // --- Game Over Loop ---
+     bool game_over_loop = true;
+     SDL_Event event;
+     while (game_over_loop) {
+         while (SDL_PollEvent(&event)) {
+             if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)) {
+                 game_over_loop = false;
+             }
+         }
+         SDL_Delay(100); // Prevent the loop from running at full speed
+     }
+ }
