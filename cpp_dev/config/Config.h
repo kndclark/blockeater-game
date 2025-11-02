@@ -69,6 +69,9 @@ public:
     int getPlayerWidth() const;
     int getPlayerHeight() const;
     int getPlayerSpeed() const;
+    float getDashSpeedMultiplier() const;
+    Uint32 getDashDurationMs() const;
+    Uint32 getDashCooldownMs() const;
     const std::string& getScorePrefix() const;
     virtual const std::string& getFontPath() const;
     int getFontSize() const;
@@ -79,6 +82,11 @@ public:
     const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
     const std::string& getLevelProgressSuffix() const;
+    const std::string& getDashReadyText() const;
+    const std::string& getDashCooldownPrefix() const;
+    const std::string& getDashCooldownSuffix() const;
+    int getCooldownIndicatorRadius() const;
+    Color getCooldownIndicatorColor() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -120,12 +128,20 @@ private:
     int player_width;
     int player_height;
     int player_speed;
+    float dash_speed_multiplier_;
+    Uint32 dash_duration_ms_;
+    Uint32 dash_cooldown_ms_;
 
     // UI Text
     std::string score_prefix_;
     std::string level_prefix_;
     std::string level_progress_prefix_;
     std::string level_progress_suffix_;
+    std::string dash_ready_text_;
+    std::string dash_cooldown_prefix_;
+    std::string dash_cooldown_suffix_;
+    int cooldown_indicator_radius_;
+    Color cooldown_indicator_color_;
     std::string gap_size_prefix_;
     std::string player_size_prefix_;
     std::string player_size_suffix_;

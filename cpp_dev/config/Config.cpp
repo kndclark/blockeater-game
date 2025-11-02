@@ -81,6 +81,9 @@ void Config::load_defaults() {
     player_width = 40;
     player_height = 40;
     player_speed = 5;
+    dash_speed_multiplier_ = 2.5f;
+    dash_duration_ms_ = 500;
+    dash_cooldown_ms_ = 2000;
     score_prefix_ = "Score: ";
     level_prefix_ = "Level: ";
     level_progress_prefix_ = " (";
@@ -88,6 +91,11 @@ void Config::load_defaults() {
     gap_size_prefix_ = "Gap Size: ";
     player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
+    dash_ready_text_ = "dash -> ready";
+    dash_cooldown_prefix_ = "dash -> cooldown (";
+    dash_cooldown_suffix_ = "s)";
+    cooldown_indicator_radius_ = 12;
+    cooldown_indicator_color_ = {255, 255, 255, 255}; // Default white
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
@@ -136,6 +144,11 @@ void Config::load_ui_texts(const std::string& base_path) {
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
             player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
+            dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
+            dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
+            dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
+            cooldown_indicator_radius_ = data.value("/ui_text/dash_cooldown_indicator/radius"_json_pointer, cooldown_indicator_radius_);
+            cooldown_indicator_color_ = data.value("/ui_text/dash_cooldown_indicator/color"_json_pointer, cooldown_indicator_color_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
@@ -216,6 +229,9 @@ void Config::load_from_path(const std::string& filepath) {
             player_width = data.value("/game/player/width"_json_pointer, 40);
             player_height = data.value("/game/player/height"_json_pointer, 40);
             player_speed = data.value("/game/player/speed"_json_pointer, 5);
+            dash_speed_multiplier_ = data.value("/game/player/dash/speed_multiplier"_json_pointer, dash_speed_multiplier_);
+            dash_duration_ms_ = data.value("/game/player/dash/duration_ms"_json_pointer, dash_duration_ms_);
+            dash_cooldown_ms_ = data.value("/game/player/dash/cooldown_ms"_json_pointer, dash_cooldown_ms_);
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
@@ -367,6 +383,18 @@ int Config::getPlayerSpeed() const {
     return player_speed;
 }
 
+float Config::getDashSpeedMultiplier() const {
+    return dash_speed_multiplier_;
+}
+
+Uint32 Config::getDashDurationMs() const {
+    return dash_duration_ms_;
+}
+
+Uint32 Config::getDashCooldownMs() const {
+    return dash_cooldown_ms_;
+}
+
 const LevelConfig* Config::getLevelConfig(int level) const {
     auto it = level_configs_.find(level);
     if (it != level_configs_.end()) {
@@ -413,4 +441,24 @@ const std::string& Config::getLevelProgressPrefix() const {
 
 const std::string& Config::getLevelProgressSuffix() const {
     return level_progress_suffix_;
+}
+
+const std::string& Config::getDashReadyText() const {
+    return dash_ready_text_;
+}
+
+const std::string& Config::getDashCooldownPrefix() const {
+    return dash_cooldown_prefix_;
+}
+
+const std::string& Config::getDashCooldownSuffix() const {
+    return dash_cooldown_suffix_;
+}
+
+int Config::getCooldownIndicatorRadius() const {
+    return cooldown_indicator_radius_;
+}
+
+Color Config::getCooldownIndicatorColor() const {
+    return cooldown_indicator_color_;
 }
