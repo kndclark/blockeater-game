@@ -3,6 +3,7 @@
 #include <iomanip>   // For std::fixed, std::setprecision
 #include <memory>    // For std::unique_ptr
 #include <cmath>     // For std::round
+#include "Player.h"  // For Player::DASH_COOLDOWN_MS
 
 Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_(renderer), config_(config) {
     font_.reset(TTF_OpenFont(config.getFontPath().c_str(), config.getFontSize()));
@@ -111,24 +112,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // Copy the texture to the renderer.
     SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
 
-    // --- Render Dash Status ---
-    std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
-    if (!dash_surface) {
-        SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());
-        return;
-    }
-
-    std::unique_ptr<SDL_Texture, SdlTextureDeleter> dash_texture(SDL_CreateTextureFromSurface(renderer_, dash_surface.get()));
-    if (!dash_texture) {
-        SDL_Log("Unable to create texture from surface for dash status: %s", SDL_GetError());
-        return;
-    }
-
-    // Position the dash status text in the bottom-left corner.
-    SDL_Rect dash_dest_rect = {10, config_.getScreenHeight() - dash_surface->h - 10, dash_surface->w, dash_surface->h};
-    // Copy the texture to the renderer.
-    SDL_RenderCopy(renderer_, dash_texture.get(), nullptr, &dash_dest_rect);
+    renderDashStatus(on_cooldown, cooldown_remaining);
 
 }
 
@@ -164,5 +148,71 @@ std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_rema
     } else {
         // Show "ready" if not on cooldown or if the cooldown has just expired.
         return config_.getDashReadyText();
+    }
+}
+
+void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const {
+    // Custom deleters for SDL resources. These are simple structs that define
+    // how to properly destroy a Surface or a Texture.
+    struct SdlSurfaceDeleter {
+        void operator()(SDL_Surface* s) const { if (s) SDL_FreeSurface(s); }
+    };
+    struct SdlTextureDeleter {
+        void operator()(SDL_Texture* t) const { if (t) SDL_DestroyTexture(t); }
+    };
+
+    Color c = config_.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+
+    const int cooldown_indicator_radius = 12;
+    const int cooldown_indicator_padding = 8;
+    int dash_text_x_offset = 10;
+
+    if (on_cooldown && cooldown_remaining > 0) {
+        // Calculate cooldown progress (0.0 to 1.0)
+        float progress = 1.0f - (static_cast<float>(cooldown_remaining) / static_cast<float>(Player::DASH_COOLDOWN_MS));
+
+        // Position the circle in the bottom-left corner
+        int circle_center_x = 10 + cooldown_indicator_radius;
+        int circle_center_y = config_.getScreenHeight() - 10 - cooldown_indicator_radius;
+
+        // Draw the circular loading bar
+        drawCooldownCircle(progress, circle_center_x, circle_center_y, cooldown_indicator_radius, color);
+
+        // Offset the text to be to the right of the circle
+        dash_text_x_offset = circle_center_x + cooldown_indicator_radius + cooldown_indicator_padding;
+    }
+    std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
+    if (!dash_surface) {
+        SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());
+        return;
+    }
+
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> dash_texture(SDL_CreateTextureFromSurface(renderer_, dash_surface.get()));
+    if (!dash_texture) {
+        SDL_Log("Unable to create texture from surface for dash status: %s", SDL_GetError());
+        return;
+    }
+
+    SDL_Rect dash_dest_rect = {dash_text_x_offset, config_.getScreenHeight() - dash_surface->h - 10, dash_surface->w, dash_surface->h};
+    SDL_RenderCopy(renderer_, dash_texture.get(), nullptr, &dash_dest_rect);
+}
+
+void Scoreboard::drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color) const {
+    SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, color.a);
+
+    // The number of segments to draw for the circle. More segments = smoother circle.
+    const int segments = 30;
+
+    // Calculate points on the arc and draw them.
+    // We draw points instead of lines to keep it simple and avoid visual artifacts
+    // when the progress is very small or very large.
+    for (int i = 0; i <= static_cast<int>(segments * progress); ++i) {
+        // Start at -90 degrees (12 o'clock) and sweep clockwise.
+        float angle = -M_PI / 2.0f + (static_cast<float>(i) / segments) * 2.0f * M_PI;
+        int point_x = x + static_cast<int>(radius * std::cos(angle));
+        int point_y = y + static_cast<int>(radius * std::sin(angle));
+        SDL_RenderDrawPoint(renderer_, point_x, point_y);
     }
 }

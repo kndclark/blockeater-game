@@ -146,6 +146,20 @@ TEST_F(UiTest, ScoreboardCalculatesDashStatusTextCorrectly) {
     EXPECT_EQ(scoreboard.getDashStatusText(true, 999), build_cooldown_text("1.0")); // Should round from 0.999
 }
 
+// Test that the dash status rendering can be called without crashing.
+TEST_F(UiTest, ScoreboardRendersDashStatus) {
+    Scoreboard scoreboard(renderer_.get(), config_);
+
+    // Smoke test to ensure renderDashStatus() doesn't crash in various states.
+    EXPECT_NO_THROW({
+        SDL_RenderClear(renderer_.get());
+        scoreboard.renderDashStatus(false, 0); // Ready
+        scoreboard.renderDashStatus(true, 2000); // Full cooldown
+        scoreboard.renderDashStatus(true, 999);  // Partial cooldown
+        SDL_RenderPresent(renderer_.get());
+    });
+}
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
     Scoreboard scoreboard(renderer_.get(), config_);

@@ -24,7 +24,7 @@ struct Player {
 
     // Dash ability constants TODO move these to config.json (may shouldn't be consts? could modify via powerups, etc.)
     static constexpr float DASH_SPEED_MULTIPLIER = 2.5f;
-    static constexpr Uint32 DASH_DURATION_MS = 500; // .5 seconds
+    static constexpr Uint32 DASH_DURATION_MS = 500;  // .5 seconds
     static constexpr Uint32 DASH_COOLDOWN_MS = 2000; // 2 seconds
 
     Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}

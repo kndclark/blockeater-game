@@ -19,11 +19,14 @@ public:
 
     // Generates the text for the level display. Made public for easier testing.
     std::string getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const;
+    void renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const;
     std::string getPlayerSizeText(int player_size, int gap_size) const;
     std::string getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const;
 
 private:
     SDL_Renderer* renderer_;
+
+    void drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color) const;
     const Config& config_;
 
     struct SdlFontDeleter {
