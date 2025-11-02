@@ -1,6 +1,8 @@
 #include "Scoreboard.h"
 #include <stdexcept> // For std::runtime_error
+#include <iomanip>   // For std::fixed, std::setprecision
 #include <memory>    // For std::unique_ptr
+#include <cmath>     // For std::round
 
 Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_(renderer), config_(config) {
     font_.reset(TTF_OpenFont(config.getFontPath().c_str(), config.getFontSize()));
@@ -11,7 +13,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -108,6 +110,26 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_Rect player_size_dest_rect = {10, gap_dest_rect.y + gap_dest_rect.h + 5, player_size_surface->w, player_size_surface->h};
     // Copy the texture to the renderer.
     SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
+
+    // --- Render Dash Status ---
+    std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
+    if (!dash_surface) {
+        SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());
+        return;
+    }
+
+    std::unique_ptr<SDL_Texture, SdlTextureDeleter> dash_texture(SDL_CreateTextureFromSurface(renderer_, dash_surface.get()));
+    if (!dash_texture) {
+        SDL_Log("Unable to create texture from surface for dash status: %s", SDL_GetError());
+        return;
+    }
+
+    // Position the dash status text in the bottom-left corner.
+    SDL_Rect dash_dest_rect = {10, config_.getScreenHeight() - dash_surface->h - 10, dash_surface->w, dash_surface->h};
+    // Copy the texture to the renderer.
+    SDL_RenderCopy(renderer_, dash_texture.get(), nullptr, &dash_dest_rect);
+
 }
 
 std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const {
@@ -129,4 +151,18 @@ std::string Scoreboard::getPlayerSizeText(int player_size, int gap_size) const {
     int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
     return config_.getPlayerSizePrefix() + std::to_string(percentage) +
            config_.getPlayerSizeSuffix();
+}
+
+std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const {
+    if (on_cooldown && cooldown_remaining > 0) {
+        // Convert milliseconds to seconds with one decimal place.
+        float seconds = static_cast<float>(cooldown_remaining) / 1000.0f;
+        // Round to the nearest tenth of a second.
+        int seconds_int = static_cast<int>(std::round(seconds * 10.0f));
+        std::string time_str = std::to_string(seconds_int / 10) + "." + std::to_string(seconds_int % 10);
+        return config_.getDashCooldownPrefix() + time_str + config_.getDashCooldownSuffix();
+    } else {
+        // Show "ready" if not on cooldown or if the cooldown has just expired.
+        return config_.getDashReadyText();
+    }
 }

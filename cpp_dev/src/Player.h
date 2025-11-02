@@ -99,4 +99,16 @@ struct Player {
         rect.w = default_w;
         rect.h = default_h;
     }
+
+    // Returns the remaining dash cooldown in milliseconds.
+    Uint32 getDashCooldownRemaining() const {
+        if (!on_cooldown) {
+            return 0;
+        }
+        Uint32 elapsed = SDL_GetTicks() - dash_cooldown_start_time;
+        if (elapsed >= DASH_COOLDOWN_MS) {
+            return 0;
+        }
+        return DASH_COOLDOWN_MS - elapsed;
+    }
 };

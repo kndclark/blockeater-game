@@ -79,6 +79,9 @@ public:
     const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
     const std::string& getLevelProgressSuffix() const;
+    const std::string& getDashReadyText() const;
+    const std::string& getDashCooldownPrefix() const;
+    const std::string& getDashCooldownSuffix() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -126,6 +129,9 @@ private:
     std::string level_prefix_;
     std::string level_progress_prefix_;
     std::string level_progress_suffix_;
+    std::string dash_ready_text_;
+    std::string dash_cooldown_prefix_;
+    std::string dash_cooldown_suffix_;
     std::string gap_size_prefix_;
     std::string player_size_prefix_;
     std::string player_size_suffix_;

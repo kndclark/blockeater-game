@@ -88,6 +88,9 @@ void Config::load_defaults() {
     gap_size_prefix_ = "Gap Size: ";
     player_size_prefix_ = "Player Size: ";
     player_size_suffix_ = "% of gap size";
+    dash_ready_text_ = "dash -> ready";
+    dash_cooldown_prefix_ = "dash -> cooldown (";
+    dash_cooldown_suffix_ = "s)";
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
@@ -136,6 +139,9 @@ void Config::load_ui_texts(const std::string& base_path) {
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
             player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
             player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
+            dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
+            dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
+            dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
@@ -413,4 +419,16 @@ const std::string& Config::getLevelProgressPrefix() const {
 
 const std::string& Config::getLevelProgressSuffix() const {
     return level_progress_suffix_;
+}
+
+const std::string& Config::getDashReadyText() const {
+    return dash_ready_text_;
+}
+
+const std::string& Config::getDashCooldownPrefix() const {
+    return dash_cooldown_prefix_;
+}
+
+const std::string& Config::getDashCooldownSuffix() const {
+    return dash_cooldown_suffix_;
 }

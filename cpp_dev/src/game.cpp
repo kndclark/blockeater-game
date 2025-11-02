@@ -9,6 +9,7 @@
 #include "GameState.h"
 #include "GameLogic.h"
 #include "Scoreboard.h"
+#include <sstream>
 
 int main(int argc, char* argv[]) {
     // RAII wrapper for SDL and TTF initialization
@@ -116,8 +117,9 @@ int main(int argc, char* argv[]) {
             if (game_state->running) {
                 renderGame(renderer.get(), *game_state, config);
                 // Draw score after the rest of the game is rendered
-                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size, game_state->checkpoints_passed_in_level,
-                                   game_state->level_manager.getCheckpointsPerLevel(), game_state->player.rect.w);
+                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size,
+                                   game_state->checkpoints_passed_in_level, game_state->level_manager.getCheckpointsPerLevel(),
+                                   game_state->player.rect.w, game_state->player.on_cooldown, game_state->player.getDashCooldownRemaining());
                 // Present the final frame
                 SDL_RenderPresent(renderer.get());
             }

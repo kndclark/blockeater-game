@@ -7,6 +7,9 @@
         "gap_size_prefix": "Gap Size: ",
         "player_size_prefix": "Player Size: ",
         "player_size_suffix": "% of gap size",
+        "dash_ready_text": "dash -> ready",
+        "dash_cooldown_prefix": "dash -> cooldown (",
+        "dash_cooldown_suffix": "s)",
         "font": {
             "path": "assets/font.ttf",
             "size": 24
