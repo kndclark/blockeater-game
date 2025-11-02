@@ -2,7 +2,6 @@
 #include <stdexcept> // For std::runtime_error
 #include <iomanip>   // For std::fixed, std::setprecision
 #include <memory>    // For std::unique_ptr
-#include <cmath>     // For std::round
 #include "Player.h"  // For Player::DASH_COOLDOWN_MS
 
 Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_(renderer), config_(config) {
@@ -166,7 +165,7 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
 
     if (on_cooldown && cooldown_remaining > 0) {
         // Calculate cooldown progress (0.0 to 1.0)
-        float progress = 1.0f - (static_cast<float>(cooldown_remaining) / static_cast<float>(Player::DASH_COOLDOWN_MS));
+        float progress = 1.0f - (static_cast<float>(cooldown_remaining) / static_cast<float>(config_.getDashCooldownMs()));
 
         const int radius = config_.getCooldownIndicatorRadius();
         Color c = config_.getCooldownIndicatorColor();

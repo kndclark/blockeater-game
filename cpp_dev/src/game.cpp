@@ -10,6 +10,7 @@
 #include "GameLogic.h"
 #include "Scoreboard.h"
 #include <sstream>
+#include "Player.h"
 
 int main(int argc, char* argv[]) {
     // RAII wrapper for SDL and TTF initialization

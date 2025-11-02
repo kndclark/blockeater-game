@@ -41,7 +41,12 @@
       "initial_x": 100,
       "width": 40,
       "height": 40,
-      "speed": 5
+      "speed": 5,
+      "dash": {
+        "speed_multiplier": 2.5,
+        "duration_ms": 500,
+        "cooldown_ms": 2000
+      }
     }
   }
 }

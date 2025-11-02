@@ -81,6 +81,9 @@ void Config::load_defaults() {
     player_width = 40;
     player_height = 40;
     player_speed = 5;
+    dash_speed_multiplier_ = 2.5f;
+    dash_duration_ms_ = 500;
+    dash_cooldown_ms_ = 2000;
     score_prefix_ = "Score: ";
     level_prefix_ = "Level: ";
     level_progress_prefix_ = " (";
@@ -226,6 +229,9 @@ void Config::load_from_path(const std::string& filepath) {
             player_width = data.value("/game/player/width"_json_pointer, 40);
             player_height = data.value("/game/player/height"_json_pointer, 40);
             player_speed = data.value("/game/player/speed"_json_pointer, 5);
+            dash_speed_multiplier_ = data.value("/game/player/dash/speed_multiplier"_json_pointer, dash_speed_multiplier_);
+            dash_duration_ms_ = data.value("/game/player/dash/duration_ms"_json_pointer, dash_duration_ms_);
+            dash_cooldown_ms_ = data.value("/game/player/dash/cooldown_ms"_json_pointer, dash_cooldown_ms_);
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
@@ -375,6 +381,18 @@ int Config::getPlayerHeight() const {
 
 int Config::getPlayerSpeed() const {
     return player_speed;
+}
+
+float Config::getDashSpeedMultiplier() const {
+    return dash_speed_multiplier_;
+}
+
+Uint32 Config::getDashDurationMs() const {
+    return dash_duration_ms_;
+}
+
+Uint32 Config::getDashCooldownMs() const {
+    return dash_cooldown_ms_;
 }
 
 const LevelConfig* Config::getLevelConfig(int level) const {

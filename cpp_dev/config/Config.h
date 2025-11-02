@@ -69,6 +69,9 @@ public:
     int getPlayerWidth() const;
     int getPlayerHeight() const;
     int getPlayerSpeed() const;
+    float getDashSpeedMultiplier() const;
+    Uint32 getDashDurationMs() const;
+    Uint32 getDashCooldownMs() const;
     const std::string& getScorePrefix() const;
     virtual const std::string& getFontPath() const;
     int getFontSize() const;
@@ -125,6 +128,9 @@ private:
     int player_width;
     int player_height;
     int player_speed;
+    float dash_speed_multiplier_;
+    Uint32 dash_duration_ms_;
+    Uint32 dash_cooldown_ms_;
 
     // UI Text
     std::string score_prefix_;

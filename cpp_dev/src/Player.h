@@ -22,23 +22,28 @@ struct Player {
     Uint32 dash_start_time = 0;
     Uint32 dash_cooldown_start_time = 0;
 
-    // Dash ability constants TODO move these to config.json (may shouldn't be consts? could modify via powerups, etc.)
-    static constexpr float DASH_SPEED_MULTIPLIER = 2.5f;
-    static constexpr Uint32 DASH_DURATION_MS = 500;  // .5 seconds
-    static constexpr Uint32 DASH_COOLDOWN_MS = 2000; // 2 seconds
+    // Dash ability parameters
+    const float dash_speed_multiplier;
+    const Uint32 dash_duration_ms;
+    const Uint32 dash_cooldown_ms;
 
-    Player(int x, int y, int w, int h, int s, Color c) : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h) {}
+    Player(int x, int y, int w, int h, int s, Color c, float dash_mult, Uint32 dash_dur, Uint32 dash_cd)
+        : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h),
+          dash_speed_multiplier(dash_mult),
+          dash_duration_ms(dash_dur),
+          dash_cooldown_ms(dash_cd)
+    {}
 
     // Updates the player's state, like managing dash timers.
     void update(Uint32 current_time) {
         // End the dash after its duration has passed
-        if (is_dashing && (current_time - dash_start_time >= DASH_DURATION_MS)) {
+        if (is_dashing && (current_time - dash_start_time >= dash_duration_ms)) {
             is_dashing = false;
             on_cooldown = true;
             dash_cooldown_start_time = current_time;
         }
         // End the cooldown after its duration has passed
-        if (on_cooldown && (current_time - dash_cooldown_start_time >= DASH_COOLDOWN_MS)) {
+        if (on_cooldown && (current_time - dash_cooldown_start_time >= dash_cooldown_ms)) {
             on_cooldown = false;
         }
     }
@@ -50,7 +55,7 @@ struct Player {
             dash_start_time = SDL_GetTicks();
         }
 
-        float current_speed = is_dashing ? static_cast<float>(speed) * DASH_SPEED_MULTIPLIER : static_cast<float>(speed);
+        float current_speed = is_dashing ? static_cast<float>(speed) * dash_speed_multiplier : static_cast<float>(speed);
 
         bool any_direction_pressed = keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_RIGHT] ||
                                      keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_DOWN];
@@ -106,9 +111,9 @@ struct Player {
             return 0;
         }
         Uint32 elapsed = SDL_GetTicks() - dash_cooldown_start_time;
-        if (elapsed >= DASH_COOLDOWN_MS) {
+        if (elapsed >= dash_cooldown_ms) {
             return 0;
         }
-        return DASH_COOLDOWN_MS - elapsed;
+        return dash_cooldown_ms - elapsed;
     }
 };
