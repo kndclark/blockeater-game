@@ -8,6 +8,7 @@
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "MenuManager.h"
 #include "Scoreboard.h"
 #include <sstream>
 #include "Player.h"
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
     while (app_status != AppStatus::Quitting) {
         switch (app_status) {
             case AppStatus::ShowingMainMenu: {
-                MainMenuAction action = showMainMenu(renderer.get(), config);
+                MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
                 if (action == MainMenuAction::StartGame) {
                     app_status = AppStatus::Running;
                 } else {
@@ -117,7 +118,7 @@ int main(int argc, char* argv[]) {
                     // --- Main Game Loop ---
                     while (game_state->running) {
                         if (game_state->paused) {
-                            PauseMenuAction action = showPauseMenu(renderer.get(), config);
+                            PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config);
                             handlePauseMenuAction(action, *game_state, app_status);
                         } else {
                             handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
@@ -131,7 +132,7 @@ int main(int argc, char* argv[]) {
                     // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
                     if (app_status == AppStatus::Running) { // If not quitting or restarting
                         // Display either the game over or victory screen, and wait for user action.
-                        GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
+                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
                         handleGameOverAction(action, app_status);
                     }
                 }

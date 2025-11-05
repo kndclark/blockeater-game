@@ -10,6 +10,7 @@
 #include "Player.h"   // For Player
 #include "LevelManager.h"
 #include "Scoreboard.h"
+#include "MenuManager.h"
 
 struct GameState; // Forward declaration needed for handleCheckpointPassing
 class Config;     // Forward declaration for batchRenderObstacles
@@ -88,43 +89,6 @@ void updateGame(GameState& game_state);
 
 /// @brief Renders all game objects to the screen.
 void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
-
-enum class AppStatus {
-    ShowingMainMenu,
-    Running,
-    Restarting,
-    Quitting
-};
-
-enum class GameOverAction {
-    Restart,
-    MainMenu,
-    Quit
-};
-
-enum class PauseMenuAction {
-    Resume,
-    Restart,
-    MainMenu,
-    Quit
-};
-
-enum class MainMenuAction {
-    StartGame,
-    Quit
-};
-
-/// @brief Displays the game over screen and waits for user input.
-/// @return The action selected by the user.
-GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message);
-
-/// @brief Displays the main menu and waits for user input.
-/// @return The action selected by the user.
-MainMenuAction showMainMenu(SDL_Renderer* renderer, const Config& config);
-
-/// @brief Displays the pause menu and waits for user input.
-/// @return The action selected by the user.
-PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config);
 
 /// @brief Handles the action selected from the pause menu, updating game state flags.
 void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status);
