@@ -149,6 +149,7 @@ Config::Config(const std::string& root_path) : root_path_(root_path) {
 void Config::save() const {
     // This function is deprecated. Changes to config are meant to be for the current session only
     // and should not be saved back to the original config file.
+    // May be re-used later for saving player progress, etc.
     // std::ifstream f_in(config_filepath_);
     // if (!f_in.is_open()) {
     //     SDL_Log("ERROR: Could not open config file to save: %s", config_filepath_.c_str());
