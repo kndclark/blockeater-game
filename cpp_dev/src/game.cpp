@@ -98,10 +98,27 @@ int main(int argc, char* argv[]) {
         switch (app_status) {
             case AppStatus::ShowingMainMenu: {
                 MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
-                if (action == MainMenuAction::StartGame) {
-                    app_status = AppStatus::Running;
-                } else {
-                    app_status = AppStatus::Quitting;
+                switch (action) {
+                    case MainMenuAction::StartGame:
+                        app_status = AppStatus::Running;
+                        break;
+                    case MainMenuAction::Settings:
+                        app_status = AppStatus::ShowingSettingsMenu;
+                        break;
+                    case MainMenuAction::Quit:
+                        app_status = AppStatus::Quitting;
+                        break;
+                }
+                break;
+            }
+            case AppStatus::ShowingSettingsMenu: {
+                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config);
+                switch (action) {
+                    case SettingsMenuAction::Back:
+                        app_status = AppStatus::ShowingMainMenu;
+                        break;
+                    // Other settings actions can be handled here in the future
+                    default: break;
                 }
                 break;
             }

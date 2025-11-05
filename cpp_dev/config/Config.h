@@ -39,6 +39,7 @@ public:
     // optionally taking a root_path to locate assets.
     explicit Config(const std::string& root_path = "");
 
+    void save() const;
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
     int getTargetFps() const;
@@ -89,12 +90,16 @@ public:
     const std::string& getMainMenuTitle() const;
     const std::string& getMainMenuInstructions() const;
     const std::string& getPauseMenuInstructions() const;
+    const std::string& getSettingsMenuTitle() const;
+    const std::string& getSettingsMenuInstructions() const;
     const std::string& getLevelProgressSuffix() const;
     const std::string& getDashReadyText() const;
     const std::string& getDashCooldownPrefix() const;
     const std::string& getDashCooldownSuffix() const;
     int getCooldownIndicatorRadius() const;
     Color getCooldownIndicatorColor() const;
+    const std::vector<Color>& getPlayerColorChoices() const;
+    void setPlayerColor(const Color& color);
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -106,6 +111,7 @@ private:
     void load_defaults();
 
     std::string root_path_;
+    std::string config_filepath_;
     Color playerColor;
     std::map<int, LevelConfig> level_configs_;
     std::map<ObstacleType, Color> obstacleColors;
@@ -161,7 +167,11 @@ private:
     std::string main_menu_title_;
     std::string main_menu_instructions_;
     std::string pause_menu_instructions_;
+    std::string settings_menu_title_;
+    std::string settings_menu_instructions_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;
+
+    std::vector<Color> player_color_choices_;
 };
