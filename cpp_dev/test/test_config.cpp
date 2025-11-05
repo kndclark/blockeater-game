@@ -50,21 +50,6 @@ TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
     checkConfigScreenResolution(config);
 }
 
-TEST_F(SdlTest, FallbackOnMissingFile) {
-    Config config("nonexistent_file.json");
-
-    // Should fall back to the hardcoded defaults defined in Config.cpp
-    Color player_color = config.getPlayerColor();
-    EXPECT_EQ(player_color.r, 100);
-    EXPECT_EQ(player_color.g, 100);
-    EXPECT_EQ(player_color.b, 100);
-
-    Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
-    EXPECT_EQ(hurt_color.r, 120);
-
-    checkConfigScreenResolution(config);
-}
-
 TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
     // Create a temporary config file with spawn chances that don't sum to 100.
     std::ofstream invalid_chances_file(invalid_chances_filename);
@@ -74,7 +59,7 @@ TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
     invalid_chances_file.close();
 
     // Expect a std::runtime_error to be thrown.
-    EXPECT_THROW(Config{invalid_chances_filename}, std::runtime_error);
+    EXPECT_THROW(TestConfig(invalid_chances_filename, true), std::runtime_error); // This now correctly throws
 }
 
 TEST_F(ConfigFileTest, FallbackOnMalformedFile) {

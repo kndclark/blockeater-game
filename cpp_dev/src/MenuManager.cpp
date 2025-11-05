@@ -68,6 +68,12 @@ void MenuManager::renderColorPicker(SDL_Renderer* renderer, int x, int y, const 
         const auto& c = colors[i];
         SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
         SDL_RenderFillRect(renderer, &color_box);
+
+        if (static_cast<int>(i) == selection) {
+            // Draw a white border around the selected color
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderDrawRect(renderer, &color_box);
+        }
     }
 }
 
@@ -151,7 +157,9 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                             if (!choices.empty() && color_selection < static_cast<int>(choices.size())) {
                                 config.setPlayerColor(choices[color_selection]);
                             }
-                            config.save();
+                            // config.save(); // Do not save changes to disk to keep them session-specific.
+                            // The config object lives for the duration of the app, so changes will persist
+                            // for the current session.
                             in_color_picker = false;
                             break;
                         }

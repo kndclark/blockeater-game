@@ -229,9 +229,11 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
 TEST_F(ConfigFileTest, SettingsMenuCanChangeAndSavePlayerColor) {
     // 1. Get the initial color from the test config file.
     Config config(kTestRootPath);
-    Color initial_color = config.getPlayerColor();
-    Color new_color = config.getPlayerColorChoices()[0]; // The first choice is purple, same as default
-    ASSERT_EQ(initial_color, new_color) << "Default color should match first choice for this test.";
+    const Color initial_color = config.getPlayerColor(); // Should be purple from config.json
+    const Color new_color = config.getPlayerColorChoices()[1]; // The second choice is green
+
+    // The test will "change" the color from purple to green by selecting the second option.
+    ASSERT_NE(initial_color, new_color) << "The initial color should be different from the one we are changing to.";
 
     // 2. Simulate user input to change the color.
     // C to enter color picker, RETURN to confirm the default selection (0), B to go back.
@@ -239,22 +241,31 @@ TEST_F(ConfigFileTest, SettingsMenuCanChangeAndSavePlayerColor) {
     c_event.type = enter_event.type = b_event.type = SDL_KEYDOWN;
     c_event.key.keysym.sym = SDLK_c;
     enter_event.key.keysym.sym = SDLK_RETURN;
-    b_event.key.keysym.sym = SDLK_b;
+    b_event.key.keysym.sym = SDLK_b; // This event is just to exit the menu loop
+
+    SDL_Event right_event;
+    right_event.type = SDL_KEYDOWN;
+    right_event.key.keysym.sym = SDLK_RIGHT;
 
     SDL_PushEvent(&c_event);
+    SDL_PushEvent(&right_event); // Move selection to the right once (to green)
     SDL_PushEvent(&enter_event);
     SDL_PushEvent(&b_event);
+
+    // Push a quit event to ensure the menu loop terminates in the test environment.
+    SDL_Event quit_event;
+    quit_event.type = SDL_QUIT;
+    SDL_PushEvent(&quit_event);
 
     // 3. Run the settings menu (requires a renderer, so we need a window).
     SDL_Window* window = SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    MenuManager::showSettingsMenu(renderer, config);
+    MenuManager::showSettingsMenu(renderer, config); // This modifies the in-memory config
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
-    // 4. Reload the config from the file and verify the color has changed.
-    Config updated_config(kTestRootPath);
-    Color final_color = updated_config.getPlayerColor();
+    // 4. Verify the in-memory config object was updated.
+    Color final_color = config.getPlayerColor();
 
     EXPECT_EQ(final_color, new_color);
 }

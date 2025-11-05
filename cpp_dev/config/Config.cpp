@@ -123,11 +123,7 @@ Config::Config(const std::string& root_path) : root_path_(root_path) {
     load_defaults();
     std::string config_filepath;
     // if the provided path ends with .json, consider it a full path.
-    // otherwise, treat it as a root path to which we append the default config path.
-    if (root_path_.length() >= 5 && root_path_.substr(root_path_.length() - 5) == ".json") {
-        // This is a test-only path. We should not load associated files.
-        load_from_path(config_filepath_);
-    } else if (root_path_.empty()) {
+    if (root_path_.empty()) {
         // Fallback for when the base path can't be determined.
         // Assumes the executable is run from the `cpp_dev` directory.
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
@@ -151,21 +147,23 @@ Config::Config(const std::string& root_path) : root_path_(root_path) {
 }
 
 void Config::save() const {
-    std::ifstream f_in(config_filepath_);
-    if (!f_in.is_open()) {
-        SDL_Log("ERROR: Could not open config file to save: %s", config_filepath_.c_str());
-        return;
-    }
-    json data = json::parse(f_in);
-    f_in.close();
+    // This function is deprecated. Changes to config are meant to be for the current session only
+    // and should not be saved back to the original config file.
+    // std::ifstream f_in(config_filepath_);
+    // if (!f_in.is_open()) {
+    //     SDL_Log("ERROR: Could not open config file to save: %s", config_filepath_.c_str());
+    //     return;
+    // }
+    // json data = json::parse(f_in);
+    // f_in.close();
 
-    data["colors"]["player"]["r"] = playerColor.r;
-    data["colors"]["player"]["g"] = playerColor.g;
-    data["colors"]["player"]["b"] = playerColor.b;
-    data["colors"]["player"]["a"] = playerColor.a;
+    // data["colors"]["player"]["r"] = playerColor.r;
+    // data["colors"]["player"]["g"] = playerColor.g;
+    // data["colors"]["player"]["b"] = playerColor.b;
+    // data["colors"]["player"]["a"] = playerColor.a;
 
-    std::ofstream f_out(config_filepath_);
-    f_out << std::setw(2) << data << std::endl;
+    // std::ofstream f_out(config_filepath_);
+    // f_out << std::setw(2) << data << std::endl;
 }
 
 void Config::load_ui_texts(const std::string& base_path) {

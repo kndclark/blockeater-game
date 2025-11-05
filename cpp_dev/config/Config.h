@@ -39,7 +39,11 @@ public:
     // optionally taking a root_path to locate assets.
     explicit Config(const std::string& root_path = "");
 
+    // @brief Saves the current player color to the config file.
+    // @deprecated This is deprecated. Config changes are not meant to be persisted to the original file.
+    // A separate user settings file would be a better approach for persistence.
     void save() const;
+
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
     int getTargetFps() const;
@@ -104,11 +108,11 @@ public:
 
 protected:
     void load_levels(const std::string& filepath);
+    void load_from_path(const std::string& filepath);
+    void load_defaults();
 
 private:
-    void load_from_path(const std::string& filepath);
     void load_ui_texts(const std::string& base_path);
-    void load_defaults();
 
     std::string root_path_;
     std::string config_filepath_;

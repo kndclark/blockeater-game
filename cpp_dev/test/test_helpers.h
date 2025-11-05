@@ -15,6 +15,13 @@ class TestConfig : public Config {
 public:
     // Inherit constructors from Config
     using Config::Config;
+
+    // Test-only constructor to load directly from a specific config file path.
+    // This is used for tests that create temporary config files.
+    explicit TestConfig(const std::string& direct_path, bool /* is_direct_path */) {
+        load_defaults();
+        load_from_path(direct_path);
+    }
  
     // Publicly expose load_levels for testing purposes
     void load_levels_for_test(const std::string& filepath) {
@@ -81,10 +88,16 @@ protected:
     const std::string partial_filename = "partial.json";
     const std::string invalid_chances_filename = "invalid_chances.json";
 
+    void SetUp() override {
+        SdlTest::SetUp();
+        ASSERT_EQ(TTF_Init(), 0);
+    }
+
     void TearDown() override {
         std::remove(malformed_filename.c_str());
         std::remove(partial_filename.c_str());
         std::remove(invalid_chances_filename.c_str());
+        TTF_Quit();
         SdlTest::TearDown();
     }
 };
