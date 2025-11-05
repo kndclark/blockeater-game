@@ -1,6 +1,32 @@
 #include "MenuManager.h"
 #include <SDL2/SDL_ttf.h>
 
+void MenuManager::renderText(SDL_Renderer* renderer, const std::string& font_path, int font_size, const std::string& text,
+                           SDL_Color color, int x, int y, bool center_on_x) {
+    TTF_Font* font = TTF_OpenFont(font_path.c_str(), font_size);
+    if (!font) {
+        SDL_Log("Failed to load font '%s': %s", font_path.c_str(), TTF_GetError());
+        return;
+    }
+
+    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), color);
+    if (!surface) {
+        SDL_Log("Failed to render text '%s': %s", text.c_str(), TTF_GetError());
+        TTF_CloseFont(font);
+        return;
+    }
+
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    int text_width = surface->w;
+    int text_height = surface->h;
+    SDL_Rect dest_rect = { center_on_x ? (x - text_width / 2) : x, y, text_width, text_height };
+    SDL_RenderCopy(renderer, texture, nullptr, &dest_rect);
+
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+    TTF_CloseFont(font);
+}
+
 MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& config) {
     // Clear the screen with a dark gray color to ensure no old graphics remain.
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
@@ -11,37 +37,9 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
     const int screen_width = config.getScreenWidth();
     const int screen_height = config.getScreenHeight();
 
-    // --- Main Title ---
-    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 64);
-    if (!main_font) {
-        SDL_Log("Failed to load main font for main menu: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(main_font, config.getMainMenuTitle().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height - 20, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(main_font);
-    }
-
-    // --- Instructions Text ---
-    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
-    if (!instruction_font) {
-        SDL_Log("Failed to load instruction font for main menu: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getMainMenuInstructions().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(instruction_font);
-    }
+    // Render title and instructions using the helper
+    renderText(renderer, config.getFontPath(), 64, config.getMainMenuTitle(), color, screen_width / 2, screen_height / 2 - 84);
+    renderText(renderer, config.getFontPath(), 24, config.getMainMenuInstructions(), color, screen_width / 2, screen_height / 2 + 20);
 
     SDL_RenderPresent(renderer);
 
@@ -74,33 +72,9 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
     const int screen_width = config.getScreenWidth();
     const int screen_height = config.getScreenHeight();
 
-    // --- Main Message (Paused) ---
-    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 48);
-    if (main_font) {
-        SDL_Surface* surface = TTF_RenderText_Solid(main_font, config.getPauseMenuTitle().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(main_font);
-    }
-
-    // --- Instructions Text ---
-    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
-    if (instruction_font) {
-        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getPauseMenuInstructions().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(instruction_font);
-    }
+    // Render title and instructions using the helper
+    renderText(renderer, config.getFontPath(), 48, config.getPauseMenuTitle(), color, screen_width / 2, screen_height / 2 - 48);
+    renderText(renderer, config.getFontPath(), 24, config.getPauseMenuInstructions(), color, screen_width / 2, screen_height / 2 + 20);
 
     SDL_RenderPresent(renderer);
 
@@ -130,9 +104,15 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
     SDL_Rect overlay_rect = {0, 0, config.getScreenWidth(), config.getScreenHeight()};
     SDL_RenderFillRect(renderer, &overlay_rect);
 
-    // (Code to render text is omitted for brevity, but it's the same pattern as above)
-    // ... render "Game Over" / "Victory" message ...
-    // ... render instructions ...
+    Color c = config.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+    const int screen_width = config.getScreenWidth();
+    const int screen_height = config.getScreenHeight();
+
+    // Render "Game Over" / "Victory" message and instructions using the helper
+    renderText(renderer, config.getFontPath(), 48, message, color, screen_width / 2, screen_height / 2 - 48);
+    renderText(renderer, config.getFontPath(), 24, config.getGameOverInstructions(), color, screen_width / 2, screen_height / 2 + 20);
+
 
     SDL_RenderPresent(renderer);
 
