@@ -16,17 +16,18 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev clang-tidy
+      # Install bear to generate compile_commands.json from the Makefile
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev clang-tidy bear
 
-    - name: Configure CMake for linting
-      # We need to generate a compile_commands.json file for clang-tidy to work.
-      # We'll run this from the cpp_dev directory to include all source files.
-      run: cmake -S cpp_dev -B cpp_dev/build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    - name: Generate compilation database
+      # Use bear to wrap the 'make' command and generate compile_commands.json
+      working-directory: cpp_dev
+      run: bear -- make
 
     - name: Run clang-tidy
       # This command runs clang-tidy on all source files found by the file glob.
-      # The -p option points to the directory with compile_commands.json.
-      run: clang-tidy -p cpp_dev/build cpp_dev/src/*.cpp cpp_dev/config/*.cpp
+      # The -p option now points to the directory where 'bear' created the file.
+      run: clang-tidy -p cpp_dev cpp_dev/src/*.cpp cpp_dev/config/*.cpp
 
   cpp-test:
     name: "C++ Tests"
