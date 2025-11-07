@@ -96,19 +96,16 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
 
     // --- Main Menu Event Loop ---
     SDL_Event event;
-    while (true) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return MainMenuAction::Quit;
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_s: return MainMenuAction::StartGame;
-                    case SDLK_e: return MainMenuAction::Settings;
-                    case SDLK_q: case SDLK_ESCAPE: return MainMenuAction::Quit;
-                    default: break;
-                }
+    while (SDL_WaitEvent(&event)) {
+        if (event.type == SDL_QUIT) return MainMenuAction::Quit;
+        if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_s: return MainMenuAction::StartGame;
+                case SDLK_e: return MainMenuAction::Settings;
+                case SDLK_q: case SDLK_ESCAPE: return MainMenuAction::Quit;
+                default: break;
             }
         }
-        SDL_Delay(100);
     }
 }
 
@@ -117,7 +114,7 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
     bool in_color_picker = false;
     int color_selection = 0;
 
-    while (true) {
+    while (true) { // This loop is more complex, we'll adjust it carefully.
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
         SDL_RenderClear(renderer);
 
@@ -137,8 +134,9 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
 
         SDL_RenderPresent(renderer);
 
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return SettingsMenuAction::Back; // Or a new Quit action
+        // Use SDL_WaitEvent to pause until an event is available.
+        if (SDL_WaitEvent(&event)) {
+            if (event.type == SDL_QUIT) return SettingsMenuAction::Back;
             if (event.type == SDL_KEYDOWN) {
                 if (in_color_picker) {
                     switch (event.key.keysym.sym) {
@@ -157,9 +155,6 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                             if (!choices.empty() && color_selection < static_cast<int>(choices.size())) {
                                 config.setPlayerColor(choices[color_selection]);
                             }
-                            // config.save(); // Do not save changes to disk to keep them session-specific.
-                            // The config object lives for the duration of the app, so changes will persist
-                            // for the current session.
                             in_color_picker = false;
                             break;
                         }
@@ -167,9 +162,8 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                             in_color_picker = false;
                             break;
                         }
-                        default: break; 
+                        default: break;
                         }
-                    }
                 } else {
                     switch (event.key.keysym.sym) {
                         case SDLK_c: in_color_picker = true; break;
@@ -179,9 +173,12 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                     }
                 }
             }
+        } else {
+            // SDL_WaitEvent failed, break the loop.
+            break;
         }
-        SDL_Delay(100);
     }
+}
 
 PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config& config) {
     // Draw a semi-transparent overlay to dim the background game state.
@@ -203,20 +200,17 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
 
     // --- Pause Menu Event Loop ---
     SDL_Event event;
-    while (true) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return PauseMenuAction::Quit;
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_ESCAPE: return PauseMenuAction::Resume;
-                    case SDLK_r: return PauseMenuAction::Restart;
-                    case SDLK_m: return PauseMenuAction::MainMenu;
-                    case SDLK_q: return PauseMenuAction::Quit;
-                    default: break;
-                }
+    while (SDL_WaitEvent(&event)) {
+        if (event.type == SDL_QUIT) return PauseMenuAction::Quit;
+        if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_ESCAPE: return PauseMenuAction::Resume;
+                case SDLK_r: return PauseMenuAction::Restart;
+                case SDLK_m: return PauseMenuAction::MainMenu;
+                case SDLK_q: return PauseMenuAction::Quit;
+                default: break;
             }
         }
-        SDL_Delay(100);
     }
 }
 
@@ -241,18 +235,15 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
 
     // --- Game Over Event Loop ---
     SDL_Event event;
-    while (true) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return GameOverAction::Quit;
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_r: return GameOverAction::Restart;
-                    case SDLK_m: return GameOverAction::MainMenu;
-                    case SDLK_q: case SDLK_ESCAPE: return GameOverAction::Quit;
-                    default: break;
-                }
+    while (SDL_WaitEvent(&event)) {
+        if (event.type == SDL_QUIT) return GameOverAction::Quit;
+        if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_r: return GameOverAction::Restart;
+                case SDLK_m: return GameOverAction::MainMenu;
+                case SDLK_q: case SDLK_ESCAPE: return GameOverAction::Quit;
+                default: break;
             }
         }
-        SDL_Delay(100);
     }
 }

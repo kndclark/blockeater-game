@@ -27,7 +27,8 @@ jobs:
     - name: Run clang-tidy
       # This command runs clang-tidy on all source files found by the file glob.
       # The -p option now points to the directory where 'bear' created the file.
-      run: clang-tidy -p cpp_dev cpp_dev/src/*.cpp cpp_dev/config/*.cpp
+      # The --warnings-as-errors='*' flag will cause the step to fail if any warnings are found.
+      run: clang-tidy --warnings-as-errors='*' -p cpp_dev cpp_dev/src/*.cpp cpp_dev/config/*.cpp
 
   cpp-test:
     name: "C++ Tests"

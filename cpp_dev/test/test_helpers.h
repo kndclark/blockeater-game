@@ -21,6 +21,9 @@ public:
     explicit TestConfig(const std::string& direct_path, bool /* is_direct_path */) {
         load_defaults();
         load_from_path(direct_path);
+        if (getGrowChance() + getShrinkChance() + getHurtChance() != 100) {
+            throw std::runtime_error("Obstacle spawn chances in config must sum to 100.");
+        }
     }
  
     // Publicly expose load_levels for testing purposes

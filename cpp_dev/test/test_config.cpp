@@ -69,7 +69,7 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     malformed_file << "{ \"player\": { \"r\": 10, "; // Intentionally broken JSON
     malformed_file.close();
 
-    Config config(malformed_filename);
+    TestConfig config(malformed_filename, true);
     Color player_color = config.getPlayerColor();
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
@@ -90,7 +90,7 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
     })";
     partial_file.close();
 
-    Config config(partial_filename);
+    TestConfig config(partial_filename, true);
 
     // Check that the specified values are loaded
     Color player_color = config.getPlayerColor();
