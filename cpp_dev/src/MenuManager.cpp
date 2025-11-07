@@ -107,6 +107,9 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
             }
         }
     }
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in main menu: %s", SDL_GetError());
+    return MainMenuAction::Quit;
 }
 
 SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config& config) {
@@ -178,6 +181,9 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
             break;
         }
     }
+    // If the loop is broken (e.g., SDL_WaitEvent fails), return a safe default.
+    SDL_Log("Event loop broke in settings menu. Returning to main menu.");
+    return SettingsMenuAction::Back;
 }
 
 PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config& config) {
@@ -212,6 +218,9 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
             }
         }
     }
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in pause menu: %s", SDL_GetError());
+    return PauseMenuAction::Quit;
 }
 
 GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
@@ -246,4 +255,7 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
             }
         }
     }
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in game over screen: %s", SDL_GetError());
+    return GameOverAction::Quit;
 }
