@@ -158,8 +158,8 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                             if (!choices.empty() && color_selection < static_cast<int>(choices.size())) {
                                 config.setPlayerColor(choices[color_selection]);
                             }
-                            in_color_picker = false;
-                            break;
+                            // Return an action to signal the change, even if the main loop just continues.
+                            return SettingsMenuAction::ChangePlayerColor;
                         }
                         case SDLK_ESCAPE: {
                             in_color_picker = false;
