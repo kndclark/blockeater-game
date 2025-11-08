@@ -1,5 +1,6 @@
 #include "MenuManager.h"
 #include <SDL2/SDL_ttf.h>
+#include <iomanip>
 #include <vector>
 #include <memory>
 
@@ -101,6 +102,7 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
         if (event.type == SDL_KEYDOWN) {
             switch (event.key.keysym.sym) {
                 case SDLK_s: return MainMenuAction::StartGame;
+                case SDLK_c: return MainMenuAction::ShowScoreboard;
                 case SDLK_e: return MainMenuAction::Settings;
                 case SDLK_q: case SDLK_ESCAPE: return MainMenuAction::Quit;
                 default: break;
@@ -223,7 +225,7 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
     return PauseMenuAction::Quit;
 }
 
-GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message, int final_score, ScoreboardManager& scoreboard_manager) {
     // Draw a semi-transparent overlay to dim the background game state.
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150); // ~60% opacity black
@@ -239,6 +241,13 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
     renderText(renderer, config.getFontPath(), 48, message, color, screen_width / 2, screen_height / 2 - 48);
     renderText(renderer, config.getFontPath(), 24, config.getGameOverInstructions(), color, screen_width / 2, screen_height / 2 + 20);
 
+    // If the game was won or lost (not just quit), prompt for name
+    if (message == config.getVictoryText() || message == config.getGameOverText()) {
+        std::string player_name = getPlayerNameInput(renderer, config, final_score);
+        if (!player_name.empty()) {
+            scoreboard_manager.addScore(player_name, final_score);
+        }
+    }
 
     SDL_RenderPresent(renderer);
 
@@ -258,4 +267,106 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
     // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
     SDL_Log("SDL_WaitEvent failed in game over screen: %s", SDL_GetError());
     return GameOverAction::Quit;
+}
+
+void MenuManager::showScoreboard(SDL_Renderer* renderer, const Config& config, const ScoreboardManager& scoreboard_manager) {
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
+    Color c = config.getUiTextColor();
+    SDL_Color color = {c.r, c.g, c.b, c.a};
+    const int screen_width = config.getScreenWidth();
+    const int screen_height = config.getScreenHeight();
+
+    renderText(renderer, config.getFontPath(), 48, config.getScoreboardTitle(), color, screen_width / 2, 50);
+
+    const auto& scores = scoreboard_manager.getScores();
+    int y_pos = 150;
+    int rank = 1;
+
+    // Header
+    renderText(renderer, config.getFontPath(), 24, "Rank", color, screen_width / 2 - 300, y_pos, false);
+    renderText(renderer, config.getFontPath(), 24, "Name", color, screen_width / 2 - 150, y_pos, false);
+    renderText(renderer, config.getFontPath(), 24, "Score", color, screen_width / 2 + 100, y_pos, false);
+    renderText(renderer, config.getFontPath(), 24, "Date", color, screen_width / 2 + 250, y_pos, false);
+    y_pos += 40;
+
+    for (const auto& entry : scores) {
+        std::stringstream ss;
+        ss << std::setw(2) << std::setfill(' ') << rank << ".";
+        renderText(renderer, config.getFontPath(), 22, ss.str(), color, screen_width / 2 - 300, y_pos, false);
+        renderText(renderer, config.getFontPath(), 22, entry.name, color, screen_width / 2 - 150, y_pos, false);
+        renderText(renderer, config.getFontPath(), 22, std::to_string(entry.score), color, screen_width / 2 + 100, y_pos, false);
+        renderText(renderer, config.getFontPath(), 22, entry.date, color, screen_width / 2 + 250, y_pos, false);
+        y_pos += 30;
+        rank++;
+    }
+
+    renderText(renderer, config.getFontPath(), 24, config.getScoreboardInstructions(), color, screen_width / 2, screen_height - 50);
+
+    SDL_RenderPresent(renderer);
+
+    SDL_Event event;
+    while (SDL_WaitEvent(&event)) {
+        if (event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && (event.key.keysym.sym == SDLK_b || event.key.keysym.sym == SDLK_ESCAPE))) {
+            break;
+        }
+    }
+}
+
+std::string MenuManager::getPlayerNameInput(SDL_Renderer* renderer, const Config& config, int final_score) {
+    std::string player_name;
+    SDL_StartTextInput();
+
+    bool done = false;
+    while (!done) {
+        SDL_Event event;
+        // Process one event per frame. Using a while loop here can be too "greedy"
+        // and consume events meant for a parent loop, especially in tests.
+        if (SDL_PollEvent(&event)) {
+             if (event.type == SDL_QUIT) {
+                done = true;
+                player_name.clear(); // User quit, don't save
+            } else if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_RETURN) {
+                    done = true;
+                } else if (event.key.keysym.sym == SDLK_BACKSPACE && !player_name.empty()) {
+                    player_name.pop_back();
+                } else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    done = true;
+                    player_name.clear(); // User cancelled
+                }
+            } else if (event.type == SDL_TEXTINPUT) {
+                if (player_name.length() < 10) { // Limit name length
+                    player_name += event.text.text;
+                }
+            }
+        }
+
+        // Re-render the game over screen with the input prompt
+        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+        SDL_RenderClear(renderer);
+
+        Color c = config.getUiTextColor();
+        SDL_Color color = {c.r, c.g, c.b, c.a};
+        const int screen_width = config.getScreenWidth();
+        const int screen_height = config.getScreenHeight();
+
+        renderText(renderer, config.getFontPath(), 36, config.getEnterNamePrompt(), color, screen_width / 2, screen_height / 2 - 100);
+        
+        std::string score_text = config.getFinalScoreText() + std::to_string(final_score);
+        renderText(renderer, config.getFontPath(), 28, score_text, color, screen_width / 2, screen_height / 2 - 50);
+
+        // Display the name being typed
+        std::string display_name = player_name + '_'; // Add a cursor
+        renderText(renderer, config.getFontPath(), 32, display_name, color, screen_width / 2, screen_height / 2);
+
+        renderText(renderer, config.getFontPath(), 20, "Press Enter to save, ESC to skip", color, screen_width / 2, screen_height / 2 + 50);
+
+        SDL_RenderPresent(renderer);
+        SDL_Delay(100); // Small delay to prevent high CPU usage
+    }
+
+    SDL_StopTextInput();
+    return player_name;
 }

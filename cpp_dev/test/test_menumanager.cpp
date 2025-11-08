@@ -3,6 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <memory>
 #include "../src/MenuManager.h"
+#include "../src/ScoreboardManager.h"
 #include "../config/Config.h"
 #include "test_helpers.h"
 #include "nlohmann/json.hpp"
@@ -103,54 +104,67 @@ TEST_F(MenuManagerTest, PauseMenuReturnsQuitOnQ) {
 // --- Game Over Screen Tests ---
 
 TEST_F(MenuManagerTest, GameOverScreenRendersCorrectMessage) {
+    // Create a dummy scoreboard manager for this test
+    ScoreboardManager scoreboard_manager("test_scores.json");
+
     // This test verifies that the game over screen displays the correct message
     // passed to it, for both victory and game over scenarios.
 
     // 1. Test "Game Over" message
     EXPECT_NO_THROW({
         SDL_Event quit_event;
-        quit_event.type = SDL_QUIT;
-        SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText());
+        quit_event.type = SDL_KEYDOWN;
+        quit_event.key.keysym.sym = SDLK_ESCAPE; // To exit name input
+        SDL_PushEvent(&quit_event);
+        quit_event.type = SDL_QUIT; // To exit game over screen
+        SDL_PushEvent(&quit_event);
+        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText(), 0, scoreboard_manager);
     });
 
     // 2. Test "Victory" message
     EXPECT_NO_THROW({
         SDL_Event quit_event;
-        quit_event.type = SDL_QUIT;
-        SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getVictoryText());
+        quit_event.type = SDL_KEYDOWN;
+        quit_event.key.keysym.sym = SDLK_ESCAPE; // To exit name input
+        SDL_PushEvent(&quit_event);
+        quit_event.type = SDL_QUIT; // To exit game over screen
+        SDL_PushEvent(&quit_event);
+        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getVictoryText(), 1000, scoreboard_manager);
     });
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsRestartOnR) {
-    const std::string message = "Test Message";
+    ScoreboardManager scoreboard_manager("test_scores.json");
+    // Use a neutral message that won't trigger the name input screen.
+    const std::string message = "Test Message - No Name Input";
     SDL_Event r_event;
     r_event.type = SDL_KEYDOWN;
     r_event.key.keysym.sym = SDLK_r;
     SDL_PushEvent(&r_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Restart);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message, 0, scoreboard_manager), GameOverAction::Restart);
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsMainMenuOnM) {
-    const std::string message = "Test Message";
+    ScoreboardManager scoreboard_manager("test_scores.json");
+    const std::string message = "Test Message - No Name Input";
     SDL_Event m_event;
     m_event.type = SDL_KEYDOWN;
     m_event.key.keysym.sym = SDLK_m;
     SDL_PushEvent(&m_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::MainMenu);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message, 0, scoreboard_manager), GameOverAction::MainMenu);
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnQ) {
-    const std::string message = "Test Message";
+    ScoreboardManager scoreboard_manager("test_scores.json");
+    const std::string message = "Test Message - No Name Input";
     SDL_Event q_event;
     q_event.type = SDL_KEYDOWN;
     q_event.key.keysym.sym = SDLK_q;
     SDL_PushEvent(&q_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message, 0, scoreboard_manager), GameOverAction::Quit);
 }
 
 // --- Settings Menu Tests ---
@@ -197,13 +211,14 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
-    const std::string message = "Test Message";
+    ScoreboardManager scoreboard_manager("test_scores.json");
+    const std::string message = "Test Message - No Name Input";
     SDL_Event escape_event;
     escape_event.type = SDL_KEYDOWN;
     escape_event.key.keysym.sym = SDLK_ESCAPE;
     SDL_PushEvent(&escape_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message, 0, scoreboard_manager), GameOverAction::Quit);
 }
 
 TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
@@ -244,4 +259,13 @@ TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
     Color final_color = config_.getPlayerColor();
 
     EXPECT_EQ(final_color, new_color);
+}
+
+TEST_F(MenuManagerTest, MainMenuReturnsShowScoreboardOnC) {
+    SDL_Event c_event;
+    c_event.type = SDL_KEYDOWN;
+    c_event.key.keysym.sym = SDLK_c;
+    SDL_PushEvent(&c_event);
+
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::ShowScoreboard);
 }

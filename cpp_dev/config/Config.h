@@ -97,6 +97,10 @@ public:
     const std::string& getSettingsMenuTitle() const;
     const std::string& getSettingsMenuInstructions() const;
     const std::string& getLevelProgressSuffix() const;
+    const std::string& getScoreboardTitle() const;
+    const std::string& getScoreboardInstructions() const;
+    const std::string& getEnterNamePrompt() const;
+    const std::string& getFinalScoreText() const;
     const std::string& getDashReadyText() const;
     const std::string& getDashCooldownPrefix() const;
     const std::string& getDashCooldownSuffix() const;
@@ -173,6 +177,10 @@ private:
     std::string pause_menu_instructions_;
     std::string settings_menu_title_;
     std::string settings_menu_instructions_;
+    std::string scoreboard_title_;
+    std::string scoreboard_instructions_;
+    std::string enter_name_prompt_;
+    std::string final_score_text_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;

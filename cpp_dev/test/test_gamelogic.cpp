@@ -805,6 +805,7 @@ TEST_P(MainMenuActionTest, HandlesStateTransitionsCorrectly) {
     switch (params.action) {
         case MainMenuAction::StartGame: app_status = AppStatus::Running; break;
         case MainMenuAction::Settings:  app_status = AppStatus::ShowingSettingsMenu; break;
+        case MainMenuAction::ShowScoreboard: app_status = AppStatus::ShowingScoreboard; break;
         case MainMenuAction::Quit:      app_status = AppStatus::Quitting; break;
     }
 
@@ -817,6 +818,7 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         MainMenuActionParams{MainMenuAction::StartGame, AppStatus::Running, "StartGameAction"},
         MainMenuActionParams{MainMenuAction::Settings, AppStatus::ShowingSettingsMenu, "SettingsAction"},
+        MainMenuActionParams{MainMenuAction::ShowScoreboard, AppStatus::ShowingScoreboard, "ShowScoreboardAction"},
         MainMenuActionParams{MainMenuAction::Quit, AppStatus::Quitting, "QuitAction"}
     ),
     [](const testing::TestParamInfo<MainMenuActionTest::ParamType>& info) { return info.param.description; }
