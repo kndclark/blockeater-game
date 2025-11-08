@@ -315,11 +315,8 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config(kTestRootPath); // Use default config
-    TestLevelManager test_level_manager = createTestLevelManager(config, params.regular_interval, params.checkpoint_interval);
-    ObstacleSpawner test_spawner(test_level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), 0);
-    
-    GameState game_state(config, 800, 600);
-    injectSpawnerForTest(game_state, std::move(test_spawner));
+    TestGameState game_state(config, 800, 600, createTestLevelManager(config, params.regular_interval, params.checkpoint_interval), 0);
+
     for (const auto& time : params.spawn_times) {
         game_state.spawner.spawn_obstacles(time, game_state);
     }
@@ -364,17 +361,15 @@ protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestRootPath};
-    LevelManager level_manager{config};
-    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
+    GameState game_state{Config{kTestRootPath}, SCREEN_WIDTH, SCREEN_HEIGHT};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
     auto params = GetParam();
-    spawner.shrink_powerups_since_checkpoint = params.shrink_block_history;
+    game_state.spawner.shrink_powerups_since_checkpoint = params.shrink_block_history;
 
     // The gap calculation is based on the base_checkpoint_gap from the config.
-    const int actual_gap = spawner.calculateCheckpointGapSize();
+    const int actual_gap = game_state.spawner.calculateCheckpointGapSize();
     EXPECT_EQ(actual_gap, params.expected_gap);
 }
 
@@ -401,13 +396,8 @@ class ObstacleSpawnerStateTest : public SdlTest {
 protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
-    Config config{kTestRootPath};
-    LevelManager level_manager{config};
-    // We create a spawner with the test-specific interval and inject it into GameState.
-    ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
-    GameState game_state;
-
-    ObstacleSpawnerStateTest() : game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT) { injectSpawnerForTest(game_state, std::move(spawner)); }
+    Config config_{kTestRootPath};
+    GameState game_state{config_, SCREEN_WIDTH, SCREEN_HEIGHT};
 };
 
 TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
@@ -426,7 +416,7 @@ TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
     ASSERT_EQ(checkpoint2.type, ObstacleType::Checkpoint);
     ASSERT_TRUE(checkpoint2.rect2.has_value());
 
-    const int expected_gap = config.getBaseCheckpointGap();
+    const int expected_gap = config_.getBaseCheckpointGap();
     const int actual_gap = checkpoint2.rect2->y - checkpoint2.rect.h;
     EXPECT_EQ(actual_gap, expected_gap);
 };
@@ -461,7 +451,7 @@ TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
     // The UI should now show the size of the checkpoint that was just spawned.
     EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, expected_spawned_gap_size) << "UI gap size should match the size of the newly spawned checkpoint.";
     // The internal prediction is now for the *next* checkpoint, which should be the base size again.
-    EXPECT_EQ(game_state.next_checkpoint_gap_size, config.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
+    EXPECT_EQ(game_state.next_checkpoint_gap_size, config_.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
 }
 
 // --- Top-Level Game Logic Tests ---
@@ -475,30 +465,7 @@ protected:
 };
 
 // Test fixture for game logic tests that require a renderer
-class GameLogicRendererTest : public SdlTest {
-protected:
-    Config config_{kTestRootPath};
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
-    SDL_Window* window_ = nullptr;
-    SDL_Renderer* renderer_ = nullptr;
-
-    void SetUp() override {
-        SdlTest::SetUp();
-        ASSERT_EQ(TTF_Init(), 0);
-        window_ = SDL_CreateWindow("Test", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_HIDDEN);
-        ASSERT_NE(window_, nullptr);
-        renderer_ = SDL_CreateRenderer(window_, -1, 0);
-        ASSERT_NE(renderer_, nullptr);
-    }
-
-    void TearDown() override {
-        if (renderer_) SDL_DestroyRenderer(renderer_);
-        if (window_) SDL_DestroyWindow(window_);
-        TTF_Quit();
-        SdlTest::TearDown();
-    }
-};
+class GameLogicRendererTest : public MenuManagerTest {}; // This now works because MenuManagerTest is in test_helpers.h
 
 TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -749,16 +716,16 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
     // without crashing. It doesn't verify deep logic but checks the integration.
-    GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT);
-    Scoreboard scoreboard(renderer_, config_);
+    GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT); // Use members from MenuManagerTest fixture
+    Scoreboard scoreboard(renderer_.get(), config_);
 
     // Simulate one frame when not paused
     gameState.paused = false;
-    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_));
 
     // Simulate one frame when paused (handleGameLoop should do nothing)
     gameState.paused = true;
-    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_));
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {

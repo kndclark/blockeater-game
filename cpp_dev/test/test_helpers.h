@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <SDL2/SDL.h>
 #include "../src/GameState.h"
+#include <SDL2/SDL_ttf.h>
 #include "../config/Config.h"
 #include <fstream>
 #include <string>
@@ -54,6 +55,27 @@ inline TestLevelManager createTestLevelManager(const Config& config, Uint32 spaw
     return lm;
 }
 
+// A test-only subclass of GameState to allow injecting a TestLevelManager and a
+// re-initialized ObstacleSpawner. This avoids modifying the production GameState class.
+class TestGameState : public GameState {
+public:
+    // This constructor takes a custom level manager and initializes a new spawner with it.
+    // It calls a base constructor that does not initialize the spawner, then does it here.
+    TestGameState(const Config& config, int screen_width, int screen_height, TestLevelManager&& lm, Uint32 start_time = 0)
+        : GameState(config, screen_width, screen_height), // This still constructs the base members
+          custom_level_manager(std::move(lm)), // Store our custom manager
+          // This spawner will shadow the base one, which is what we want for this test.
+          spawner(custom_level_manager, config.getCheckpointSafeZoneDuration(), screen_width, screen_height, config.getPlayerSizeChangeAmount(), start_time)
+    {
+        // We must manually re-initialize GameState members that depend on the spawner's initial state.
+        ui_next_checkpoint_gap_size = spawner.calculateCheckpointGapSize();
+        next_checkpoint_gap_size = spawner.calculateCheckpointGapSize();
+    }
+
+    // These members shadow the base class members, effectively replacing them for this test class instance.
+    TestLevelManager custom_level_manager;
+    ObstacleSpawner spawner;
+};
 // Helper to check that the Config class correctly overrides screen dimensions
 // with the native resolution when available, or falls back to the default.
 inline void checkConfigScreenResolution(const Config& config) {
@@ -102,5 +124,36 @@ protected:
         std::remove(invalid_chances_filename.c_str());
         TTF_Quit();
         SdlTest::TearDown();
+    }
+};
+
+// Test fixture for tests that require a renderer.
+class MenuManagerTest : public ::testing::Test {
+protected:
+    struct SdlDeleter {
+        void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
+        void operator()(SDL_Renderer* r) const { if (r) SDL_DestroyRenderer(r); }
+    };
+
+    std::unique_ptr<SDL_Window, SdlDeleter> window_;
+    std::unique_ptr<SDL_Renderer, SdlDeleter> renderer_;
+    Config config_{kTestRootPath};
+    const int SCREEN_WIDTH = 800;
+    const int SCREEN_HEIGHT = 600;
+
+    void SetUp() override {
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
+        ASSERT_EQ(TTF_Init(), 0);
+
+        window_.reset(SDL_CreateWindow("Test", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_HIDDEN));
+        ASSERT_NE(window_, nullptr);
+
+        renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
+        ASSERT_NE(renderer_, nullptr);
+    }
+
+    void TearDown() override {
+        TTF_Quit();
+        SDL_Quit();
     }
 };

@@ -117,8 +117,17 @@ int main(int argc, char* argv[]) {
                     case SettingsMenuAction::Back:
                         app_status = AppStatus::ShowingMainMenu;
                         break;
-                    // Other settings actions can be handled here in the future
-                    default: break;
+                    case SettingsMenuAction::ToggleFullscreen: {
+                        // Check the current fullscreen state and toggle it.
+                        Uint32 flags = SDL_GetWindowFlags(window.get());
+                        bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+                        SDL_SetWindowFullscreen(window.get(), is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        break;
+                    }
+                    case SettingsMenuAction::ChangePlayerColor:
+                        // Color was changed, but we stay in the settings menu.
+                        // The loop will continue, re-rendering the menu.
+                        break;
                 }
                 break;
             }

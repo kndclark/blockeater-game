@@ -7,36 +7,6 @@
 #include "test_helpers.h"
 #include "nlohmann/json.hpp"
 
-// Test fixture for tests that require a renderer.
-class MenuManagerTest : public ::testing::Test {
-protected:
-    struct SdlDeleter {
-        void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
-        void operator()(SDL_Renderer* r) const { if (r) SDL_DestroyRenderer(r); }
-    };
-
-    std::unique_ptr<SDL_Window, SdlDeleter> window_;
-    std::unique_ptr<SDL_Renderer, SdlDeleter> renderer_;
-    Config config_{kTestRootPath};
-
-    void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
-        ASSERT_EQ(TTF_Init(), 0);
-
-        window_.reset(SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN));
-        ASSERT_NE(window_, nullptr);
-
-        renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
-        ASSERT_NE(renderer_, nullptr);
-    }
-
-    void TearDown() override {
-        // unique_ptr handles cleanup automatically.
-        TTF_Quit();
-        SDL_Quit();
-    }
-};
-
 // --- Main Menu Tests ---
 
 TEST_F(MenuManagerTest, MainMenuRendersAndQuitsOnQuitEvent) {
@@ -226,11 +196,20 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
     EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::ToggleFullscreen);
 }
 
-TEST_F(ConfigFileTest, SettingsMenuCanChangeAndSavePlayerColor) {
+TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
+    const std::string message = "Test Message";
+    SDL_Event escape_event;
+    escape_event.type = SDL_KEYDOWN;
+    escape_event.key.keysym.sym = SDLK_ESCAPE;
+    SDL_PushEvent(&escape_event);
+
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+}
+
+TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
     // 1. Get the initial color from the test config file.
-    Config config(kTestRootPath);
-    const Color initial_color = config.getPlayerColor(); // Should be purple from config.json
-    const Color new_color = config.getPlayerColorChoices()[1]; // The second choice is green
+    const Color initial_color = config_.getPlayerColor(); // Should be purple from config.json
+    const Color new_color = config_.getPlayerColorChoices()[1]; // The second choice is green
 
     // The test will "change" the color from purple to green by selecting the second option.
     ASSERT_NE(initial_color, new_color) << "The initial color should be different from the one we are changing to.";
@@ -257,25 +236,12 @@ TEST_F(ConfigFileTest, SettingsMenuCanChangeAndSavePlayerColor) {
     quit_event.type = SDL_QUIT;
     SDL_PushEvent(&quit_event);
 
-    // 3. Run the settings menu (requires a renderer, so we need a window).
-    SDL_Window* window = SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    MenuManager::showSettingsMenu(renderer, config); // This modifies the in-memory config
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+    // 3. Run the settings menu. This modifies the in-memory config.
+    // The renderer is provided by the MenuManagerTest fixture.
+    MenuManager::showSettingsMenu(renderer_.get(), config_);
 
     // 4. Verify the in-memory config object was updated.
-    Color final_color = config.getPlayerColor();
+    Color final_color = config_.getPlayerColor();
 
     EXPECT_EQ(final_color, new_color);
-}
-
-TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
-    const std::string message = "Test Message";
-    SDL_Event escape_event;
-    escape_event.type = SDL_KEYDOWN;
-    escape_event.key.keysym.sym = SDLK_ESCAPE;
-    SDL_PushEvent(&escape_event);
-
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
 }

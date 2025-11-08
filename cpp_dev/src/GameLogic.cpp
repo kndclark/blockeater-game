@@ -105,10 +105,10 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         last_spawn_time = current_time;
         return; // Return early to enforce the safe zone after a checkpoint.
     }
-    // Check for regular obstacle spawns independently.
-    if (current_time > 0 &&
+    // Check for regular obstacle spawns only if a checkpoint was not spawned.
+    else if (current_time > 0 &&
         current_time >= last_spawn_time + level_manager.getSpawnInterval() &&
-        current_time > last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
+        current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
 
         last_spawn_time = current_time;
         Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
