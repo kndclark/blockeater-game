@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "dev", "main_menu" ] # TODO: remove main_menu branch once merged into dev
+    branches: [ "main", "dev", "main_menu", "settings_menu" ] # TODO: remove main_menu branch once merged into dev
 
 jobs:
   cpp-lint:
