@@ -51,10 +51,9 @@ jobs:
  
     - name: Run tests
       # Use xvfb-run to create a virtual display with a specific resolution.
-      # TODO: remove this once a robust solution for playing with configurable screen sizes is found.
       run: |
         cd cpp_dev/test/build
-        xvfb-run --server-args="-screen 0 2560x1600x24" ctest --verbose
+        ctest --output-on-failure
 
   python-test:
     name: "Python Tests"

@@ -76,15 +76,9 @@ int ObstacleSpawner::calculateCheckpointGapSize() const {
 }
 
 void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state) {
-    // Find all obstacles in the "spawn zone" (e.g., right quarter of the screen)
-    // to avoid spawning new obstacles on top of them.
-    nearby_obstacles.clear();
-    for (const auto& obs : game_state.obstacles) {
-        if (obs.rect.x > screen_width * 3 / 4) {
-            nearby_obstacles.push_back(obs);
-        }
-    }
-
+    // For simplicity and robustness, we consider all obstacles as potentially nearby.
+    const auto& nearby_obstacles = game_state.obstacles;
+    
     // Prioritize spawning checkpoints.
     if (current_time > 0 && current_time >= last_checkpoint_spawn_time + level_manager.getCheckpointInterval()) {
         last_checkpoint_spawn_time = current_time;
@@ -105,10 +99,10 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         last_spawn_time = current_time;
         return; // Return early to enforce the safe zone after a checkpoint.
     }
-    // Check for regular obstacle spawns independently.
-    if (current_time > 0 &&
+    // Check for regular obstacle spawns only if a checkpoint was not spawned.
+    else if (current_time > 0 &&
         current_time >= last_spawn_time + level_manager.getSpawnInterval() &&
-        current_time > last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
+        current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
 
         last_spawn_time = current_time;
         Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
@@ -289,7 +283,7 @@ void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppSta
 void handleGameOverAction(GameOverAction action, AppStatus& app_status) {
     switch (action) {
         case GameOverAction::Restart:
-            app_status = AppStatus::Running; // The main loop will handle the restart.
+            app_status = AppStatus::Restarting; // The main loop will handle the restart.
             break;
         case GameOverAction::MainMenu:
             app_status = AppStatus::ShowingMainMenu;
@@ -307,12 +301,11 @@ void checkVictoryCondition(GameState& game_state) {
     }
 }
 
-void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config) {
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config, int screen_height) {
     const int TARGET_FPS = config.getTargetFps();
     const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
     Uint32 frame_start_time = SDL_GetTicks();
-
-    processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
+    processInput(game_state, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
 
     if (!game_state.paused) {
         updateGame(game_state);
@@ -321,7 +314,7 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
     // Only render if the game is still running after the update phase
     if (game_state.running) {
         renderGame(renderer, game_state, config);
-        scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
+        scoreboard.render(screen_height, game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
                            game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
                            game_state.player.rect.w, game_state.player.on_cooldown, game_state.player.getDashCooldownRemaining());
         SDL_RenderPresent(renderer);

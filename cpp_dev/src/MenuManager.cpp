@@ -78,15 +78,13 @@ void MenuManager::renderColorPicker(SDL_Renderer* renderer, int x, int y, const 
 }
 
 
-MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& config) {
+MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& config, int screen_width, int screen_height) {
     // Clear the screen with a dark gray color to ensure no old graphics remain.
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
     SDL_RenderClear(renderer);
 
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
-    const int screen_width = config.getScreenWidth();
-    const int screen_height = config.getScreenHeight();
 
     // Render title and instructions using the helper
     renderText(renderer, config.getFontPath(), 64, config.getMainMenuTitle(), color, screen_width / 2, screen_height / 2 - 84);
@@ -112,7 +110,7 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
     return MainMenuAction::Quit;
 }
 
-SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config& config) {
+SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config& config, int screen_width, int screen_height) {
     SDL_Event event;
     bool in_color_picker = false;
     int color_selection = 0;
@@ -123,8 +121,6 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
 
         Color c = config.getUiTextColor();
         SDL_Color color = {c.r, c.g, c.b, c.a};
-        const int screen_width = config.getScreenWidth();
-        const int screen_height = config.getScreenHeight();
 
         if (in_color_picker) {
             renderText(renderer, config.getFontPath(), 48, "Choose Color", color, screen_width / 2, screen_height / 2 - 120);
@@ -186,17 +182,15 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
     return SettingsMenuAction::Back;
 }
 
-PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config& config) {
+PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config& config, int screen_width, int screen_height) {
     // Draw a semi-transparent overlay to dim the background game state.
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150); // ~60% opacity black
-    SDL_Rect overlay_rect = {0, 0, config.getScreenWidth(), config.getScreenHeight()};
+    SDL_Rect overlay_rect = {0, 0, screen_width, screen_height};
     SDL_RenderFillRect(renderer, &overlay_rect);
 
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
-    const int screen_width = config.getScreenWidth();
-    const int screen_height = config.getScreenHeight();
 
     // Render title and instructions using the helper
     renderText(renderer, config.getFontPath(), 48, config.getPauseMenuTitle(), color, screen_width / 2, screen_height / 2 - 48);
@@ -223,17 +217,15 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
     return PauseMenuAction::Quit;
 }
 
-GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
+GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, int screen_width, int screen_height, const std::string& message) {
     // Draw a semi-transparent overlay to dim the background game state.
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150); // ~60% opacity black
-    SDL_Rect overlay_rect = {0, 0, config.getScreenWidth(), config.getScreenHeight()};
+    SDL_Rect overlay_rect = {0, 0, screen_width, screen_height};
     SDL_RenderFillRect(renderer, &overlay_rect);
 
     Color c = config.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
-    const int screen_width = config.getScreenWidth();
-    const int screen_height = config.getScreenHeight();
 
     // Render "Game Over" / "Victory" message and instructions using the helper
     renderText(renderer, config.getFontPath(), 48, message, color, screen_width / 2, screen_height / 2 - 48);

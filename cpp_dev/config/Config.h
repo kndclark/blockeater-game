@@ -49,6 +49,8 @@ public:
     int getTargetFps() const;
     int getScreenWidth() const;
     int getScreenHeight() const;
+    int getLogicalScreenWidth() const;
+    int getLogicalScreenHeight() const;
     int getMaxLevel() const;
     int getObstacleSpeed() const;
     int getBaseCheckpointGap() const;
@@ -122,6 +124,8 @@ private:
     int target_fps;
     int screen_width;
     int max_level_;
+    int logical_screen_width_;
+    int logical_screen_height_;
     int screen_height;
     int obstacle_speed;
     int base_checkpoint_gap;

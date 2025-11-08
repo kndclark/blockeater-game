@@ -52,15 +52,12 @@ int main(int argc, char* argv[]) {
     // Load configuration. The Config class will find the default config file.
     Config config(root_path);
 
-    const int SCREEN_WIDTH = config.getScreenWidth();
-    const int SCREEN_HEIGHT = config.getScreenHeight();
-
     std::unique_ptr<SDL_Window, SdlDeleter> window(SDL_CreateWindow(
         "THE BLOCKEATER",                  // const char* title: The title of the window
         SDL_WINDOWPOS_CENTERED,       // int x: Initial x position
         SDL_WINDOWPOS_CENTERED,       // int y: Initial y position
-        SCREEN_WIDTH,                 // int w: Width of the window, in pixels
-        SCREEN_HEIGHT,                // int h: Height of the window, in pixels
+        config.getScreenWidth(),      // int w: Width of the window, in pixels
+        config.getScreenHeight(),     // int h: Height of the window, in pixels
         SDL_WINDOW_FULLSCREEN_DESKTOP // Create a fullscreen window at the desktop resolution
     ));
     if (!window) {
@@ -68,6 +65,11 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
+
+    // Get the actual window size, which might be different from the config
+    // due to fullscreen mode.
+    int actual_screen_width, actual_screen_height;
+    SDL_GetWindowSize(window.get(), &actual_screen_width, &actual_screen_height);
 
     // Creates context for 2D drawing operations (renderer) to be shown in the window.
     // Uses a back-buffer system: clear the screen, draw all your objects to a hidden
@@ -97,7 +99,7 @@ int main(int argc, char* argv[]) {
     while (app_status != AppStatus::Quitting) {
         switch (app_status) {
             case AppStatus::ShowingMainMenu: {
-                MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
+                MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config, actual_screen_width, actual_screen_height);
                 switch (action) {
                     case MainMenuAction::StartGame:
                         app_status = AppStatus::Running;
@@ -112,7 +114,7 @@ int main(int argc, char* argv[]) {
                 break;
             }
             case AppStatus::ShowingSettingsMenu: {
-                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config);
+                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config, actual_screen_width, actual_screen_height);
                 switch (action) {
                     case SettingsMenuAction::Back:
                         app_status = AppStatus::ShowingMainMenu;
@@ -139,15 +141,15 @@ int main(int argc, char* argv[]) {
                     srand(time(NULL));
         
                     // --- Game State Setup --- (Use a unique_ptr to control lifetime)
-                    auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+                    auto game_state = std::make_unique<GameState>(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
         
                     // --- Main Game Loop ---
                     while (game_state->running) {
                         if (game_state->paused) {
-                            PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config);
+                            PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config, actual_screen_width, actual_screen_height);
                             handlePauseMenuAction(action, *game_state, app_status);
                         } else {
-                            handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
+                            handleGameLoop(renderer.get(), *game_state, *scoreboard, config, actual_screen_height);
         
                             // Only check for victory if the game is still running after the update phase
                             if (game_state->running) {
@@ -158,7 +160,7 @@ int main(int argc, char* argv[]) {
                     // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
                     if (app_status == AppStatus::Running) { // If not quitting or restarting
                         // Display either the game over or victory screen, and wait for user action.
-                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
+                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, actual_screen_width, actual_screen_height, game_state->victory ? config.getVictoryText() : config.getGameOverText());
                         handleGameOverAction(action, app_status);
                     }
                 }

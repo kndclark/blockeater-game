@@ -46,8 +46,6 @@ TEST_F(ConfigFileTest, LoadsGameConfigFromFile) {
     EXPECT_EQ(config.getPlayerWidth(), 40);
     EXPECT_EQ(config.getPlayerHeight(), 40);
     EXPECT_EQ(config.getPlayerSpeed(), 5);
-
-    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, ThrowsOnInvalidSpawnChances) {
@@ -74,8 +72,6 @@ TEST_F(ConfigFileTest, FallbackOnMalformedFile) {
     EXPECT_EQ(player_color.r, 100); // Should be the default gray, not 10 from the broken file.
     EXPECT_EQ(player_color.g, 100);
     EXPECT_EQ(player_color.b, 100);
-
-    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
@@ -101,8 +97,6 @@ TEST_F(ConfigFileTest, FallbackOnPartiallyMissingKeys) {
     Color hurt_color = config.getObstacleColor(ObstacleType::Hurt);
     EXPECT_EQ(hurt_color.r, 120); // Default value
     EXPECT_EQ(config.getSpawnInterval(), 1500); // Default value
-
-    checkConfigScreenResolution(config);
 }
 
 TEST_F(ConfigFileTest, LoadsLevelsConfig) {

@@ -39,6 +39,6 @@ struct GameState {
     Uint32 frame_count = 0;
     Uint32 last_fps_update_time = 0;
 
-    GameState(const Config& config, int screen_width, int screen_height);
+    GameState(const Config& config, int logical_screen_width, int logical_screen_height);
 
 };

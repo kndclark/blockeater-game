@@ -84,7 +84,7 @@ class CollisionLogicTest : public SdlTest, public ::testing::WithParamInterface<
 TEST_P(CollisionLogicTest, HandlesCollisions) {
     auto params = GetParam();
     Config config(kTestRootPath);
-    GameState game_state(config, 800, 600);
+    GameState game_state(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
     game_state.player.rect.x = 100;
     game_state.player.rect.y = 100;
     game_state.score = params.initial_score;
@@ -152,7 +152,7 @@ class ScoreManagerTest : public SdlTest, public ::testing::WithParamInterface<Sc
 TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
     auto params = GetParam();
     Config config(kTestRootPath);
-    GameState game_state(config, 800, 600);
+    GameState game_state(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
 
     game_state.player.is_dashing = params.is_dashing;
     game_state.player.rect.w = params.player_width;
@@ -209,7 +209,7 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
     Config config(kTestRootPath);
-    GameState game_state(config, 800, 600);
+    GameState game_state(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
     game_state.player.rect.x = params.player_x;
     game_state.score = params.initial_score;
 
@@ -269,13 +269,13 @@ Obstacle createPlacedCheckpoint(int x_pos) {
 
 TEST(GameLogicTest, LevelUp) {
     Config config(kTestRootPath);
-    GameState game_state(config, 800, 600);
+    GameState game_state(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight());
     
     // --- Test Level 1 -> 2 ---
     const int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
     game_state.checkpoints_passed_in_level = checkpoints_for_lvl1 - 1;
 
-    // Pass a checkpoint. This should trigger a level up to 2.
+    // Pass a checkpoint. This should trigger a level up.
     Obstacle checkpoint1 = createPlacedCheckpoint(50); // Place it behind the player
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
     
@@ -284,15 +284,16 @@ TEST(GameLogicTest, LevelUp) {
     EXPECT_TRUE(checkpoint1.passed);
 
     // --- Test within Level 2 ---
-    // After leveling up, LevelManager should be using level 2's config.
-    
-    // Pass another checkpoint. This should NOT trigger a level up.
+    // Pass another checkpoint. This should NOT trigger a level up, just increment the counter.
     Obstacle checkpoint2 = createPlacedCheckpoint(50);
     handleCheckpointPassing(game_state.player, checkpoint2, game_state);
     
     EXPECT_EQ(game_state.checkpoints_passed_in_level, 1); // Counter should increment
     EXPECT_EQ(game_state.level, 2);
     EXPECT_TRUE(checkpoint2.passed);
+
+    // Check that the score has been updated correctly for two checkpoints
+    EXPECT_EQ(game_state.score, config.getScorePerCheckpoint() * 2);
 }
 
 
@@ -315,7 +316,7 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
     Config config(kTestRootPath); // Use default config
-    TestGameState game_state(config, 800, 600, createTestLevelManager(config, params.regular_interval, params.checkpoint_interval), 0);
+    TestGameState game_state(config, config.getLogicalScreenWidth(), config.getLogicalScreenHeight(), createTestLevelManager(config, params.regular_interval, params.checkpoint_interval), 0);
 
     for (const auto& time : params.spawn_times) {
         game_state.spawner.spawn_obstacles(time, game_state);
@@ -358,10 +359,8 @@ void PrintTo(const ObstacleSpawnerGapParams& params, std::ostream* os) {
 // --- Obstacle Spawner Checkpoint Gap Test ---
 class CheckpointGapCalculationTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
 protected:
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
-    const Uint32 CHECKPOINT_INTERVAL = 1000;
-    GameState game_state{Config{kTestRootPath}, SCREEN_WIDTH, SCREEN_HEIGHT};
+    Config config_{kTestRootPath};
+    GameState game_state{config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight()};
 };
 
 TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
@@ -394,10 +393,8 @@ INSTANTIATE_TEST_SUITE_P(
 // This test is separate because it has a different structure (multiple spawns).
 class ObstacleSpawnerStateTest : public SdlTest {
 protected:
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
     Config config_{kTestRootPath};
-    GameState game_state{config_, SCREEN_WIDTH, SCREEN_HEIGHT};
+    GameState game_state{config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight()};
 };
 
 TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
@@ -459,16 +456,14 @@ TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
 // Test fixture for game logic tests
 class TopLevelGameLogicTest : public SdlTest {
 protected:
-    Config config{kTestRootPath};
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
+    Config config_{kTestRootPath};
 };
 
 // Test fixture for game logic tests that require a renderer
 class GameLogicRendererTest : public MenuManagerTest {}; // This now works because MenuManagerTest is in test_helpers.h
 
 TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -490,7 +485,7 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
 };
 
 TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -514,7 +509,7 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
 };
 
 TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
     ASSERT_TRUE(gameState.running);
 
     // Simulate a quit event
@@ -522,13 +517,13 @@ TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
     quit_event.type = SDL_QUIT;
     SDL_PushEvent(&quit_event);
 
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     EXPECT_FALSE(gameState.running);
 };
 
 TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // 1. Test when level is NOT greater than max level
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -544,7 +539,7 @@ TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
 }
 
 TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // 1. Spawn a checkpoint.
     const Uint32 checkpoint_spawn_time = gameState.level_manager.getCheckpointInterval();
@@ -553,7 +548,7 @@ TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
 
     // 2. Simulate time passing and spawn a regular obstacle.
     // The time must be after the checkpoint's safe zone and after the regular spawn interval.
-    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config.getCheckpointSafeZoneDuration() + 1;
+    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config_.getCheckpointSafeZoneDuration() + 1;
     const Uint32 regular_spawn_time = checkpoint_spawn_time + gameState.level_manager.getSpawnInterval();
     const Uint32 next_spawn_time = std::max(safe_zone_end_time, regular_spawn_time);
     gameState.spawner.spawn_obstacles(next_spawn_time, gameState);
@@ -582,7 +577,7 @@ TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
     // Place a "Hurt" obstacle directly on the player
     gameState.obstacles.emplace_back(gameState.player.rect.x, gameState.player.rect.y, 20, 20, 1, ObstacleType::Hurt, 0);
 
@@ -594,7 +589,7 @@ TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame
 };
 
 TEST_F(TopLevelGameLogicTest, ProcessInputTogglesPauseOnEscape) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
     ASSERT_FALSE(gameState.paused);
 
     // Simulate an ESC key press event
@@ -604,21 +599,21 @@ TEST_F(TopLevelGameLogicTest, ProcessInputTogglesPauseOnEscape) {
     SDL_PushEvent(&esc_event);
 
     // Process the event
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // Assert that the game is now paused
     EXPECT_TRUE(gameState.paused);
 
     // Simulate another ESC key press event
     SDL_PushEvent(&esc_event);
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // Assert that the game is now unpaused
     EXPECT_FALSE(gameState.paused);
 }
 
 TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
 
     // Add an obstacle that would normally move
     gameState.obstacles.emplace_back(200, 200, 20, 20, 5, ObstacleType::Hurt, 0);
@@ -655,7 +650,7 @@ class PauseMenuActionTest : public TopLevelGameLogicTest, public ::testing::With
 
 TEST_P(PauseMenuActionTest, HandlesStateTransitionsCorrectly) {
     auto params = GetParam();
-    GameState game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState game_state(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
     game_state.paused = true; // All actions start from a paused state
     AppStatus app_status = AppStatus::Running; // Initial status before action
 
@@ -706,7 +701,7 @@ INSTANTIATE_TEST_SUITE_P(
     StateTransitionTests,
     GameOverActionTest,
     ::testing::Values(
-        GameOverActionParams{GameOverAction::Restart, AppStatus::Running, "RestartAction"},
+        GameOverActionParams{GameOverAction::Restart, AppStatus::Restarting, "RestartAction"},
         GameOverActionParams{GameOverAction::MainMenu, AppStatus::ShowingMainMenu, "MainMenuAction"},
         GameOverActionParams{GameOverAction::Quit, AppStatus::Quitting, "QuitAction"}
     ),
@@ -716,20 +711,20 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
     // without crashing. It doesn't verify deep logic but checks the integration.
-    GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT); // Use members from MenuManagerTest fixture
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight()); // Use members from MenuManagerTest fixture
     Scoreboard scoreboard(renderer_.get(), config_);
 
     // Simulate one frame when not paused
     gameState.paused = false;
-    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_, SCREEN_HEIGHT));
 
     // Simulate one frame when paused (handleGameLoop should do nothing)
     gameState.paused = true;
-    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_.get(), gameState, scoreboard, config_, SCREEN_HEIGHT));
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
     int initial_width = gameState.player.rect.w;
     // Place a "Grow" obstacle directly on the player
     gameState.obstacles.emplace_back(gameState.player.rect.x, gameState.player.rect.y, 20, 20, 1, ObstacleType::Grow, 200);
@@ -747,8 +742,8 @@ TEST_F(TopLevelGameLogicTest, RenderGameCompiles) {
     // This test's primary purpose is to ensure that renderGame compiles
     // correctly as part of the test suite. This helps catch `const`
     // correctness issues or other compile-time problems in the render path.
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
-    renderGame(nullptr, gameState, config);
+    const GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
+    renderGame(nullptr, gameState, config_);
 };
 
 // --- Main Menu State Transition Test ---

@@ -100,4 +100,4 @@ void handleGameOverAction(GameOverAction action, AppStatus& app_status);
 void checkVictoryCondition(GameState& game_state);
 
 /// @brief Runs a single iteration of the main game loop, handling input, updates, rendering, and frame capping.
-void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config);
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config, int screen_height);

@@ -77,7 +77,7 @@ TEST_F(UiTest, ScoreboardRender) {
     // We can't easily verify the visual output in a unit test.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get());
-        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0);
+        scoreboard.render(100, 12345, 1, 80, 2, 5, 40, false, 0);
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -146,9 +146,9 @@ TEST_F(UiTest, ScoreboardRendersDashStatus) {
     // Smoke test to ensure renderDashStatus() doesn't crash in various states.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get());
-        scoreboard.renderDashStatus(false, 0); // Ready
-        scoreboard.renderDashStatus(true, 2000); // Full cooldown
-        scoreboard.renderDashStatus(true, 999);  // Partial cooldown
+        scoreboard.renderDashStatus(100, false, 0); // Ready
+        scoreboard.renderDashStatus(100, true, 2000); // Full cooldown
+        scoreboard.renderDashStatus(100, true, 999);  // Partial cooldown
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -182,9 +182,9 @@ TEST_F(UiTest, ScoreboardRendersVariousValues) {
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
         SDL_RenderClear(renderer_.get());
-        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0);        // Initial score, dash ready
-        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234);   // High score and level, dash on cooldown
-        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0);     // Negative score (if possible in game)
+        scoreboard.render(100, 0, 1, 80, 0, 5, 40, false, 0);        // Initial score, dash ready
+        scoreboard.render(100, 99999, 10, 60, 53, 10, 60, true, 1234);   // High score and level, dash on cooldown
+        scoreboard.render(100, -100, 5, 25, 28, 8, 20, false, 0);     // Negative score (if possible in game)
         SDL_RenderPresent(renderer_.get());
     });
 }

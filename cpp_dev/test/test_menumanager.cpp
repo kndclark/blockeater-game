@@ -22,7 +22,7 @@ TEST_F(MenuManagerTest, MainMenuRendersAndQuitsOnQuitEvent) {
         SDL_Event quit_event;
         quit_event.type = SDL_QUIT;
         SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Quit);
+        EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), MainMenuAction::Quit);
     });
 }
 
@@ -32,7 +32,7 @@ TEST_F(MenuManagerTest, MainMenuReturnsStartGameOnS) {
     s_event.key.keysym.sym = SDLK_s;
     SDL_PushEvent(&s_event);
 
-    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::StartGame);
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), MainMenuAction::StartGame);
 }
 
 TEST_F(MenuManagerTest, MainMenuReturnsQuitOnQ) {
@@ -41,7 +41,7 @@ TEST_F(MenuManagerTest, MainMenuReturnsQuitOnQ) {
     q_event.key.keysym.sym = SDLK_q;
     SDL_PushEvent(&q_event);
 
-    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Quit);
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), MainMenuAction::Quit);
 }
 
 TEST_F(MenuManagerTest, MainMenuReturnsQuitOnEscape) {
@@ -50,7 +50,7 @@ TEST_F(MenuManagerTest, MainMenuReturnsQuitOnEscape) {
     escape_event.key.keysym.sym = SDLK_ESCAPE;
     SDL_PushEvent(&escape_event);
 
-    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Quit);
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), MainMenuAction::Quit);
 }
 
 TEST_F(MenuManagerTest, MainMenuReturnsSettingsOnE) {
@@ -59,7 +59,7 @@ TEST_F(MenuManagerTest, MainMenuReturnsSettingsOnE) {
     e_event.key.keysym.sym = SDLK_e;
     SDL_PushEvent(&e_event);
 
-    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Settings);
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), MainMenuAction::Settings);
 }
 
 // --- Pause Menu Tests ---
@@ -70,7 +70,7 @@ TEST_F(MenuManagerTest, PauseMenuReturnsResumeOnEscape) {
     escape_event.key.keysym.sym = SDLK_ESCAPE;
     SDL_PushEvent(&escape_event);
 
-    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_), PauseMenuAction::Resume);
+    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), PauseMenuAction::Resume);
 }
 
 TEST_F(MenuManagerTest, PauseMenuReturnsRestartOnR) {
@@ -79,7 +79,7 @@ TEST_F(MenuManagerTest, PauseMenuReturnsRestartOnR) {
     r_event.key.keysym.sym = SDLK_r;
     SDL_PushEvent(&r_event);
 
-    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_), PauseMenuAction::Restart);
+    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), PauseMenuAction::Restart);
 }
 
 TEST_F(MenuManagerTest, PauseMenuReturnsMainMenuOnM) {
@@ -88,7 +88,7 @@ TEST_F(MenuManagerTest, PauseMenuReturnsMainMenuOnM) {
     m_event.key.keysym.sym = SDLK_m;
     SDL_PushEvent(&m_event);
 
-    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_), PauseMenuAction::MainMenu);
+    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), PauseMenuAction::MainMenu);
 }
 
 TEST_F(MenuManagerTest, PauseMenuReturnsQuitOnQ) {
@@ -97,7 +97,7 @@ TEST_F(MenuManagerTest, PauseMenuReturnsQuitOnQ) {
     q_event.key.keysym.sym = SDLK_q;
     SDL_PushEvent(&q_event);
 
-    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_), PauseMenuAction::Quit);
+    EXPECT_EQ(MenuManager::showPauseMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), PauseMenuAction::Quit);
 }
 
 // --- Game Over Screen Tests ---
@@ -111,7 +111,7 @@ TEST_F(MenuManagerTest, GameOverScreenRendersCorrectMessage) {
         SDL_Event quit_event;
         quit_event.type = SDL_QUIT;
         SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText());
+        MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, config_.getGameOverText());
     });
 
     // 2. Test "Victory" message
@@ -119,7 +119,7 @@ TEST_F(MenuManagerTest, GameOverScreenRendersCorrectMessage) {
         SDL_Event quit_event;
         quit_event.type = SDL_QUIT;
         SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getVictoryText());
+        MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, config_.getVictoryText());
     });
 }
 
@@ -130,7 +130,7 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsRestartOnR) {
     r_event.key.keysym.sym = SDLK_r;
     SDL_PushEvent(&r_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Restart);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, message), GameOverAction::Restart);
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsMainMenuOnM) {
@@ -140,7 +140,7 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsMainMenuOnM) {
     m_event.key.keysym.sym = SDLK_m;
     SDL_PushEvent(&m_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::MainMenu);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, message), GameOverAction::MainMenu);
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnQ) {
@@ -150,7 +150,7 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnQ) {
     q_event.key.keysym.sym = SDLK_q;
     SDL_PushEvent(&q_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, message), GameOverAction::Quit);
 }
 
 // --- Settings Menu Tests ---
@@ -165,7 +165,7 @@ TEST_F(MenuManagerTest, SettingsMenuRendersAndReturnsBackOnQuitEvent) {
         SDL_Event quit_event;
         quit_event.type = SDL_QUIT;
         SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
-        EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+        EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), SettingsMenuAction::Back);
     });
 }
 
@@ -175,7 +175,7 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsBackOnB) {
     b_event.key.keysym.sym = SDLK_b;
     SDL_PushEvent(&b_event);
 
-    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), SettingsMenuAction::Back);
 }
 
 TEST_F(MenuManagerTest, SettingsMenuReturnsBackOnEscape) {
@@ -184,7 +184,7 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsBackOnEscape) {
     escape_event.key.keysym.sym = SDLK_ESCAPE;
     SDL_PushEvent(&escape_event);
 
-    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), SettingsMenuAction::Back);
 }
 
 TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
@@ -193,7 +193,7 @@ TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
     t_event.key.keysym.sym = SDLK_t;
     SDL_PushEvent(&t_event);
 
-    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::ToggleFullscreen);
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT), SettingsMenuAction::ToggleFullscreen);
 }
 
 TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
@@ -203,7 +203,7 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
     escape_event.key.keysym.sym = SDLK_ESCAPE;
     SDL_PushEvent(&escape_event);
 
-    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+    EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT, message), GameOverAction::Quit);
 }
 
 TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
@@ -238,7 +238,7 @@ TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
 
     // 3. Run the settings menu. This modifies the in-memory config.
     // The renderer is provided by the MenuManagerTest fixture.
-    MenuManager::showSettingsMenu(renderer_.get(), config_);
+    MenuManager::showSettingsMenu(renderer_.get(), config_, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // 4. Verify the in-memory config object was updated.
     Color final_color = config_.getPlayerColor();

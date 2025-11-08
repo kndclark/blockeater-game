@@ -60,6 +60,8 @@ void Config::load_defaults() {
     target_fps = 60;
     screen_width = 640;
     screen_height = 480;
+    logical_screen_width_ = 2560;
+    logical_screen_height_ = 1600;
     max_level_ = 10;
     obstacle_speed = 3;
     base_checkpoint_gap = 120;
@@ -257,6 +259,8 @@ void Config::load_from_path(const std::string& filepath) {
             target_fps = data.value("/settings/target_fps"_json_pointer, 60);
             screen_width = data.value("/settings/screen_width"_json_pointer, 640);
             screen_height = data.value("/settings/screen_height"_json_pointer, 480);
+            logical_screen_width_ = data.value("/game/logical_screen_width"_json_pointer, 2560);
+            logical_screen_height_ = data.value("/game/logical_screen_height"_json_pointer, 1600);
             // Game config-related (i.e. difficulty, saved state, etc.)
             base_checkpoint_gap = data.value("/game/base_checkpoint_gap"_json_pointer, 120);
             player_size_change_amount = data.value("/game/player_size_change_amount"_json_pointer, 10);
@@ -295,16 +299,6 @@ void Config::load_from_path(const std::string& filepath) {
         // Defaults are already loaded. This is not a fatal error as long as
         // the executable can run with the hardcoded values.
     }
-
-    // Override screen dimensions with native resolution for fullscreen mode.
-    SDL_DisplayMode dm;
-    if (SDL_GetDesktopDisplayMode(0, &dm) != 0) {
-        SDL_Log("Warning: Could not get display mode: %s. Using configured resolution.", SDL_GetError());
-    } else {
-        screen_width = dm.w;
-        screen_height = dm.h;
-        SDL_Log("Using native screen resolution: %d x %d", screen_width, screen_height);
-    }
 }
 
 Color Config::getPlayerColor() const {
@@ -326,6 +320,14 @@ int Config::getScreenWidth() const {
 
 int Config::getScreenHeight() const {
     return screen_height;
+}
+
+int Config::getLogicalScreenWidth() const {
+    return logical_screen_width_;
+}
+
+int Config::getLogicalScreenHeight() const {
+    return logical_screen_height_;
 }
 
 int Config::getMaxLevel() const {

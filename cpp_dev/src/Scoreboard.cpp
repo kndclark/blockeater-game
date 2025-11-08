@@ -13,7 +13,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const {
+void Scoreboard::render(int screen_height, int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -111,7 +111,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // Copy the texture to the renderer.
     SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
 
-    renderDashStatus(on_cooldown, cooldown_remaining);
+    renderDashStatus(screen_height, on_cooldown, cooldown_remaining);
 
 }
 
@@ -150,7 +150,7 @@ std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_rema
     }
 }
 
-void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const {
+void Scoreboard::renderDashStatus(int screen_height, bool on_cooldown, Uint32 cooldown_remaining) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -173,7 +173,7 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
 
         // Position the circle in the bottom-left corner
         int circle_center_x = 10 + radius;
-        int circle_center_y = config_.getScreenHeight() - 10 - radius;
+        int circle_center_y = screen_height - 10 - radius;
 
         // Draw the circular loading bar
         drawCooldownCircle(progress, circle_center_x, circle_center_y, radius, circle_color, nullptr);
@@ -196,7 +196,7 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         return;
     }
 
-    SDL_Rect dash_dest_rect = {dash_text_x_offset, config_.getScreenHeight() - dash_surface->h - 10, dash_surface->w, dash_surface->h};
+    SDL_Rect dash_dest_rect = {dash_text_x_offset, screen_height - dash_surface->h - 10, dash_surface->w, dash_surface->h};
     SDL_RenderCopy(renderer_, dash_texture.get(), nullptr, &dash_dest_rect);
 }
 
