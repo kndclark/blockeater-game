@@ -246,6 +246,18 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
         std::string player_name = getPlayerNameInput(renderer, config, final_score);
         if (!player_name.empty()) {
             scoreboard_manager.addScore(player_name, final_score);
+            // After saving the score, the user expects to go back to the main menu.
+            return GameOverAction::MainMenu;
+        } else {
+            // If the user cancelled name input, re-render the original game over screen before waiting for input.
+            // Clear the screen first to remove the name input prompt.
+            SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+            SDL_RenderClear(renderer);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 150); // Redraw overlay
+            SDL_RenderFillRect(renderer, &overlay_rect);
+
+            renderText(renderer, config.getFontPath(), 48, message, color, screen_width / 2, screen_height / 2 - 48);
+            renderText(renderer, config.getFontPath(), 24, config.getGameOverInstructions(), color, screen_width / 2, screen_height / 2 + 20);
         }
     }
 

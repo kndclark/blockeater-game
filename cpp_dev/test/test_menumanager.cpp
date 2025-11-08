@@ -269,3 +269,35 @@ TEST_F(MenuManagerTest, MainMenuReturnsShowScoreboardOnC) {
 
     EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::ShowScoreboard);
 }
+
+TEST_F(MenuManagerTest, GameOverScreenNameInputTransitions) {
+    ScoreboardManager scoreboard_manager("test_scores.json");
+
+    // 1. Test that entering a name and pressing Enter returns MainMenu
+    {
+        SDL_Event text_event, enter_event;
+        text_event.type = SDL_TEXTINPUT;
+        strcpy(text_event.text.text, "A"); // NOLINT(cppcoreguidelines-pro-type-strcpy)
+
+        enter_event.type = SDL_KEYDOWN;
+        enter_event.key.keysym.sym = SDLK_RETURN;
+
+        SDL_PushEvent(&text_event);
+        SDL_PushEvent(&enter_event);
+
+        GameOverAction action = MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getVictoryText(), 1000, scoreboard_manager);
+        EXPECT_EQ(action, GameOverAction::MainMenu);
+    }
+
+    // 2. Test that pressing Escape during name input cancels and waits for another action (we'll send Quit)
+    {
+        SDL_Event escape_event, quit_event;
+        escape_event.type = SDL_KEYDOWN;
+        escape_event.key.keysym.sym = SDLK_ESCAPE;
+        quit_event.type = SDL_QUIT;
+
+        SDL_PushEvent(&escape_event);
+        SDL_PushEvent(&quit_event); // This will be caught by the outer game over loop
+        EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText(), 0, scoreboard_manager), GameOverAction::Quit);
+    }
+}
