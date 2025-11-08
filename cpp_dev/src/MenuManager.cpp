@@ -107,7 +107,8 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
             }
         }
     }
-    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in main menu: %s", SDL_GetError());
     return MainMenuAction::Quit;
 }
 
@@ -157,8 +158,8 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
                             if (!choices.empty() && color_selection < static_cast<int>(choices.size())) {
                                 config.setPlayerColor(choices[color_selection]);
                             }
-                            in_color_picker = false;
-                            break;
+                            // Return an action to signal the change, even if the main loop just continues.
+                            return SettingsMenuAction::ChangePlayerColor;
                         }
                         case SDLK_ESCAPE: {
                             in_color_picker = false;
@@ -180,7 +181,8 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
             break;
         }
     }
-    // Should not be reached, but if SDL_WaitEvent fails, we'll go back.
+    // If the loop is broken (e.g., SDL_WaitEvent fails), return a safe default.
+    SDL_Log("Event loop broke in settings menu. Returning to main menu.");
     return SettingsMenuAction::Back;
 }
 
@@ -216,7 +218,8 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
             }
         }
     }
-    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in pause menu: %s", SDL_GetError());
     return PauseMenuAction::Quit;
 }
 
@@ -252,6 +255,7 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
             }
         }
     }
-    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    // If SDL_WaitEvent fails, the loop will exit. Return a safe default.
+    SDL_Log("SDL_WaitEvent failed in game over screen: %s", SDL_GetError());
     return GameOverAction::Quit;
 }
