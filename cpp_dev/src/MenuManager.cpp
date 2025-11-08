@@ -107,6 +107,8 @@ MainMenuAction MenuManager::showMainMenu(SDL_Renderer* renderer, const Config& c
             }
         }
     }
+    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    return MainMenuAction::Quit;
 }
 
 SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config& config) {
@@ -178,6 +180,8 @@ SettingsMenuAction MenuManager::showSettingsMenu(SDL_Renderer* renderer, Config&
             break;
         }
     }
+    // Should not be reached, but if SDL_WaitEvent fails, we'll go back.
+    return SettingsMenuAction::Back;
 }
 
 PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config& config) {
@@ -212,6 +216,8 @@ PauseMenuAction MenuManager::showPauseMenu(SDL_Renderer* renderer, const Config&
             }
         }
     }
+    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    return PauseMenuAction::Quit;
 }
 
 GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
@@ -246,4 +252,6 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
             }
         }
     }
+    // Should not be reached, but if SDL_WaitEvent fails, we'll quit.
+    return GameOverAction::Quit;
 }
