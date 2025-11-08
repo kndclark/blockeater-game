@@ -24,7 +24,7 @@
         "game_over_instructions": "R = Restart | M = Menu | Q = Quit",
         "pause_menu_title": "Paused",
         "pause_menu_instructions": "ESC = Resume | R = Restart | M = Menu | Q = Quit",
-        "main_menu_title": "Blockeater",
+        "main_menu_title": "THE BLOCKEATER",
         "main_menu_instructions": "S = Start | C = Scoreboard | E = Settings | Q = Quit",
         "settings_menu_title": "Settings",
         "settings_menu_instructions": "C = Change Player Color | T = Toggle Fullscreen | B = Back",
