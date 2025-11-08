@@ -9,7 +9,7 @@
 #include "test_helpers.h" // For kTestConfigPath
 
 // Test fixture for UI tests that require SDL and SDL_ttf initialization.
-class UiTest : public ::testing::Test {
+class UiTest : public SdlTest {
 protected:
     struct SdlDeleter {
         void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
@@ -21,20 +21,13 @@ protected:
     Config config_{kTestRootPath};
 
     void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
-        ASSERT_EQ(TTF_Init(), 0);
+        SdlTest::SetUp();
 
         window_.reset(SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN));
         ASSERT_NE(window_, nullptr);
 
         renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
         ASSERT_NE(renderer_, nullptr);
-    }
-
-    void TearDown() override {
-        // unique_ptr handles cleanup automatically.
-        TTF_Quit();
-        SDL_Quit();
     }
 };
 

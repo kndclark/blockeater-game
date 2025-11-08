@@ -99,11 +99,17 @@ inline void injectSpawnerForTest(GameState& gameState, ObstacleSpawner&& spawner
     gameState.next_checkpoint_gap_size = gameState.spawner.calculateCheckpointGapSize();
 }
 
-// A test fixture for tests that require SDL to be initialized.
+// A base test fixture for tests that require SDL to be initialized.
 class SdlTest : public ::testing::Test {
 protected:
-    void SetUp() override { ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError(); }
-    void TearDown() override { SDL_Quit(); }
+    void SetUp() override {
+        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0) << "Failed to initialize SDL: " << SDL_GetError();
+        ASSERT_EQ(TTF_Init(), 0) << "Failed to initialize SDL_ttf: " << TTF_GetError();
+    }
+    void TearDown() override {
+        TTF_Quit();
+        SDL_Quit();
+    }
 };
 
 // A test fixture for tests that create temporary files.
@@ -113,22 +119,16 @@ protected:
     const std::string partial_filename = "partial.json";
     const std::string invalid_chances_filename = "invalid_chances.json";
 
-    void SetUp() override {
-        SdlTest::SetUp();
-        ASSERT_EQ(TTF_Init(), 0);
-    }
-
     void TearDown() override {
         std::remove(malformed_filename.c_str());
         std::remove(partial_filename.c_str());
         std::remove(invalid_chances_filename.c_str());
-        TTF_Quit();
         SdlTest::TearDown();
     }
 };
 
 // Test fixture for tests that require a renderer.
-class MenuManagerTest : public ::testing::Test {
+class MenuManagerTest : public SdlTest {
 protected:
     struct SdlDeleter {
         void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
@@ -142,18 +142,12 @@ protected:
     const int SCREEN_HEIGHT = 600;
 
     void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
-        ASSERT_EQ(TTF_Init(), 0);
+        SdlTest::SetUp();
 
         window_.reset(SDL_CreateWindow("Test", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_HIDDEN));
         ASSERT_NE(window_, nullptr);
 
         renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
         ASSERT_NE(renderer_, nullptr);
-    }
-
-    void TearDown() override {
-        TTF_Quit();
-        SDL_Quit();
     }
 };
