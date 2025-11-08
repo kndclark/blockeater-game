@@ -5,8 +5,30 @@ on:
     branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
-
 jobs:
+  cpp-lint:
+    name: "C++ Linter"
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      # Install bear to generate compile_commands.json from the Makefile
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev clang-tidy bear
+
+    - name: Generate compilation database
+      # Use bear to wrap the 'make' command and generate compile_commands.json
+      working-directory: cpp_dev
+      run: bear -- make
+
+    - name: Run clang-tidy
+      # This command runs clang-tidy on all source files found by the file glob.
+      # The -p option now points to the directory where 'bear' created the file.
+      # The --warnings-as-errors='*' flag will cause the step to fail if any warnings are found.
+      run: clang-tidy --warnings-as-errors='*' -p cpp_dev cpp_dev/src/*.cpp cpp_dev/config/*.cpp
+
   cpp-test:
     name: "C++ Tests"
     runs-on: ubuntu-latest

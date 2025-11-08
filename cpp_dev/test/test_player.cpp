@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "../src/Player.h"
+#include "../config/Config.h"
 #include "test_helpers.h"
 // Consolidate movement and boundary tests into one parameterized test
 struct PlayerMovementParams {
@@ -16,7 +17,11 @@ class PlayerMovementTest : public SdlTest, public ::testing::WithParamInterface<
 TEST_P(PlayerMovementTest, HandlesMovementCorrectly) {
     auto params = GetParam();
     Color c = {0,0,0,0};
-    Player player(params.start_x, params.start_y, 40, 40, 5, c);
+    // Use default dash values for this test as it doesn't involve dashing.
+    Config config(kTestRootPath);
+    Player player(params.start_x, params.start_y, 40, 40, 5, c,
+                  config.getDashSpeedMultiplier(), config.getDashDurationMs(), config.getDashCooldownMs());
+
     const int screen_width = 640;
     const int screen_height = 480;
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
@@ -54,8 +59,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 class PlayerDashTest : public SdlTest {
 protected:
+    Config config{kTestRootPath};
     // Use a speed of 10 for easier math in tests
-    Player player{100, 100, 40, 40, 10, {0,0,0,0}};
+    Player player{100, 100, 40, 40, 10, {0,0,0,0},
+                  config.getDashSpeedMultiplier(),
+                  config.getDashDurationMs(),
+                  config.getDashCooldownMs()};
+
     const int screen_width = 640;
     const int screen_height = 480;
     Uint8 keystate[SDL_NUM_SCANCODES] = {0};
@@ -75,7 +85,7 @@ TEST_F(PlayerDashTest, DashActivatesAndIncreasesSpeed) {
     EXPECT_FALSE(player.on_cooldown);
 
     // Check position change
-    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    int expected_x = 100 + static_cast<int>(10 * config.getDashSpeedMultiplier());
     EXPECT_EQ(player.rect.x, expected_x);
 }
 
@@ -88,7 +98,7 @@ TEST_F(PlayerDashTest, DashForwardWithNoDirectionalInput) {
     player.handle_input(keystate, screen_width, screen_height);
 
     EXPECT_TRUE(player.is_dashing);
-    int expected_x = 100 + static_cast<int>(10 * Player::DASH_SPEED_MULTIPLIER);
+    int expected_x = 100 + static_cast<int>(10 * config.getDashSpeedMultiplier());
     EXPECT_EQ(player.rect.x, expected_x);
 }
 
@@ -100,7 +110,7 @@ TEST_F(PlayerDashTest, DashEndsAndEntersCooldown) {
 
     // Wait for dash to end
     // Simulate time passing
-    player.update(player.dash_start_time + Player::DASH_DURATION_MS + 1);
+    player.update(player.dash_start_time + player.dash_duration_ms + 1);
 
     EXPECT_FALSE(player.is_dashing);
     EXPECT_TRUE(player.on_cooldown);
@@ -127,7 +137,7 @@ TEST_F(PlayerDashTest, CannotDashOnCooldown) {
     keystate[SDL_SCANCODE_LSHIFT] = 0; // Release key
 
     // End dash and start cooldown by simulating time
-    player.update(player.dash_start_time + Player::DASH_DURATION_MS + 1);
+    player.update(player.dash_start_time + player.dash_duration_ms + 1);
     ASSERT_TRUE(player.on_cooldown);
     ASSERT_FALSE(player.is_dashing);
 
@@ -147,12 +157,12 @@ TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
     keystate[SDL_SCANCODE_LSHIFT] = 0;
 
     // Simulate time passing to end the dash and start the cooldown
-    Uint32 cooldown_start_time = player.dash_start_time + Player::DASH_DURATION_MS + 1;
+    Uint32 cooldown_start_time = player.dash_start_time + player.dash_duration_ms + 1;
     player.update(cooldown_start_time);
     ASSERT_TRUE(player.on_cooldown);
 
     // Simulate time passing for the cooldown to end
-    player.update(cooldown_start_time + Player::DASH_COOLDOWN_MS + 1);
+    player.update(cooldown_start_time + player.dash_cooldown_ms + 1);
 
     // Cooldown should be over
     EXPECT_FALSE(player.on_cooldown);
@@ -166,7 +176,9 @@ TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
 
 TEST(PlayerTest, CreationAndSizeModification) {
     // NOLINTNEXTLINE(readability-magic-numbers)
-    Player player(10, 20, 30, 40, 5, {0,0,0,0});
+    Config config(kTestRootPath);
+    Player player(10, 20, 30, 40, 5, {0,0,0,0},
+                  config.getDashSpeedMultiplier(), config.getDashDurationMs(), config.getDashCooldownMs());
     EXPECT_EQ(player.rect.x, 10);
     EXPECT_EQ(player.rect.y, 20);
     EXPECT_EQ(player.rect.w, 30);

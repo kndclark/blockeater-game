@@ -11,28 +11,28 @@
 // Test fixture for UI tests that require SDL and SDL_ttf initialization.
 class UiTest : public ::testing::Test {
 protected:
-    SDL_Window* window_ = nullptr;
-    SDL_Renderer* renderer_ = nullptr;    
+    struct SdlDeleter {
+        void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
+        void operator()(SDL_Renderer* r) const { if (r) SDL_DestroyRenderer(r); }
+    };
+
+    std::unique_ptr<SDL_Window, SdlDeleter> window_;
+    std::unique_ptr<SDL_Renderer, SdlDeleter> renderer_;
     Config config_{kTestRootPath};
 
     void SetUp() override {
         ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
         ASSERT_EQ(TTF_Init(), 0);
 
-        window_ = SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN);
+        window_.reset(SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN));
         ASSERT_NE(window_, nullptr);
 
-        renderer_ = SDL_CreateRenderer(window_, -1, 0);
+        renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
         ASSERT_NE(renderer_, nullptr);
     }
 
     void TearDown() override {
-        if (renderer_) {
-            SDL_DestroyRenderer(renderer_);
-        }
-        if (window_) {
-            SDL_DestroyWindow(window_);
-        }
+        // unique_ptr handles cleanup automatically.
         TTF_Quit();
         SDL_Quit();
     }
@@ -52,7 +52,7 @@ TEST_F(UiTest, ConfigFontPathResolution) {
 // Test successful creation of the Scoreboard.
 TEST_F(UiTest, ScoreboardCreationSuccess) {
     EXPECT_NO_THROW({
-        Scoreboard scoreboard(renderer_, config_);
+        Scoreboard scoreboard(renderer_.get(), config_);
     });
 }
 
@@ -72,27 +72,27 @@ TEST_F(UiTest, ScoreboardCreationFailure) {
 
     MockConfig invalid_config;
     EXPECT_THROW({
-        Scoreboard scoreboard(renderer_, invalid_config);
+        Scoreboard scoreboard(renderer_.get(), invalid_config);
     }, std::runtime_error);
 }
 
 // Test that the render method can be called without crashing.
 TEST_F(UiTest, ScoreboardRender) {
-    Scoreboard scoreboard(renderer_, config_);
+    Scoreboard scoreboard(renderer_.get(), config_);
 
     // This is a smoke test to ensure render() doesn't crash.
     // We can't easily verify the visual output in a unit test.
     EXPECT_NO_THROW({
-        SDL_RenderClear(renderer_);
-        scoreboard.render(12345, 1, 80, 2, 5, 40);
-        SDL_RenderPresent(renderer_);
+        SDL_RenderClear(renderer_.get());
+        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0);
+        SDL_RenderPresent(renderer_.get());
     });
 }
 
 // Test the logic for generating the level progress text. By using the UiTest
 // fixture, we ensure SDL is initialized correctly before the Scoreboard is created.
 TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
-    Scoreboard scoreboard(renderer_, config_);
+    Scoreboard scoreboard(renderer_.get(), config_);
 
     // Helper lambda to build the expected string from the config.
     // This makes the test resilient to changes in ui_texts.json.
@@ -111,7 +111,7 @@ TEST_F(UiTest, CalculatesGapsToNextLevelCorrectly) {
 }
 
 TEST_F(UiTest, CalculatesPlayerSizeTextCorrectly) {
-    Scoreboard scoreboard(renderer_, config_);
+    Scoreboard scoreboard(renderer_.get(), config_);
 
     // Helper lambda to build the expected string from the config.
     auto build_expected_text = [&](int player_size, int gap_size) {
@@ -126,18 +126,72 @@ TEST_F(UiTest, CalculatesPlayerSizeTextCorrectly) {
     EXPECT_EQ(scoreboard.getPlayerSizeText(50, 0), build_expected_text(50, 0)); // N/A
 }
 
+// Test the logic for generating the dash status text.
+TEST_F(UiTest, ScoreboardCalculatesDashStatusTextCorrectly) {
+    Scoreboard scoreboard(renderer_.get(), config_);
+
+    // Helper lambda to build the expected cooldown string.
+    auto build_cooldown_text = [&](const std::string& time_str) {
+        return config_.getDashCooldownPrefix() + time_str + config_.getDashCooldownSuffix();
+    };
+
+    // Test "ready" state
+    EXPECT_EQ(scoreboard.getDashStatusText(false, 0), config_.getDashReadyText());
+    EXPECT_EQ(scoreboard.getDashStatusText(true, 0), config_.getDashReadyText()); // Cooldown just finished
+
+    // Test "cooldown" state with various times
+    EXPECT_EQ(scoreboard.getDashStatusText(true, 2000), build_cooldown_text("2.0"));
+    EXPECT_EQ(scoreboard.getDashStatusText(true, 1540), build_cooldown_text("1.5"));
+    EXPECT_EQ(scoreboard.getDashStatusText(true, 1550), build_cooldown_text("1.6")); // Should round up
+    EXPECT_EQ(scoreboard.getDashStatusText(true, 999), build_cooldown_text("1.0")); // Should round from 0.999
+}
+
+// Test that the dash status rendering can be called without crashing.
+TEST_F(UiTest, ScoreboardRendersDashStatus) {
+    Scoreboard scoreboard(renderer_.get(), config_);
+
+    // Smoke test to ensure renderDashStatus() doesn't crash in various states.
+    EXPECT_NO_THROW({
+        SDL_RenderClear(renderer_.get());
+        scoreboard.renderDashStatus(false, 0); // Ready
+        scoreboard.renderDashStatus(true, 2000); // Full cooldown
+        scoreboard.renderDashStatus(true, 999);  // Partial cooldown
+        SDL_RenderPresent(renderer_.get());
+    });
+}
+
+// Test the calculation logic for the cooldown circle.
+TEST_F(UiTest, ScoreboardCalculatesCooldownCirclePoints) {
+    Scoreboard scoreboard(renderer_.get(), config_);
+    std::vector<SDL_Point> points;
+    const int segments = 30;
+
+    // Test 0% progress (should draw 1 point at the start)
+    scoreboard.drawCooldownCircle(0.0f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    EXPECT_EQ(points.size(), 1);
+
+    // Test 50% progress
+    scoreboard.drawCooldownCircle(0.5f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    // +1 because the loop is i <= segments * progress
+    EXPECT_EQ(points.size(), static_cast<int>(segments * 0.5f) + 1);
+
+    // Test 100% progress
+    scoreboard.drawCooldownCircle(1.0f, 0, 0, 10, {255, 255, 255, 255}, &points);
+    EXPECT_EQ(points.size(), segments + 1);
+}
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
-    Scoreboard scoreboard(renderer_, config_);
+    Scoreboard scoreboard(renderer_.get(), config_);
 
     // We can't easily check the visual output, but we can confirm that
     // rendering different values completes without throwing any exceptions.
     EXPECT_NO_THROW({
-        SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255);
-        SDL_RenderClear(renderer_);
-        scoreboard.render(0, 1, 80, 0, 5, 40);        // Initial score
-        scoreboard.render(99999, 10, 60, 53, 10, 60);   // High score and level
-        scoreboard.render(-100, 5, 25, 28, 8, 20);     // Negative score (if possible in game)
-        SDL_RenderPresent(renderer_);
+        SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
+        SDL_RenderClear(renderer_.get());
+        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0);        // Initial score, dash ready
+        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234);   // High score and level, dash on cooldown
+        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0);     // Negative score (if possible in game)
+        SDL_RenderPresent(renderer_.get());
     });
 }

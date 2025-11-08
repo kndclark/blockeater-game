@@ -1,26 +1,59 @@
 #include "GameLogic.h"
 #include "GameState.h"
+#include "MenuManager.h"
 
-std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running, int player_size_change_amount) {
+std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles) {
     switch (it->type) {
-        case ObstacleType::Checkpoint:
-            // fallthrough
-        case ObstacleType::Hurt:
-            SDL_Log("Collision with Hurt obstacle! Game Over.");
-            running = false; // End the game
+        case ObstacleType::Checkpoint: {
+            SDL_Log("Collision with Checkpoint wall! Game Over.");
+            game_state.running = false; // End the game
             return ++it; // Advance iterator to avoid re-processing in the game loop
+        }
+        case ObstacleType::Hurt: {
+            if (game_state.score_manager.applyPenalty(game_state.score, game_state.config.getScorePerHurt())) {
+                SDL_Log("Collision with Hurt obstacle! Player survives.");
+                return obstacles.erase(it); // Erase and get next valid iterator
+            }
+
+            SDL_Log("Collision with Hurt obstacle! Not enough score. Game Over.");
+            game_state.running = false; // End the game
+            return ++it; // Advance iterator to avoid re-processing in the game loop
+        }
         case ObstacleType::Grow:
-            SDL_Log("Collision with Grow obstacle! Player grows.");
-            player.grow(player_size_change_amount);
+        {
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            game_state.score += score_result.score;
+            game_state.player.grow(game_state.config.getPlayerSizeChangeAmount());
+            std::string log_message = "Collision with Grow obstacle! Player grows.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
+        }
         case ObstacleType::Shrink:
-            SDL_Log("Collision with Shrink obstacle! Player shrinks.");
-            player.shrink(player_size_change_amount);
+        {
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            game_state.score += score_result.score;
+            game_state.player.shrink(game_state.config.getPlayerSizeChangeAmount());
+            std::string log_message = "Collision with Shrink obstacle! Player shrinks.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
+        }
     }
     // Should not be reached, but some compilers might complain.
     return ++it;
 }
+
+ObstacleSpawner::ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration,
+                  int width, int height, int size_change, Uint32 start_time)
+    : level_manager(lm), last_spawn_time(start_time),
+      last_checkpoint_spawn_time(start_time),
+      checkpoint_safe_zone_duration(safe_zone_duration), screen_width(width),
+      screen_height(height),
+      player_size_change_amount(size_change) {}
+
 
 int ObstacleSpawner::calculateCheckpointGapSize() const {
     size_t shrink_count = shrink_powerups_since_checkpoint.size();
@@ -43,16 +76,24 @@ int ObstacleSpawner::calculateCheckpointGapSize() const {
 }
 
 void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state) {
+    // Find all obstacles in the "spawn zone" (e.g., right quarter of the screen)
+    // to avoid spawning new obstacles on top of them.
+    nearby_obstacles.clear();
+    for (const auto& obs : game_state.obstacles) {
+        if (obs.rect.x > screen_width * 3 / 4) {
+            nearby_obstacles.push_back(obs);
+        }
+    }
+
     // Prioritize spawning checkpoints.
-    if (current_time >= last_checkpoint_spawn_time + checkpoint_spawn_interval) {
+    if (current_time > 0 && current_time >= last_checkpoint_spawn_time + level_manager.getCheckpointInterval()) {
         last_checkpoint_spawn_time = current_time;
-        // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
-        last_spawn_time = current_time;
 
         const int gap_height = calculateCheckpointGapSize();
         int gap_y;
-        game_state.obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, gap_y));
-        last_checkpoint_gap_y = {{gap_y, gap_height}};
+        // Add the new checkpoint and get a pointer to it.
+        game_state.obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, game_state.config.getScorePerCheckpoint(), nearby_obstacles, gap_y));
+        last_checkpoint = &game_state.obstacles.back();
 
         // Reset the trackers for the next interval.
         shrink_powerups_since_checkpoint.clear();
@@ -60,20 +101,19 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         // The UI should display the size of the checkpoint that was just spawned.
         game_state.ui_next_checkpoint_gap_size = gap_height;
         game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
+        // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
+        last_spawn_time = current_time;
+        return; // Return early to enforce the safe zone after a checkpoint.
     }
-    // Only spawn a regular obstacle if a checkpoint was not spawned.
-    else if (current_time >= last_spawn_time + level_manager.getSpawnInterval()) {
-        // If we are outside the safe zone duration, clear the gap information
-        // so the next obstacle can spawn anywhere.
-        if (last_checkpoint_gap_y.has_value() && current_time > last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
-            last_checkpoint_gap_y.reset();
-        }
+    // Check for regular obstacle spawns only if a checkpoint was not spawned.
+    else if (current_time > 0 &&
+        current_time >= last_spawn_time + level_manager.getSpawnInterval() &&
+        current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
 
         last_spawn_time = current_time;
-        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height,
-                                                      level_manager.getObstacleSpeed(),
-                                                      level_manager.getGrowChance(), level_manager.getShrinkChance(),
-                                                      grow_dims, shrink_dims, hurt_dims, last_checkpoint_gap_y);
+        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
+                                                      game_state.config.getObstacleConfig(),
+                                                      nearby_obstacles);
         if (new_obstacle.type == ObstacleType::Shrink) {
             shrink_powerups_since_checkpoint.push_back(1);
             // A shrink power-up was collected, so the next gap will be smaller.
@@ -88,16 +128,22 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
         // Check if the player's front has passed the obstacle's back
         if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
             obstacle.passed = true;
-            game_state.score += game_state.config.getScorePerCheckpoint();
+            auto score_result = game_state.score_manager.calculateScore(game_state.config.getScorePerCheckpoint(), game_state);
+            game_state.score += score_result.score;
+            game_state.checkpoints_passed_in_level++;
             game_state.checkpoints_passed++;
             player.resetSize();
             // Level up every CHECKPOINTS_PER_LEVEL checkpoints
-            if (game_state.checkpoints_passed > 0 && game_state.checkpoints_passed % game_state.level_manager.getCheckpointsPerLevel() == 0) {
+            if (game_state.checkpoints_passed_in_level >= game_state.level_manager.getCheckpointsPerLevel()) {
                 game_state.level++;
+                game_state.checkpoints_passed_in_level = 0;
                 game_state.level_manager.updateForLevel(game_state.level);
                 SDL_Log("Level up! You are now on level %d.", game_state.level);
             }
-            SDL_Log("Checkpoint passed! Score: %d. Level: %d. Checkpoints: %d. Player size reset.", game_state.score, game_state.level, game_state.checkpoints_passed);
+            std::string log_message = "Checkpoint passed! Player size reset.";
+            if (score_result.dash_boost_applied) log_message += " Dash boost!";
+            if (score_result.size_boost_applied) log_message += " Size boost!";
+            SDL_Log("%s Score: %d. Level: %d. Checkpoints: %d.", log_message.c_str(), game_state.score, game_state.level, game_state.checkpoints_passed);
         }
     }
 }
@@ -152,6 +198,13 @@ void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREE
         if (event.type == SDL_QUIT) {
             game_state.running = false;
         }
+        if (event.type == SDL_KEYDOWN) {
+            // Toggle pause state on ESC key press
+            if (event.key.keysym.sym == SDLK_ESCAPE) {
+                game_state.paused = !game_state.paused;
+                SDL_Log("Game paused: %s", game_state.paused ? "true" : "false");
+            }
+        }
     }
 
     // Handle player movement from keyboard state
@@ -181,7 +234,7 @@ void updateGame(GameState& game_state) {
         }
 
         if (collision_detected) {
-            it = handleCollision(game_state.player, it, game_state.obstacles, game_state.running, game_state.config.getPlayerSizeChangeAmount());
+            it = handleCollision(game_state, it, game_state.obstacles);
         } else {
             handleCheckpointPassing(game_state.player, *it, game_state); // This can change game_state.level
             ++it;
@@ -213,19 +266,74 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 
 }
 
-/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
-/// @param game_state The current state of the game to be updated.
-/// @param config The game configuration.
-void gameLoopIteration(GameState& game_state, const Config& config) {
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status) {
+    switch (action) {
+        case PauseMenuAction::Resume:
+            game_state.paused = false;
+            break;
+        case PauseMenuAction::Restart:
+            app_status = AppStatus::Restarting; // Signal to main loop to restart the game
+            game_state.running = false;      // Break inner game loop
+            break;
+        case PauseMenuAction::MainMenu:
+            app_status = AppStatus::ShowingMainMenu;
+            game_state.running = false; // Break inner game loop
+            break;
+        case PauseMenuAction::Quit:
+            app_status = AppStatus::Quitting;
+            game_state.running = false;
+            break;
+    }
+}
+
+void handleGameOverAction(GameOverAction action, AppStatus& app_status) {
+    switch (action) {
+        case GameOverAction::Restart:
+            app_status = AppStatus::Running; // The main loop will handle the restart.
+            break;
+        case GameOverAction::MainMenu:
+            app_status = AppStatus::ShowingMainMenu;
+            break;
+        case GameOverAction::Quit:
+            app_status = AppStatus::Quitting;
+            break;
+    }
+}
+
+void checkVictoryCondition(GameState& game_state) {
+    if (game_state.level > game_state.level_manager.getMaxLevel()) {
+        game_state.victory = true;
+        game_state.running = false; // End the game
+    }
+}
+
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config) {
+    const int TARGET_FPS = config.getTargetFps();
+    const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
+    Uint32 frame_start_time = SDL_GetTicks();
+
     processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
 
-    updateGame(game_state);
+    if (!game_state.paused) {
+        updateGame(game_state);
+    }
 
-    // Only check for victory if the game is still running after the update phase
+    // Only render if the game is still running after the update phase
     if (game_state.running) {
-        if (game_state.level > LevelManager::MAX_LEVEL) {
-            SDL_Log("VICTORY! You have completed all levels!");
-            game_state.running = false; // End the game
-        }
+        renderGame(renderer, game_state, config);
+        scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
+                           game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
+                           game_state.player.rect.w, game_state.player.on_cooldown, game_state.player.getDashCooldownRemaining());
+        SDL_RenderPresent(renderer);
+    }
+
+    // --- FPS Calculation and Capping ---
+    if (auto fps_opt = calculateFps(game_state.frame_count, game_state.last_fps_update_time, SDL_GetTicks())) {
+        SDL_Log("FPS: %.2f", *fps_opt);
+    }
+
+    Uint32 frame_time = SDL_GetTicks() - frame_start_time;
+    if (frame_time < FRAME_DELAY) {
+        SDL_Delay(FRAME_DELAY - frame_time);
     }
 }

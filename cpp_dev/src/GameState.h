@@ -7,6 +7,7 @@
 #include "../config/Config.h"
 #include "LevelManager.h"
 #include "GameLogic.h"
+#include "ScoreManager.h"
 
 struct GameState {
     const Config& config;
@@ -14,10 +15,12 @@ struct GameState {
     std::vector<Obstacle> obstacles;
     int score = 0;
     int level = 1; 
+    int checkpoints_passed_in_level = 0;
     int checkpoints_passed = 0;
     int ui_next_checkpoint_gap_size = 0;
     int next_checkpoint_gap_size = 0;
     LevelManager level_manager;
+    ScoreManager score_manager;
     ObstacleSpawner spawner;
 
     // Create vectors to hold rectangles for batch drawing. Reusing these vectors
@@ -29,6 +32,8 @@ struct GameState {
 
     // Game loop control
     bool running = true;
+    bool victory = false;
+    bool paused = false;
 
     // Framerate control
     Uint32 frame_count = 0;

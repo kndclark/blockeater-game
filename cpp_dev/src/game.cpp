@@ -8,24 +8,33 @@
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "ScoreboardManager.h"
+#include "MenuManager.h"
 #include "Scoreboard.h"
+#include <sstream>
+#include "Player.h"
 
 int main(int argc, char* argv[]) {
+    // RAII wrapper for SDL and TTF initialization
+    struct SdlInitializer {
+        SdlInitializer() {
+            if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+                throw std::runtime_error(std::string("Unable to initialize SDL: ") + SDL_GetError());
+            }
+            if (TTF_Init() == -1) {
+                throw std::runtime_error(std::string("Unable to initialize SDL_ttf: ") + TTF_GetError());
+            }
+        }
+        ~SdlInitializer() {
+            TTF_Quit();
+            SDL_Quit();
+        }
+    };
+
     struct SdlDeleter {
         void operator()(SDL_Window* w) const { SDL_DestroyWindow(w); }
         void operator()(SDL_Renderer* r) const { SDL_DestroyRenderer(r); }
     };
-
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        return 1;
-    }
-
-    if (TTF_Init() == -1) {
-        SDL_Log("Unable to initialize SDL_ttf: %s", TTF_GetError());
-        SDL_Quit();
-        return 1;
-    }
 
     // Determine the project root path. The game executable is in `build/`.
     std::string root_path;
@@ -38,6 +47,9 @@ int main(int argc, char* argv[]) {
         // Fallback to an empty root path.
     }
 
+    try {
+        SdlInitializer sdl_initializer;
+        
     // Load configuration. The Config class will find the default config file.
     Config config(root_path);
 
@@ -74,60 +86,110 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Use a dedicated scope for game objects that depend on the config.
-    // This ensures they are destroyed before the config object goes out of scope.
-    {
-        std::unique_ptr<Scoreboard> scoreboard;
-        try {
-            scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
-        } catch (const std::exception& e) {
-            SDL_Log("Error creating scoreboard: %s", e.what());
-            TTF_Quit();
-            SDL_Quit();
-            return 1;
-        }
-        // Seed for random numbers
-        srand(time(NULL));
-
-        // --- Framerate Control ---
-        const int TARGET_FPS = config.getTargetFps();
-        const Uint32 FRAME_DELAY = (TARGET_FPS > 0) ? 1000 / TARGET_FPS : 0;
-        Uint32 frame_start_time;
-
-        // --- Game State Setup --- (Use a unique_ptr to control lifetime)
-        auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
-
-        // --- Main Game Loop ---
-        // The game will continue to run as long as this 'running' flag is true.
-        while (game_state->running) {
-            frame_start_time = SDL_GetTicks();
-
-            gameLoopIteration(*game_state, config);
-
-            // Only render if the game is still running after the update phase
-            if (game_state->running) {
-                renderGame(renderer.get(), *game_state, config);
-                // Draw score after the rest of the game is rendered
-                scoreboard->render(game_state->score, game_state->level, game_state->ui_next_checkpoint_gap_size, game_state->checkpoints_passed,
-                                   game_state->level_manager.getCheckpointsPerLevel(), game_state->player.rect.w);
-                // Present the final frame
-                SDL_RenderPresent(renderer.get());
-            }
-
-            // --- FPS Calculation and Capping ---
-            Uint32 current_frametime = SDL_GetTicks();
-            if (auto fps_opt = calculateFps(game_state->frame_count, game_state->last_fps_update_time, current_frametime)) {
-                SDL_Log("FPS: %.2f", *fps_opt);
-            }
-
-            Uint32 frame_time = SDL_GetTicks() - frame_start_time;
-            if (frame_time < FRAME_DELAY) {
-                SDL_Delay(FRAME_DELAY - frame_time);
-            }
-        }
+    std::unique_ptr<Scoreboard> scoreboard;
+    try {
+        scoreboard = std::make_unique<Scoreboard>(renderer.get(), config);
+    } catch (const std::exception& e) {
+        SDL_Log("Error creating scoreboard: %s", e.what());
+        return 1;
     }
 
-    TTF_Quit();
-    SDL_Quit();
+    // Create the scoreboard manager
+    ScoreboardManager scoreboard_manager(root_path + "data/scores.json");
+
+    AppStatus app_status = AppStatus::ShowingMainMenu;
+    while (app_status != AppStatus::Quitting) {
+        switch (app_status) {
+            case AppStatus::ShowingMainMenu: {
+                MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
+                switch (action) {
+                    case MainMenuAction::ShowScoreboard:
+                        app_status = AppStatus::ShowingScoreboard;
+                        break;
+                    case MainMenuAction::StartGame:
+                        app_status = AppStatus::Running;
+                        break;
+                    case MainMenuAction::Settings:
+                        app_status = AppStatus::ShowingSettingsMenu;
+                        break;
+                    case MainMenuAction::Quit:
+                        app_status = AppStatus::Quitting;
+                        break;
+                }
+                break;
+            }
+            case AppStatus::ShowingScoreboard: {
+                MenuManager::showScoreboard(renderer.get(), config, scoreboard_manager);
+                app_status = AppStatus::ShowingMainMenu; // Always return to main menu
+                break;
+            }
+            case AppStatus::ShowingSettingsMenu: {
+                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config);
+                switch (action) {
+                    case SettingsMenuAction::Back:
+                        app_status = AppStatus::ShowingMainMenu;
+                        break;
+                    case SettingsMenuAction::ToggleFullscreen: {
+                        // Check the current fullscreen state and toggle it.
+                        Uint32 flags = SDL_GetWindowFlags(window.get());
+                        bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+                        SDL_SetWindowFullscreen(window.get(), is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        break;
+                    }
+                    case SettingsMenuAction::ChangePlayerColor:
+                        // Color was changed, but we stay in the settings menu.
+                        // The loop will continue, re-rendering the menu.
+                        break;
+                }
+                break;
+            }
+            case AppStatus::Running: {
+                // Use a dedicated scope for game objects that depend on the config.
+                // This ensures they are destroyed and re-created on restart.
+                {
+                    // Seed for random numbers
+                    srand(time(NULL));
+        
+                    // --- Game State Setup --- (Use a unique_ptr to control lifetime)
+                    auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+        
+                    // --- Main Game Loop ---
+                    while (game_state->running) {
+                        if (game_state->paused) {
+                            PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config);
+                            handlePauseMenuAction(action, *game_state, app_status);
+                        } else {
+                            handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
+        
+                            // Only check for victory if the game is still running after the update phase
+                            if (game_state->running) {
+                                checkVictoryCondition(*game_state);
+                            }
+                        }
+                    }
+                    // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
+                    if (app_status == AppStatus::Running) { // If not quitting or restarting
+                        // Display either the game over or victory screen, and wait for user action.
+                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText(), game_state->score, scoreboard_manager);
+                        handleGameOverAction(action, app_status);
+                    }
+                }
+                break;
+            }
+            case AppStatus::Restarting: {
+                // Simply transition back to Running to start a new game loop.
+                app_status = AppStatus::Running;
+                break;
+            }
+            case AppStatus::Quitting:
+                // Loop will terminate
+                break;
+        }
+    }
+    } catch (const std::exception& e) {
+        SDL_Log("An error occurred: %s", e.what());
+        return 1;
+    }
+
     return 0;
 }

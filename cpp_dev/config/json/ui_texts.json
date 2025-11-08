@@ -7,10 +7,30 @@
         "gap_size_prefix": "Gap Size: ",
         "player_size_prefix": "Player Size: ",
         "player_size_suffix": "% of gap size",
+        "dash_ready_text": "dash -> ready",
+        "dash_cooldown_prefix": "dash -> cooldown (",
+        "dash_cooldown_suffix": "s)",
+        "dash_cooldown_indicator": {
+            "radius": 12,
+            "color": { "r": 255, "g": 255, "b": 0, "a": 255 }
+        },
         "font": {
             "path": "assets/font.ttf",
             "size": 24
         },
-        "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 }
+        "text_color": { "r": 255, "g": 255, "b": 255, "a": 255 },
+        "game_over_text": "Game Over",
+        "victory_text": "VICTORY! You have completed all levels!",
+        "game_over_instructions": "R = Restart | M = Menu | Q = Quit",
+        "pause_menu_title": "Paused",
+        "pause_menu_instructions": "ESC = Resume | R = Restart | M = Menu | Q = Quit",
+        "main_menu_title": "THE BLOCKEATER",
+        "main_menu_instructions": "S = Start | C = Scoreboard | E = Settings | Q = Quit",
+        "settings_menu_title": "Settings",
+        "settings_menu_instructions": "C = Change Player Color | T = Toggle Fullscreen | B = Back",
+        "scoreboard_title": "Scoreboard",
+        "scoreboard_instructions": "B = Back to Menu",
+        "enter_name_prompt": "Enter Your Name:",
+        "final_score_text": "Final Score: "
     }
 }

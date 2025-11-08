@@ -9,12 +9,13 @@
 #include "Obstacle.h" // For ObstacleType
 #include "Player.h"   // For Player
 #include "LevelManager.h"
+#include "Scoreboard.h"
+#include "MenuManager.h"
 
 struct GameState; // Forward declaration needed for handleCheckpointPassing
 class Config;     // Forward declaration for batchRenderObstacles
 /// Handles the game logic for a collision between the player and an obstacle.
-/// @return The iterator to the next element to be processed.
-std::vector<Obstacle>::iterator handleCollision(Player& player, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles, bool& running, int player_size_change_amount);
+std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles);
 
 // --- Obstacle Spawner ---
 // Manages the logic and state for spawning obstacles over time.
@@ -22,31 +23,24 @@ struct ObstacleSpawner {
     const LevelManager& level_manager;
     Uint32 last_spawn_time = 0;
     Uint32 last_checkpoint_spawn_time = 0;
-    const Uint32 checkpoint_spawn_interval;
     const Uint32 checkpoint_safe_zone_duration;
-    std::optional<std::pair<int, int>> last_checkpoint_gap_y;
-
-    const int screen_width;
-    const int screen_height;
-    const int player_size_change_amount;
-    const ObstacleSize grow_dims;
-    const ObstacleSize shrink_dims;
-    const ObstacleSize hurt_dims;
+    std::vector<Obstacle> nearby_obstacles;
+    Obstacle* last_checkpoint = nullptr;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
     std::vector<int> shrink_powerups_since_checkpoint;
-    ObstacleSpawner(const LevelManager& lm, Uint32 checkpoint_int, Uint32 safe_zone_duration,
-                      int width, int height, int size_change, const ObstacleSize& gd, const ObstacleSize& sd, const ObstacleSize& hd)
-        : level_manager(lm), checkpoint_spawn_interval(checkpoint_int), checkpoint_safe_zone_duration(safe_zone_duration),
-          screen_width(width), screen_height(height),
-          player_size_change_amount(size_change),
-          grow_dims(gd), shrink_dims(sd), hurt_dims(hd) {}
+    ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration, int width, int height, int size_change, Uint32 start_time);
     
     // Calculates the gap size for the next checkpoint based on power-ups collected.
     int calculateCheckpointGapSize() const;
 
     // Checks the current time and spawns obstacles if their respective intervals have passed.
     void spawn_obstacles(Uint32 current_time, GameState& game_state);
+
+private:
+    const int screen_width;
+    const int screen_height;
+    const int player_size_change_amount;
 };
 
 // Handles scoring when a player passes a checkpoint.
@@ -96,5 +90,14 @@ void updateGame(GameState& game_state);
 /// @brief Renders all game objects to the screen.
 void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
 
-/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
-void gameLoopIteration(GameState& game_state, const Config& config);
+/// @brief Handles the action selected from the pause menu, updating game state flags.
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status);
+
+/// @brief Handles the action selected from the game over screen, updating the application status.
+void handleGameOverAction(GameOverAction action, AppStatus& app_status);
+
+/// @brief Checks if the victory condition has been met and updates the game state accordingly.
+void checkVictoryCondition(GameState& game_state);
+
+/// @brief Runs a single iteration of the main game loop, handling input, updates, rendering, and frame capping.
+void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& scoreboard, const Config& config);

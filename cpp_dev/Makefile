@@ -15,10 +15,16 @@ endif
 
 SDL2_CFLAGS = $(shell sdl2-config --cflags)
 SDL2_LIBS = $(shell sdl2-config --libs) -lSDL2_ttf
-SRC = src/game.cpp config/Config.cpp src/GameState.cpp src/GameLogic.cpp src/LevelManager.cpp src/Scoreboard.cpp
+SRC = src/*.cpp config/*.cpp
 BIN = build/game
 
 all: $(BIN)
+
+debug_game:
+	g++ -g -Wall -Isrc -Ithird_party -I/usr/include/SDL2 -D_REENTRANT -o build/game src/*.cpp config/*.cpp -lSDL2 -lSDL2_ttf
+	gdb ./build/game
+
+release_game:
 
 test:
 	cmake -S test -B test/build

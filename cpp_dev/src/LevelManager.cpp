@@ -1,9 +1,6 @@
 #include "LevelManager.h"
 #include "../config/Config.h"
 
-// Definition for the static member.
-constexpr int LevelManager::MAX_LEVEL;
-
 LevelManager::LevelManager(const Config& base_config)
     : base_config_(base_config),
       effective_spawn_interval_(base_config.getSpawnInterval()),
@@ -12,9 +9,14 @@ LevelManager::LevelManager(const Config& base_config)
       effective_shrink_chance_(base_config.getShrinkChance()),
       effective_hurt_chance_(base_config.getHurtChance()),
       effective_base_checkpoint_gap_(base_config.getBaseCheckpointGap()),
-      effective_checkpoints_per_level_(base_config.getCheckpointsPerLevel())
+      effective_checkpoints_per_level_(base_config.getCheckpointsPerLevel()),
+      effective_checkpoint_interval_ms_(base_config.getCheckpointInterval())
 {
     updateForLevel(1);
+}
+
+int LevelManager::getMaxLevel() const {
+    return base_config_.getMaxLevel();
 }
 
 void LevelManager::updateForLevel(int level) {
@@ -26,6 +28,7 @@ void LevelManager::updateForLevel(int level) {
     }
 
     effective_spawn_interval_ = level_cfg->spawn_interval_ms.value_or(effective_spawn_interval_);
+    effective_checkpoint_interval_ms_ = level_cfg->checkpoint_interval_ms.value_or(effective_checkpoint_interval_ms_);
     effective_obstacle_speed_ = level_cfg->obstacle_speed.value_or(effective_obstacle_speed_);
     effective_grow_chance_ = level_cfg->grow_chance_percent.value_or(effective_grow_chance_);
     effective_shrink_chance_ = level_cfg->shrink_chance_percent.value_or(effective_shrink_chance_);
