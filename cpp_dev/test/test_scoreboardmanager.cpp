@@ -7,6 +7,10 @@ class ScoreboardManagerTest : public ::testing::Test {
 protected:
     const std::string test_filepath = "test_scores.json";
 
+    void SetUp() override {
+        std::remove(test_filepath.c_str());
+    }
+
     void TearDown() override {
         std::remove(test_filepath.c_str());
     }
@@ -75,4 +79,14 @@ TEST_F(ScoreboardManagerTest, HandlesNonExistentFile) {
     // Adding a score should still work and create the file.
     sm.addScore("First", 100);
     EXPECT_EQ(sm.getScores().size(), 1);
+}
+
+TEST_F(ScoreboardManagerTest, DoesNotAddZeroOrNegativeScores) {
+    ScoreboardManager sm(test_filepath);
+
+    sm.addScore("Zero", 0);
+    sm.addScore("Negative", -100);
+
+    const auto& scores = sm.getScores();
+    EXPECT_TRUE(scores.empty());
 }

@@ -242,7 +242,7 @@ GameOverAction MenuManager::showGameOverScreen(SDL_Renderer* renderer, const Con
     renderText(renderer, config.getFontPath(), 24, config.getGameOverInstructions(), color, screen_width / 2, screen_height / 2 + 20);
 
     // If the game was won or lost (not just quit), prompt for name
-    if (message == config.getVictoryText() || message == config.getGameOverText()) {
+    if ((message == config.getVictoryText() || message == config.getGameOverText()) && final_score > 0) {
         std::string player_name = getPlayerNameInput(renderer, config, final_score);
         if (!player_name.empty()) {
             scoreboard_manager.addScore(player_name, final_score);

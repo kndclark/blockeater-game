@@ -298,6 +298,14 @@ TEST_F(MenuManagerTest, GameOverScreenNameInputTransitions) {
 
         SDL_PushEvent(&escape_event);
         SDL_PushEvent(&quit_event); // This will be caught by the outer game over loop
+        EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText(), 1, scoreboard_manager), GameOverAction::Quit);
+    }
+
+    // 3. Test that a score of 0 skips the name input and waits for another action (we'll send Quit)
+    {
+        SDL_Event quit_event;
+        quit_event.type = SDL_QUIT;
+        SDL_PushEvent(&quit_event);
         EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, config_.getGameOverText(), 0, scoreboard_manager), GameOverAction::Quit);
     }
 }

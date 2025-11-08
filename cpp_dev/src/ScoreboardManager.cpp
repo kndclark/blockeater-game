@@ -10,6 +10,9 @@ ScoreboardManager::ScoreboardManager(const std::string& filepath) : filepath_(fi
 }
 
 void ScoreboardManager::addScore(const std::string& name, int score) {
+    // Do not add scores of 0 or less.
+    if (score <= 0) return;
+
     // Get current date
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
