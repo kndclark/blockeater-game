@@ -109,6 +109,10 @@ void Config::load_defaults() {
     ui_text_color_ = {255, 255, 255, 255}; // Default white
     settings_menu_title_ = "Settings";
     settings_menu_instructions_ = "C = Change Color | T = Toggle Fullscreen | B = Back";
+    scoreboard_title_ = "Scoreboard";
+    scoreboard_instructions_ = "B = Back to Menu";
+    enter_name_prompt_ = "Enter Your Name:";
+    final_score_text_ = "Final Score: ";
     player_color_choices_ = {
         {128, 0, 128, 255},   // Purple
         {0, 128, 0, 255},     // Green
@@ -188,6 +192,10 @@ void Config::load_ui_texts(const std::string& base_path) {
             pause_menu_instructions_ = data.value("/ui_text/pause_menu_instructions"_json_pointer, pause_menu_instructions_);
             settings_menu_title_ = data.value("/ui_text/settings_menu_title"_json_pointer, settings_menu_title_);
             settings_menu_instructions_ = data.value("/ui_text/settings_menu_instructions"_json_pointer, settings_menu_instructions_);
+            scoreboard_title_ = data.value("/ui_text/scoreboard_title"_json_pointer, scoreboard_title_);
+            scoreboard_instructions_ = data.value("/ui_text/scoreboard_instructions"_json_pointer, scoreboard_instructions_);
+            enter_name_prompt_ = data.value("/ui_text/enter_name_prompt"_json_pointer, enter_name_prompt_);
+            final_score_text_ = data.value("/ui_text/final_score_text"_json_pointer, final_score_text_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -555,6 +563,22 @@ const std::string& Config::getSettingsMenuTitle() const {
 
 const std::string& Config::getSettingsMenuInstructions() const {
     return settings_menu_instructions_;
+}
+
+const std::string& Config::getScoreboardTitle() const {
+    return scoreboard_title_;
+}
+
+const std::string& Config::getScoreboardInstructions() const {
+    return scoreboard_instructions_;
+}
+
+const std::string& Config::getEnterNamePrompt() const {
+    return enter_name_prompt_;
+}
+
+const std::string& Config::getFinalScoreText() const {
+    return final_score_text_;
 }
 
 const std::vector<Color>& Config::getPlayerColorChoices() const {

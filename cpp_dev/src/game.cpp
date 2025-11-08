@@ -8,6 +8,7 @@
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "ScoreboardManager.h"
 #include "MenuManager.h"
 #include "Scoreboard.h"
 #include <sstream>
@@ -93,12 +94,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Create the scoreboard manager
+    ScoreboardManager scoreboard_manager(root_path + "data/scores.json");
+
     AppStatus app_status = AppStatus::ShowingMainMenu;
     while (app_status != AppStatus::Quitting) {
         switch (app_status) {
             case AppStatus::ShowingMainMenu: {
                 MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
                 switch (action) {
+                    case MainMenuAction::ShowScoreboard:
+                        app_status = AppStatus::ShowingScoreboard;
+                        break;
                     case MainMenuAction::StartGame:
                         app_status = AppStatus::Running;
                         break;
@@ -109,6 +116,11 @@ int main(int argc, char* argv[]) {
                         app_status = AppStatus::Quitting;
                         break;
                 }
+                break;
+            }
+            case AppStatus::ShowingScoreboard: {
+                MenuManager::showScoreboard(renderer.get(), config, scoreboard_manager);
+                app_status = AppStatus::ShowingMainMenu; // Always return to main menu
                 break;
             }
             case AppStatus::ShowingSettingsMenu: {
@@ -158,7 +170,7 @@ int main(int argc, char* argv[]) {
                     // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
                     if (app_status == AppStatus::Running) { // If not quitting or restarting
                         // Display either the game over or victory screen, and wait for user action.
-                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
+                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText(), game_state->score, scoreboard_manager);
                         handleGameOverAction(action, app_status);
                     }
                 }
