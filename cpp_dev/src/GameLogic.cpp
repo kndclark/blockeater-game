@@ -1,7 +1,6 @@
 #include "GameLogic.h"
 #include "GameState.h"
-#include <SDL2/SDL_ttf.h>
-#include <string>
+#include "MenuManager.h"
 
 std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vector<Obstacle>::iterator it, std::vector<Obstacle>& obstacles) {
     switch (it->type) {
@@ -48,9 +47,11 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
 }
 
 ObstacleSpawner::ObstacleSpawner(const LevelManager& lm, Uint32 safe_zone_duration,
-                  int width, int height, int size_change)
-    : level_manager(lm), checkpoint_safe_zone_duration(safe_zone_duration),
-      screen_width(width), screen_height(height),
+                  int width, int height, int size_change, Uint32 start_time)
+    : level_manager(lm), last_spawn_time(start_time),
+      last_checkpoint_spawn_time(start_time),
+      checkpoint_safe_zone_duration(safe_zone_duration), screen_width(width),
+      screen_height(height),
       player_size_change_amount(size_change) {}
 
 
@@ -104,10 +105,10 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         last_spawn_time = current_time;
         return; // Return early to enforce the safe zone after a checkpoint.
     }
-    // Check for regular obstacle spawns independently.
-    if (current_time > 0 &&
+    // Check for regular obstacle spawns only if a checkpoint was not spawned.
+    else if (current_time > 0 &&
         current_time >= last_spawn_time + level_manager.getSpawnInterval() &&
-        current_time > last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
+        current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
 
         last_spawn_time = current_time;
         Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
@@ -265,144 +266,36 @@ void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Confi
 
 }
 
-/// @brief Runs a single iteration of the main game loop, processing input and updating game state.
-/// @param game_state The current state of the game to be updated.
-/// @param config The game configuration.
-
-GameOverAction showGameOverScreen(SDL_Renderer* renderer, const Config& config, const std::string& message) {
-    Color c = config.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
-    const int screen_width = config.getScreenWidth();
-    const int screen_height = config.getScreenHeight();
-
-    // --- Main Message (Game Over / Victory) ---
-    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 48);
-    if (!main_font) {
-        SDL_Log("Failed to load main font for game over: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(main_font, message.c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(main_font);
-    }
-
-    // --- Instructions Text ---
-    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
-    if (!instruction_font) {
-        SDL_Log("Failed to load instruction font for game over: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getGameOverInstructions().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(instruction_font);
-    }
- 
-    SDL_RenderPresent(renderer);
-
-    // --- Game Over Event Loop ---
-    SDL_Event event;
-    while (true) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return GameOverAction::Quit;
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_r: return GameOverAction::Restart;
-                    case SDLK_m: return GameOverAction::MainMenu; // Does nothing for now
-                    case SDLK_q: case SDLK_ESCAPE: return GameOverAction::Quit;
-                    default: break;
-                }
-            }
-        }
-        SDL_Delay(100);
-    }
-}
-
-PauseMenuAction showPauseMenu(SDL_Renderer* renderer, const Config& config) {
-    Color c = config.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
-    const int screen_width = config.getScreenWidth();
-    const int screen_height = config.getScreenHeight();
-
-    // --- Main Message (Paused) ---
-    TTF_Font* main_font = TTF_OpenFont(config.getFontPath().c_str(), 48);
-    if (!main_font) {
-        SDL_Log("Failed to load main font for pause menu: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(main_font, config.getPauseMenuTitle().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) - text_height, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(main_font);
-    }
-
-    // --- Instructions Text ---
-    TTF_Font* instruction_font = TTF_OpenFont(config.getFontPath().c_str(), 24);
-    if (!instruction_font) {
-        SDL_Log("Failed to load instruction font for pause menu: %s", TTF_GetError());
-    } else {
-        SDL_Surface* surface = TTF_RenderText_Solid(instruction_font, config.getPauseMenuInstructions().c_str(), color);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-        int text_width = surface->w;
-        int text_height = surface->h;
-        SDL_Rect dest_rect = { (screen_width - text_width) / 2, (screen_height / 2) + 20, text_width, text_height };
-        SDL_RenderCopy(renderer, texture, NULL, &dest_rect);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-        TTF_CloseFont(instruction_font);
-    }
-
-    SDL_RenderPresent(renderer);
-
-    // --- Pause Menu Event Loop ---
-    SDL_Event event;
-    while (true) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) return PauseMenuAction::Quit;
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
-                    case SDLK_ESCAPE: return PauseMenuAction::Resume;
-                    case SDLK_r: return PauseMenuAction::Restart;
-                    case SDLK_m: return PauseMenuAction::MainMenu;
-                    case SDLK_q: return PauseMenuAction::Quit;
-                    default: break;
-                }
-            }
-        }
-        SDL_Delay(100);
-    }
-}
-
-void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, bool& restart_requested, bool& app_is_running) {
+void handlePauseMenuAction(PauseMenuAction action, GameState& game_state, AppStatus& app_status) {
     switch (action) {
         case PauseMenuAction::Resume:
             game_state.paused = false;
             break;
         case PauseMenuAction::Restart:
-            restart_requested = true;
-            game_state.running = false; // Break inner loop to restart
+            app_status = AppStatus::Restarting; // Signal to main loop to restart the game
+            game_state.running = false;      // Break inner game loop
             break;
         case PauseMenuAction::MainMenu:
-            SDL_Log("Main Menu selected. Exiting for now.");
-            game_state.running = false; // This will break the inner loop
-            app_is_running = false;    // This will break the outer loop
+            app_status = AppStatus::ShowingMainMenu;
+            game_state.running = false; // Break inner game loop
             break;
         case PauseMenuAction::Quit:
+            app_status = AppStatus::Quitting;
             game_state.running = false;
-            app_is_running = false;
+            break;
+    }
+}
+
+void handleGameOverAction(GameOverAction action, AppStatus& app_status) {
+    switch (action) {
+        case GameOverAction::Restart:
+            app_status = AppStatus::Running; // The main loop will handle the restart.
+            break;
+        case GameOverAction::MainMenu:
+            app_status = AppStatus::ShowingMainMenu;
+            break;
+        case GameOverAction::Quit:
+            app_status = AppStatus::Quitting;
             break;
     }
 }

@@ -96,6 +96,8 @@ void Config::load_defaults() {
     victory_text_ = "YOU WIN!";
     game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
     pause_menu_title_ = "Paused";
+    main_menu_title_ = "THE BLOCKEATER";
+    main_menu_instructions_ = "S = Start Game | Q = Quit";
     pause_menu_instructions_ = "ESC = Resume | R = Restart | M = Menu | Q = Quit";
     dash_ready_text_ = "dash -> ready";
     dash_cooldown_prefix_ = "dash -> cooldown (";
@@ -105,29 +107,39 @@ void Config::load_defaults() {
     font_path_ = "assets/font.ttf";
     font_size_ = 24;
     ui_text_color_ = {255, 255, 255, 255}; // Default white
+    settings_menu_title_ = "Settings";
+    settings_menu_instructions_ = "C = Change Color | T = Toggle Fullscreen | B = Back";
+    scoreboard_title_ = "Scoreboard";
+    scoreboard_instructions_ = "B = Back to Menu";
+    enter_name_prompt_ = "Enter Your Name:";
+    final_score_text_ = "Final Score: ";
+    player_color_choices_ = {
+        {128, 0, 128, 255},   // Purple
+        {0, 128, 0, 255},     // Green
+        {0, 0, 128, 255},     // Blue
+        {255, 165, 0, 255}    // Orange
+    };
 }
 
 Config::Config(const std::string& root_path) : root_path_(root_path) {
+    // Load all hardcoded defaults first. This ensures that if config files
+    // are missing or incomplete, the program still has valid values to work with.
+    load_defaults();
     std::string config_filepath;
     // if the provided path ends with .json, consider it a full path.
-    // otherwise, treat it as a root path to which we append the default config path.
-    if (root_path_.length() >= 5 && root_path_.substr(root_path_.length() - 5) == ".json") {
-        config_filepath = root_path_;
-        // This is a test-only path. We should not load associated files.
-        load_from_path(config_filepath);
-    } else if (root_path_.empty()) {
+    if (root_path_.empty()) {
         // Fallback for when the base path can't be determined.
         // Assumes the executable is run from the `cpp_dev` directory.
         SDL_Log("Warning: Could not get application base path. Using relative path 'config/json/config.json'");
-        config_filepath = "config/json/config.json";
-        load_from_path(config_filepath);
+        config_filepath_ = "config/json/config.json";
+        load_from_path(config_filepath_);
         // Then, load the associated levels and UI text files from the same directory.
-        std::string config_dir = config_filepath.substr(0, config_filepath.find_last_of("/\\") + 1);
+        std::string config_dir = config_filepath_.substr(0, config_filepath_.find_last_of("/\\") + 1);
         load_levels(config_dir + "levels.json");
         load_ui_texts(config_dir);
     } else {
-        config_filepath = root_path_ + "config/json/config.json";
-        load_from_path(config_filepath);
+        config_filepath_ = root_path_ + "config/json/config.json";
+        load_from_path(config_filepath_);
         load_levels(root_path_ + "config/json/levels.json");
         load_ui_texts(root_path_ + "config/json/");
     }
@@ -136,6 +148,27 @@ Config::Config(const std::string& root_path) : root_path_(root_path) {
     if (grow_chance_percent + shrink_chance_percent + hurt_chance_percent != 100) {
         throw std::runtime_error("Obstacle spawn chances in config must sum to 100.");
     }
+}
+
+void Config::save() const {
+    // This function is deprecated. Changes to config are meant to be for the current session only
+    // and should not be saved back to the original config file.
+    // May be re-used later for saving player progress, etc.
+    // std::ifstream f_in(config_filepath_);
+    // if (!f_in.is_open()) {
+    //     SDL_Log("ERROR: Could not open config file to save: %s", config_filepath_.c_str());
+    //     return;
+    // }
+    // json data = json::parse(f_in);
+    // f_in.close();
+
+    // data["colors"]["player"]["r"] = playerColor.r;
+    // data["colors"]["player"]["g"] = playerColor.g;
+    // data["colors"]["player"]["b"] = playerColor.b;
+    // data["colors"]["player"]["a"] = playerColor.a;
+
+    // std::ofstream f_out(config_filepath_);
+    // f_out << std::setw(2) << data << std::endl;
 }
 
 void Config::load_ui_texts(const std::string& base_path) {
@@ -154,7 +187,15 @@ void Config::load_ui_texts(const std::string& base_path) {
             victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
             game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
             pause_menu_title_ = data.value("/ui_text/pause_menu_title"_json_pointer, pause_menu_title_);
+            main_menu_title_ = data.value("/ui_text/main_menu_title"_json_pointer, main_menu_title_);
+            main_menu_instructions_ = data.value("/ui_text/main_menu_instructions"_json_pointer, main_menu_instructions_);
             pause_menu_instructions_ = data.value("/ui_text/pause_menu_instructions"_json_pointer, pause_menu_instructions_);
+            settings_menu_title_ = data.value("/ui_text/settings_menu_title"_json_pointer, settings_menu_title_);
+            settings_menu_instructions_ = data.value("/ui_text/settings_menu_instructions"_json_pointer, settings_menu_instructions_);
+            scoreboard_title_ = data.value("/ui_text/scoreboard_title"_json_pointer, scoreboard_title_);
+            scoreboard_instructions_ = data.value("/ui_text/scoreboard_instructions"_json_pointer, scoreboard_instructions_);
+            enter_name_prompt_ = data.value("/ui_text/enter_name_prompt"_json_pointer, enter_name_prompt_);
+            final_score_text_ = data.value("/ui_text/final_score_text"_json_pointer, final_score_text_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -163,6 +204,14 @@ void Config::load_ui_texts(const std::string& base_path) {
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
+
+            if (data.contains("player_color_choices")) {
+                // Clear the default choices before loading from the file to avoid duplicates.
+                if (!data.at("player_color_choices").is_null() && data.at("player_color_choices").is_array()) {
+                    player_color_choices_.clear();
+                }
+                player_color_choices_ = data.at("player_color_choices").get<std::vector<Color>>();
+            }
 
             // Prepend the base path to the font path if it's not absolute.
             // This makes the font path relative to the project root.
@@ -247,11 +296,12 @@ void Config::load_from_path(const std::string& filepath) {
 
         } catch (const std::exception& e) {
             std::cerr << "WARNING: Error parsing " << filepath << ": " << e.what() << ". Using default configuration." << std::endl;
-            load_defaults();
+            // Defaults are already loaded, so we just log the error.
         }
     } else {
         std::cerr << "WARNING: Failed to open config file: " << filepath << ". Using default configuration." << std::endl;
-        load_defaults();
+        // Defaults are already loaded. This is not a fatal error as long as
+        // the executable can run with the hardcoded values.
     }
 
     // Override screen dimensions with native resolution for fullscreen mode.
@@ -455,6 +505,14 @@ const std::string& Config::getPauseMenuTitle() const {
     return pause_menu_title_;
 }
 
+const std::string& Config::getMainMenuTitle() const {
+    return main_menu_title_;
+}
+
+const std::string& Config::getMainMenuInstructions() const {
+    return main_menu_instructions_;
+}
+
 const std::string& Config::getPauseMenuInstructions() const {
     return pause_menu_instructions_;
 }
@@ -497,4 +555,40 @@ int Config::getCooldownIndicatorRadius() const {
 
 Color Config::getCooldownIndicatorColor() const {
     return cooldown_indicator_color_;
+}
+
+const std::string& Config::getSettingsMenuTitle() const {
+    return settings_menu_title_;
+}
+
+const std::string& Config::getSettingsMenuInstructions() const {
+    return settings_menu_instructions_;
+}
+
+const std::string& Config::getScoreboardTitle() const {
+    return scoreboard_title_;
+}
+
+const std::string& Config::getScoreboardInstructions() const {
+    return scoreboard_instructions_;
+}
+
+const std::string& Config::getEnterNamePrompt() const {
+    return enter_name_prompt_;
+}
+
+const std::string& Config::getFinalScoreText() const {
+    return final_score_text_;
+}
+
+const std::vector<Color>& Config::getPlayerColorChoices() const {
+    return player_color_choices_;
+}
+
+void Config::setPlayerColor(const Color& color) {
+    playerColor = color;
+}
+
+void from_json(const json& j, std::vector<Color>& colors) {
+    for (const auto& item : j) { colors.push_back(item.get<Color>()); }
 }

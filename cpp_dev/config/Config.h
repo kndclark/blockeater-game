@@ -39,6 +39,11 @@ public:
     // optionally taking a root_path to locate assets.
     explicit Config(const std::string& root_path = "");
 
+    // @brief Saves the current player color to the config file.
+    // @deprecated This is deprecated. Config changes are not meant to be persisted to the original file.
+    // A separate user settings file would be a better approach for persistence.
+    void save() const;
+
     Color getPlayerColor() const;
     Color getObstacleColor(ObstacleType type) const;
     int getTargetFps() const;
@@ -86,24 +91,35 @@ public:
     const std::string& getVictoryText() const;
     const std::string& getGameOverInstructions() const;
     const std::string& getPauseMenuTitle() const;
+    const std::string& getMainMenuTitle() const;
+    const std::string& getMainMenuInstructions() const;
     const std::string& getPauseMenuInstructions() const;
+    const std::string& getSettingsMenuTitle() const;
+    const std::string& getSettingsMenuInstructions() const;
     const std::string& getLevelProgressSuffix() const;
+    const std::string& getScoreboardTitle() const;
+    const std::string& getScoreboardInstructions() const;
+    const std::string& getEnterNamePrompt() const;
+    const std::string& getFinalScoreText() const;
     const std::string& getDashReadyText() const;
     const std::string& getDashCooldownPrefix() const;
     const std::string& getDashCooldownSuffix() const;
     int getCooldownIndicatorRadius() const;
     Color getCooldownIndicatorColor() const;
+    const std::vector<Color>& getPlayerColorChoices() const;
+    void setPlayerColor(const Color& color);
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
     void load_levels(const std::string& filepath);
-
-private:
     void load_from_path(const std::string& filepath);
-    void load_ui_texts(const std::string& base_path);
     void load_defaults();
 
+private:
+    void load_ui_texts(const std::string& base_path);
+
     std::string root_path_;
+    std::string config_filepath_;
     Color playerColor;
     std::map<int, LevelConfig> level_configs_;
     std::map<ObstacleType, Color> obstacleColors;
@@ -156,8 +172,18 @@ private:
     std::string victory_text_;
     std::string game_over_instructions_;
     std::string pause_menu_title_;
+    std::string main_menu_title_;
+    std::string main_menu_instructions_;
     std::string pause_menu_instructions_;
+    std::string settings_menu_title_;
+    std::string settings_menu_instructions_;
+    std::string scoreboard_title_;
+    std::string scoreboard_instructions_;
+    std::string enter_name_prompt_;
+    std::string final_score_text_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;
+
+    std::vector<Color> player_color_choices_;
 };

@@ -8,6 +8,8 @@
 #include "../config/Config.h"
 #include "GameState.h"
 #include "GameLogic.h"
+#include "ScoreboardManager.h"
+#include "MenuManager.h"
 #include "Scoreboard.h"
 #include <sstream>
 #include "Player.h"
@@ -92,46 +94,96 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    bool app_is_running = true;
-    while (app_is_running) {
-        // Use a dedicated scope for game objects that depend on the config.
-        bool restart_requested = false;
-        // This ensures they are destroyed and re-created on restart.
-        {
-            // Seed for random numbers
-            srand(time(NULL));
- 
-            // --- Game State Setup --- (Use a unique_ptr to control lifetime)
-            auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
- 
-            // --- Main Game Loop ---
-            while (game_state->running) {
-                if (game_state->paused) {
-                    PauseMenuAction action = showPauseMenu(renderer.get(), config);
-                    handlePauseMenuAction(action, *game_state, restart_requested, app_is_running);
-                } else {
-                    handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
- 
-                    // Only check for victory if the game is still running after the update phase
-                    if (game_state->running) {
-                        checkVictoryCondition(*game_state);
+    // Create the scoreboard manager
+    ScoreboardManager scoreboard_manager(root_path + "data/scores.json");
+
+    AppStatus app_status = AppStatus::ShowingMainMenu;
+    while (app_status != AppStatus::Quitting) {
+        switch (app_status) {
+            case AppStatus::ShowingMainMenu: {
+                MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
+                switch (action) {
+                    case MainMenuAction::ShowScoreboard:
+                        app_status = AppStatus::ShowingScoreboard;
+                        break;
+                    case MainMenuAction::StartGame:
+                        app_status = AppStatus::Running;
+                        break;
+                    case MainMenuAction::Settings:
+                        app_status = AppStatus::ShowingSettingsMenu;
+                        break;
+                    case MainMenuAction::Quit:
+                        app_status = AppStatus::Quitting;
+                        break;
+                }
+                break;
+            }
+            case AppStatus::ShowingScoreboard: {
+                MenuManager::showScoreboard(renderer.get(), config, scoreboard_manager);
+                app_status = AppStatus::ShowingMainMenu; // Always return to main menu
+                break;
+            }
+            case AppStatus::ShowingSettingsMenu: {
+                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config);
+                switch (action) {
+                    case SettingsMenuAction::Back:
+                        app_status = AppStatus::ShowingMainMenu;
+                        break;
+                    case SettingsMenuAction::ToggleFullscreen: {
+                        // Check the current fullscreen state and toggle it.
+                        Uint32 flags = SDL_GetWindowFlags(window.get());
+                        bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+                        SDL_SetWindowFullscreen(window.get(), is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        break;
+                    }
+                    case SettingsMenuAction::ChangePlayerColor:
+                        // Color was changed, but we stay in the settings menu.
+                        // The loop will continue, re-rendering the menu.
+                        break;
+                }
+                break;
+            }
+            case AppStatus::Running: {
+                // Use a dedicated scope for game objects that depend on the config.
+                // This ensures they are destroyed and re-created on restart.
+                {
+                    // Seed for random numbers
+                    srand(time(NULL));
+        
+                    // --- Game State Setup --- (Use a unique_ptr to control lifetime)
+                    auto game_state = std::make_unique<GameState>(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+        
+                    // --- Main Game Loop ---
+                    while (game_state->running) {
+                        if (game_state->paused) {
+                            PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config);
+                            handlePauseMenuAction(action, *game_state, app_status);
+                        } else {
+                            handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
+        
+                            // Only check for victory if the game is still running after the update phase
+                            if (game_state->running) {
+                                checkVictoryCondition(*game_state);
+                            }
+                        }
+                    }
+                    // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
+                    if (app_status == AppStatus::Running) { // If not quitting or restarting
+                        // Display either the game over or victory screen, and wait for user action.
+                        GameOverAction action = MenuManager::showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText(), game_state->score, scoreboard_manager);
+                        handleGameOverAction(action, app_status);
                     }
                 }
+                break;
             }
-            // Only show the game over/victory screen if we haven't already decided to quit from the pause menu.
-            if (app_is_running && !restart_requested) {
-                // Display either the game over or victory screen, and wait for user action.
-                GameOverAction action = showGameOverScreen(renderer.get(), config, game_state->victory ? config.getVictoryText() : config.getGameOverText());
-
-                if (action == GameOverAction::Quit) {
-                    app_is_running = false;
-                } else if (action == GameOverAction::MainMenu) {
-                    // For now, main menu also quits.
-                    SDL_Log("Main Menu selected. Exiting for now.");
-                    app_is_running = false;
-                }
-                // If action is Restart, the outer while loop will simply continue, re-creating the GameState.
+            case AppStatus::Restarting: {
+                // Simply transition back to Running to start a new game loop.
+                app_status = AppStatus::Running;
+                break;
             }
+            case AppStatus::Quitting:
+                // Loop will terminate
+                break;
         }
     }
     } catch (const std::exception& e) {

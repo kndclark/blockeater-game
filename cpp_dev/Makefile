@@ -20,6 +20,12 @@ BIN = build/game
 
 all: $(BIN)
 
+debug_game:
+	g++ -g -Wall -Isrc -Ithird_party -I/usr/include/SDL2 -D_REENTRANT -o build/game src/*.cpp config/*.cpp -lSDL2 -lSDL2_ttf
+	gdb ./build/game
+
+release_game:
+
 test:
 	cmake -S test -B test/build
 	cmake --build test/build

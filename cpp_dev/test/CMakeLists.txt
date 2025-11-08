@@ -10,8 +10,9 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../src/*.cpp" "${CMAKE_CURRENT_SO
 set(TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/test_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gamelogic.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_game_over.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_menumanager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_gamestate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test_scoreboardmanager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_obstacle.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_player.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/test_collision.cpp
