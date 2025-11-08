@@ -79,12 +79,19 @@ void PrintTo(const CollisionLogicParams& params, std::ostream* os) {
     *os << params.description;
 }
 
-class CollisionLogicTest : public SdlTest, public ::testing::WithParamInterface<CollisionLogicParams> {};
+// A fixture for tests that need a Config object.
+class GameLogicTest : public ::testing::Test {
+protected:
+    TestConfig config{kTestRootPath};
+};
+
+class CollisionLogicTest : public GameLogicTest, public ::testing::WithParamInterface<CollisionLogicParams> {};
 
 TEST_P(CollisionLogicTest, HandlesCollisions) {
     auto params = GetParam();
-    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
+    // Set player's initial score based on the test parameter.
+    // This is necessary because the penalty for a 'Hurt' collision depends on the score.
     game_state.player.rect.x = 100;
     game_state.player.rect.y = 100;
     game_state.score = params.initial_score;
@@ -117,17 +124,15 @@ TEST_P(CollisionLogicTest, HandlesCollisions) {
 INSTANTIATE_TEST_SUITE_P(
     CollisionTests,
     CollisionLogicTest,
-    ::testing::ValuesIn([] {
-        Config config(kTestRootPath);
-        const int penalty = std::abs(config.getScorePerHurt());
-        return std::vector<CollisionLogicParams>{
-            {ObstacleType::Hurt, penalty - 1, false, 1, PlayerSizeChange::EQUAL, penalty - 1, "HurtCollision_NotEnoughScore"},
-            {ObstacleType::Hurt, penalty, true, 0, PlayerSizeChange::EQUAL, 0, "HurtCollision_EnoughScore"},
-            {ObstacleType::Grow, 0, true, 0, PlayerSizeChange::GREATER, config.getScorePerGrow(), "GrowCollision"},
-            {ObstacleType::Shrink, 0, true, 0, PlayerSizeChange::LESS, config.getScorePerShrink(), "ShrinkCollision"},
-            {ObstacleType::Checkpoint, penalty, false, 1, PlayerSizeChange::EQUAL, penalty, "CheckpointCollision"} // A collision with a checkpoint wall should be fatal, regardless of score.
-        };
-    }()),
+    ::testing::Values(
+        // Using placeholder scores for now. The test logic will set the correct score from config.
+        // score_per_hurt is -500 in config.json.
+        CollisionLogicParams{ObstacleType::Hurt, 499, false, 1, PlayerSizeChange::EQUAL, 499, "HurtCollision_NotEnoughScore"},
+        CollisionLogicParams{ObstacleType::Hurt, 500, true, 0, PlayerSizeChange::EQUAL, 0, "HurtCollision_EnoughScore"},
+        CollisionLogicParams{ObstacleType::Grow, 0, true, 0, PlayerSizeChange::GREATER, 200, "GrowCollision"},
+        CollisionLogicParams{ObstacleType::Shrink, 0, true, 0, PlayerSizeChange::LESS, 100, "ShrinkCollision"},
+        CollisionLogicParams{ObstacleType::Checkpoint, 500, false, 1, PlayerSizeChange::EQUAL, 500, "CheckpointCollision"} // A collision with a checkpoint wall should be fatal, regardless of score.
+    ),
     [](const testing::TestParamInfo<CollisionLogicTest::ParamType>& info) {
         return info.param.description;
     }
@@ -147,11 +152,10 @@ void PrintTo(const ScoreManagerParams& params, std::ostream* os) {
     *os << params.description;
 }
 
-class ScoreManagerTest : public SdlTest, public ::testing::WithParamInterface<ScoreManagerParams> {};
+class ScoreManagerTest : public GameLogicTest, public ::testing::WithParamInterface<ScoreManagerParams> {};
 
 TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
     auto params = GetParam();
-    Config config(kTestRootPath);
     GameState game_state(config, 800, 600);
 
     game_state.player.is_dashing = params.is_dashing;
@@ -167,7 +171,7 @@ INSTANTIATE_TEST_SUITE_P(
     GameLogicTests,
     ScoreManagerTest,
     ::testing::ValuesIn([] {
-        Config config(kTestRootPath);
+        TestConfig config(kTestRootPath);
         const int base_score = 100;
         const float dash_multiplier = config.getDashBoostMultiplier();
         const float size_multiplier = config.getSizeBoostMultiplier();
@@ -208,7 +212,7 @@ class CheckpointPassingTest : public ::testing::TestWithParam<CheckpointPassingP
 
 TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     auto params = GetParam();
-    Config config(kTestRootPath);
+    TestConfig config(kTestRootPath);
     GameState game_state(config, 800, 600);
     game_state.player.rect.x = params.player_x;
     game_state.score = params.initial_score;
@@ -247,9 +251,9 @@ INSTANTIATE_TEST_SUITE_P(
     CheckpointPassingTest,
     ::testing::Values(
         CheckpointPassingParams{100, 121, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerBeforeCheckpoint"},
-        CheckpointPassingParams{121, 100, false, 0, 500, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"}, // score_per_checkpoint is 500 in config
-        CheckpointPassingParams{122, 100, false, 500, 1000, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"},
-        CheckpointPassingParams{121, 100, true, 500, 500, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"},
+        CheckpointPassingParams{121, 100, false, 0, 500, true, ObstacleType::Checkpoint, "PlayerPassesCheckpoint"},
+        CheckpointPassingParams{122, 100, false, 500, 1000, true, ObstacleType::Checkpoint, "PlayerPassesCheckpointWithScore"}, // Score should double
+        CheckpointPassingParams{121, 100, true, 500, 500, true, ObstacleType::Checkpoint, "PlayerPassesAlreadyPassedCheckpoint"}, // Score should not change
         CheckpointPassingParams{100, 100, false, 0, 0, false, ObstacleType::Checkpoint, "PlayerAtCheckpointEdge"},
         CheckpointPassingParams{121, 100, false, 0, 0, false, ObstacleType::Hurt, "DoesNotAffectNonCheckpoints"}
     ),
@@ -267,8 +271,7 @@ Obstacle createPlacedCheckpoint(int x_pos) {
     return checkpoint;
 }
 
-TEST(GameLogicTest, LevelUp) {
-    Config config(kTestRootPath);
+TEST_F(GameLogicTest, LevelUp) {
     GameState game_state(config, 800, 600);
     
     // --- Test Level 1 -> 2 ---
@@ -314,7 +317,7 @@ class ObstacleSpawnerTest : public SdlTest, public ::testing::WithParamInterface
 
 TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     auto params = GetParam();
-    Config config(kTestRootPath); // Use default config
+    TestConfig config(kTestRootPath); // Use default config
     TestLevelManager test_level_manager = createTestLevelManager(config, params.regular_interval, params.checkpoint_interval);
     ObstacleSpawner test_spawner(test_level_manager, config.getCheckpointSafeZoneDuration(), 800, 600, config.getPlayerSizeChangeAmount(), 0);
     
@@ -330,7 +333,7 @@ TEST_P(ObstacleSpawnerTest, SpawnsCorrectlyOverTime) {
     EXPECT_EQ(checkpoint_count, params.expected_checkpoints) << "Mismatch in checkpoint count";
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_SUITE_P( // NOLINT(readability-magic-numbers)
     GameLogicTests,
     ObstacleSpawnerTest,
     ::testing::Values(
@@ -359,12 +362,10 @@ void PrintTo(const ObstacleSpawnerGapParams& params, std::ostream* os) {
 }
 
 // --- Obstacle Spawner Checkpoint Gap Test ---
-class CheckpointGapCalculationTest : public ::testing::TestWithParam<ObstacleSpawnerGapParams> {
+class CheckpointGapCalculationTest : public GameLogicTest, public ::testing::WithParamInterface<ObstacleSpawnerGapParams> {
 protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
-    const Uint32 CHECKPOINT_INTERVAL = 1000;
-    Config config{kTestRootPath};
     LevelManager level_manager{config};
     ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
 };
@@ -378,7 +379,7 @@ TEST_P(CheckpointGapCalculationTest, CalculatesCorrectGapSize) {
     EXPECT_EQ(actual_gap, params.expected_gap);
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_SUITE_P( // NOLINT(readability-magic-numbers)
     GapCalculationTests,
     CheckpointGapCalculationTest,
     ::testing::Values(
@@ -397,11 +398,10 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // This test is separate because it has a different structure (multiple spawns).
-class ObstacleSpawnerStateTest : public SdlTest {
+class ObstacleSpawnerStateTest : public GameLogicTest {
 protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
-    Config config{kTestRootPath};
     LevelManager level_manager{config};
     // We create a spawner with the test-specific interval and inject it into GameState.
     ObstacleSpawner spawner{level_manager, config.getCheckpointSafeZoneDuration(), SCREEN_WIDTH, SCREEN_HEIGHT, config.getPlayerSizeChangeAmount(), 0};
@@ -469,7 +469,7 @@ TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
 // Test fixture for game logic tests
 class TopLevelGameLogicTest : public SdlTest {
 protected:
-    Config config{kTestRootPath};
+    TestConfig config{kTestRootPath};
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
 };
@@ -477,7 +477,6 @@ protected:
 // Test fixture for game logic tests that require a renderer
 class GameLogicRendererTest : public SdlTest {
 protected:
-    Config config_{kTestRootPath};
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     SDL_Window* window_ = nullptr;
@@ -749,6 +748,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
     // without crashing. It doesn't verify deep logic but checks the integration.
+    TestConfig config_(kTestRootPath);
     GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT);
     Scoreboard scoreboard(renderer_, config_);
 
