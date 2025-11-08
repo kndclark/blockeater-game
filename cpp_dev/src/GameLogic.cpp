@@ -95,8 +95,8 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
         // The UI should display the size of the checkpoint that was just spawned.
         game_state.ui_next_checkpoint_gap_size = gap_height;
         game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
-        // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
-        last_spawn_time = current_time;
+        // Also reset the regular spawn timer to avoid spawning another obstacle immediately.
+        last_spawn_time = current_time; 
         return; // Return early to enforce the safe zone after a checkpoint.
     }
     // Check for regular obstacle spawns only if a checkpoint was not spawned.

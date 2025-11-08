@@ -538,27 +538,34 @@ TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
     EXPECT_FALSE(gameState.running);
 }
 
-TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
-    GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
+struct ResolutionParams {
+    int width;
+    int height;
+    std::string description;
+};
 
-    // 1. Spawn a checkpoint.
-    const Uint32 checkpoint_spawn_time = gameState.level_manager.getCheckpointInterval();
-    gameState.spawner.spawn_obstacles(checkpoint_spawn_time, gameState);
-    ASSERT_EQ(gameState.obstacles.size(), 1) << "A checkpoint should have been spawned.";
+void PrintTo(const ResolutionParams& params, std::ostream* os) {
+    *os << params.description;
+}
 
-    // 2. Simulate time passing and spawn a regular obstacle.
-    // The time must be after the checkpoint's safe zone and after the regular spawn interval.
-    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config_.getCheckpointSafeZoneDuration() + 1;
-    const Uint32 regular_spawn_time = checkpoint_spawn_time + gameState.level_manager.getSpawnInterval();
-    const Uint32 next_spawn_time = std::max(safe_zone_end_time, regular_spawn_time);
-    gameState.spawner.spawn_obstacles(next_spawn_time, gameState);
-    ASSERT_EQ(gameState.obstacles.size(), 2) << "A regular obstacle should have been spawned after the checkpoint.";
+class ResolutionIndependenceTest : public SdlTest, public ::testing::WithParamInterface<ResolutionParams> {
+protected:
+    Config config_{kTestRootPath};
+};
 
-    // Simulate the game loop for a few seconds (e.g., 200 frames).
-    const int num_frames_to_simulate = 200;
+TEST_P(ResolutionIndependenceTest, NoOverlapsAtDifferentResolutions) {
+    auto params = GetParam();
+    GameState gameState(config_, params.width, params.height);
+    const int frame_duration_ms = 16; // Simulate ~60 FPS
+
+    // Simulate the game loop for a few seconds to allow multiple obstacles to spawn.
+    const int num_frames_to_simulate = 1000;
     for (int i = 0; i < num_frames_to_simulate; ++i) {
+        Uint32 current_time = i * frame_duration_ms;
         // Update obstacle positions
         Obstacle::updateAndRemove(gameState.obstacles);
+        // Let the spawner decide when to create new obstacles.
+        gameState.spawner.spawn_obstacles(current_time, gameState);
 
         // Check for overlaps between all pairs of obstacles.
         if (gameState.obstacles.size() >= 2) {
@@ -568,13 +575,35 @@ TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
                     const auto& obs2 = gameState.obstacles[k];
 
                     // Check for intersection between the primary rects
-                    bool overlaps = SDL_HasIntersection(&obs1.rect, &obs2.rect);
-                    EXPECT_FALSE(overlaps) << "Obstacles overlap after " << i << " frames at x1=" << obs1.rect.x << ", x2=" << obs2.rect.x;
+                    bool overlaps = SDL_HasIntersection(&obs1.rect, &obs2.rect) ||
+                                    (obs1.rect2.has_value() && SDL_HasIntersection(&obs1.rect2.value(), &obs2.rect)) ||
+                                    (obs2.rect2.has_value() && SDL_HasIntersection(&obs1.rect, &obs2.rect2.value())) ||
+                                    (obs1.rect2.has_value() && obs2.rect2.has_value() && SDL_HasIntersection(&obs1.rect2.value(), &obs2.rect2.value()));
+
+                    if (overlaps) {
+                        // Provide a detailed failure message.
+                        FAIL() << "Obstacles overlap after " << i << " frames at resolution " << params.width << "x" << params.height
+                               << ". Obstacle 1 (type " << static_cast<int>(obs1.type) << ") at x=" << obs1.rect.x
+                               << ", Obstacle 2 (type " << static_cast<int>(obs2.type) << ") at x=" << obs2.rect.x;
+                    }
                 }
             }
         }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    ResolutionIndependenceTest,
+    ::testing::Values(
+        ResolutionParams{800, 600, "Res800x600"},
+        ResolutionParams{1920, 1080, "Res1920x1080"},
+        ResolutionParams{2560, 1600, "Res2560x1600"}
+    ),
+    [](const testing::TestParamInfo<ResolutionIndependenceTest::ParamType>& info) {
+        return info.param.description;
+    }
+);
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame) {
     GameState gameState(config_, config_.getLogicalScreenWidth(), config_.getLogicalScreenHeight());
