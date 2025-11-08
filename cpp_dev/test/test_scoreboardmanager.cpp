@@ -5,14 +5,16 @@
 
 class ScoreboardManagerTest : public ::testing::Test {
 protected:
-    const std::string test_filepath = "test_scores.json";
+    const std::string test_dir = "temp_test_data/";
+    const std::string test_filepath = test_dir + "scores.json";
 
     void SetUp() override {
-        std::remove(test_filepath.c_str());
+        // Create a temporary directory to simulate the 'data' folder
+        std::system(("mkdir -p " + test_dir).c_str());
     }
 
     void TearDown() override {
-        std::remove(test_filepath.c_str());
+        std::system(("rm -rf " + test_dir).c_str());
     }
 };
 
@@ -71,14 +73,24 @@ TEST_F(ScoreboardManagerTest, SavesAndLoadsScores) {
     EXPECT_EQ(scores[1].score, 10);
 }
 
-TEST_F(ScoreboardManagerTest, HandlesNonExistentFile) {
-    // The file "test_scores.json" is removed in TearDown, so it shouldn't exist here.
+TEST_F(ScoreboardManagerTest, CreatesFileOnAddIfNonExistent) {
+    // 1. Verify the file does not exist initially.
+    {
+        std::ifstream f(test_filepath);
+        ASSERT_FALSE(f.good());
+    }
+
+    // 2. Create a ScoreboardManager. It should be empty.
     ScoreboardManager sm(test_filepath);
     EXPECT_TRUE(sm.getScores().empty());
 
-    // Adding a score should still work and create the file.
+    // 3. Adding a score should work and create the file.
     sm.addScore("First", 100);
     EXPECT_EQ(sm.getScores().size(), 1);
+
+    // 4. Verify the file now exists.
+    std::ifstream f(test_filepath);
+    EXPECT_TRUE(f.good()) << "File " << test_filepath << " was not created.";
 }
 
 TEST_F(ScoreboardManagerTest, DoesNotAddZeroOrNegativeScores) {
