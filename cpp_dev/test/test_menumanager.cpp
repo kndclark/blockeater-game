@@ -5,36 +5,7 @@
 #include "../src/MenuManager.h"
 #include "../config/Config.h"
 #include "test_helpers.h"
-
-// Test fixture for tests that require a renderer.
-class MenuManagerTest : public ::testing::Test {
-protected:
-    struct SdlDeleter {
-        void operator()(SDL_Window* w) const { if (w) SDL_DestroyWindow(w); }
-        void operator()(SDL_Renderer* r) const { if (r) SDL_DestroyRenderer(r); }
-    };
-
-    std::unique_ptr<SDL_Window, SdlDeleter> window_;
-    std::unique_ptr<SDL_Renderer, SdlDeleter> renderer_;
-    Config config_{kTestRootPath};
-
-    void SetUp() override {
-        ASSERT_EQ(SDL_Init(SDL_INIT_VIDEO), 0);
-        ASSERT_EQ(TTF_Init(), 0);
-
-        window_.reset(SDL_CreateWindow("Test", 0, 0, 100, 100, SDL_WINDOW_HIDDEN));
-        ASSERT_NE(window_, nullptr);
-
-        renderer_.reset(SDL_CreateRenderer(window_.get(), -1, 0));
-        ASSERT_NE(renderer_, nullptr);
-    }
-
-    void TearDown() override {
-        // unique_ptr handles cleanup automatically.
-        TTF_Quit();
-        SDL_Quit();
-    }
-};
+#include "nlohmann/json.hpp"
 
 // --- Main Menu Tests ---
 
@@ -80,6 +51,15 @@ TEST_F(MenuManagerTest, MainMenuReturnsQuitOnEscape) {
     SDL_PushEvent(&escape_event);
 
     EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Quit);
+}
+
+TEST_F(MenuManagerTest, MainMenuReturnsSettingsOnE) {
+    SDL_Event e_event;
+    e_event.type = SDL_KEYDOWN;
+    e_event.key.keysym.sym = SDLK_e;
+    SDL_PushEvent(&e_event);
+
+    EXPECT_EQ(MenuManager::showMainMenu(renderer_.get(), config_), MainMenuAction::Settings);
 }
 
 // --- Pause Menu Tests ---
@@ -173,6 +153,49 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnQ) {
     EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
 }
 
+// --- Settings Menu Tests ---
+
+TEST_F(MenuManagerTest, SettingsMenuRendersAndReturnsBackOnQuitEvent) {
+    // Ensure the text is loaded from config
+    EXPECT_FALSE(config_.getSettingsMenuTitle().empty());
+    EXPECT_FALSE(config_.getSettingsMenuInstructions().empty());
+
+    // Run the screen function and ensure it doesn't crash and returns Back on SDL_QUIT
+    EXPECT_NO_THROW({
+        SDL_Event quit_event;
+        quit_event.type = SDL_QUIT;
+        SDL_PushEvent(&quit_event); // Push a quit event to exit the loop
+        EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+    });
+}
+
+TEST_F(MenuManagerTest, SettingsMenuReturnsBackOnB) {
+    SDL_Event b_event;
+    b_event.type = SDL_KEYDOWN;
+    b_event.key.keysym.sym = SDLK_b;
+    SDL_PushEvent(&b_event);
+
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+}
+
+TEST_F(MenuManagerTest, SettingsMenuReturnsBackOnEscape) {
+    SDL_Event escape_event;
+    escape_event.type = SDL_KEYDOWN;
+    escape_event.key.keysym.sym = SDLK_ESCAPE;
+    SDL_PushEvent(&escape_event);
+
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::Back);
+}
+
+TEST_F(MenuManagerTest, SettingsMenuReturnsToggleFullscreenOnT) {
+    SDL_Event t_event;
+    t_event.type = SDL_KEYDOWN;
+    t_event.key.keysym.sym = SDLK_t;
+    SDL_PushEvent(&t_event);
+
+    EXPECT_EQ(MenuManager::showSettingsMenu(renderer_.get(), config_), SettingsMenuAction::ToggleFullscreen);
+}
+
 TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
     const std::string message = "Test Message";
     SDL_Event escape_event;
@@ -181,4 +204,44 @@ TEST_F(MenuManagerTest, GameOverScreenReturnsQuitOnEscape) {
     SDL_PushEvent(&escape_event);
 
     EXPECT_EQ(MenuManager::showGameOverScreen(renderer_.get(), config_, message), GameOverAction::Quit);
+}
+
+TEST_F(MenuManagerTest, SettingsMenuCanChangeAndSavePlayerColor) {
+    // 1. Get the initial color from the test config file.
+    const Color initial_color = config_.getPlayerColor(); // Should be purple from config.json
+    const Color new_color = config_.getPlayerColorChoices()[1]; // The second choice is green
+
+    // The test will "change" the color from purple to green by selecting the second option.
+    ASSERT_NE(initial_color, new_color) << "The initial color should be different from the one we are changing to.";
+
+    // 2. Simulate user input to change the color.
+    // C to enter color picker, RETURN to confirm the default selection (0), B to go back.
+    SDL_Event c_event, enter_event, b_event;
+    c_event.type = enter_event.type = b_event.type = SDL_KEYDOWN;
+    c_event.key.keysym.sym = SDLK_c;
+    enter_event.key.keysym.sym = SDLK_RETURN;
+    b_event.key.keysym.sym = SDLK_b; // This event is just to exit the menu loop
+
+    SDL_Event right_event;
+    right_event.type = SDL_KEYDOWN;
+    right_event.key.keysym.sym = SDLK_RIGHT;
+
+    SDL_PushEvent(&c_event);
+    SDL_PushEvent(&right_event); // Move selection to the right once (to green)
+    SDL_PushEvent(&enter_event);
+    SDL_PushEvent(&b_event);
+
+    // Push a quit event to ensure the menu loop terminates in the test environment.
+    SDL_Event quit_event;
+    quit_event.type = SDL_QUIT;
+    SDL_PushEvent(&quit_event);
+
+    // 3. Run the settings menu. This modifies the in-memory config.
+    // The renderer is provided by the MenuManagerTest fixture.
+    MenuManager::showSettingsMenu(renderer_.get(), config_);
+
+    // 4. Verify the in-memory config object was updated.
+    Color final_color = config_.getPlayerColor();
+
+    EXPECT_EQ(final_color, new_color);
 }

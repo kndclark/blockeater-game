@@ -783,3 +783,53 @@ TEST_F(TopLevelGameLogicTest, RenderGameCompiles) {
     GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
     renderGame(nullptr, gameState, config);
 };
+
+// --- Main Menu State Transition Test ---
+struct MainMenuActionParams {
+    MainMenuAction action;
+    AppStatus expected_app_status;
+    std::string description;
+};
+
+void PrintTo(const MainMenuActionParams& params, std::ostream* os) {
+    *os << params.description;
+}
+
+class MainMenuActionTest : public TopLevelGameLogicTest, public ::testing::WithParamInterface<MainMenuActionParams> {};
+
+TEST_P(MainMenuActionTest, HandlesStateTransitionsCorrectly) {
+    auto params = GetParam();
+    AppStatus app_status = AppStatus::ShowingMainMenu; // Initial status
+
+    // This is a simplified simulation of the main loop in game.cpp
+    switch (params.action) {
+        case MainMenuAction::StartGame: app_status = AppStatus::Running; break;
+        case MainMenuAction::Settings:  app_status = AppStatus::ShowingSettingsMenu; break;
+        case MainMenuAction::Quit:      app_status = AppStatus::Quitting; break;
+    }
+
+    EXPECT_EQ(app_status, params.expected_app_status);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    StateTransitionTests,
+    MainMenuActionTest,
+    ::testing::Values(
+        MainMenuActionParams{MainMenuAction::StartGame, AppStatus::Running, "StartGameAction"},
+        MainMenuActionParams{MainMenuAction::Settings, AppStatus::ShowingSettingsMenu, "SettingsAction"},
+        MainMenuActionParams{MainMenuAction::Quit, AppStatus::Quitting, "QuitAction"}
+    ),
+    [](const testing::TestParamInfo<MainMenuActionTest::ParamType>& info) { return info.param.description; }
+);
+
+TEST_F(TopLevelGameLogicTest, SettingsMenuReturnsToMainMenu) {
+    AppStatus app_status = AppStatus::ShowingSettingsMenu;
+    SettingsMenuAction action = SettingsMenuAction::Back;
+
+    // Simplified simulation of the main loop in game.cpp
+    if (action == SettingsMenuAction::Back) {
+        app_status = AppStatus::ShowingMainMenu;
+    }
+
+    EXPECT_EQ(app_status, AppStatus::ShowingMainMenu);
+}

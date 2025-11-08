@@ -98,10 +98,36 @@ int main(int argc, char* argv[]) {
         switch (app_status) {
             case AppStatus::ShowingMainMenu: {
                 MainMenuAction action = MenuManager::showMainMenu(renderer.get(), config);
-                if (action == MainMenuAction::StartGame) {
-                    app_status = AppStatus::Running;
-                } else {
-                    app_status = AppStatus::Quitting;
+                switch (action) {
+                    case MainMenuAction::StartGame:
+                        app_status = AppStatus::Running;
+                        break;
+                    case MainMenuAction::Settings:
+                        app_status = AppStatus::ShowingSettingsMenu;
+                        break;
+                    case MainMenuAction::Quit:
+                        app_status = AppStatus::Quitting;
+                        break;
+                }
+                break;
+            }
+            case AppStatus::ShowingSettingsMenu: {
+                SettingsMenuAction action = MenuManager::showSettingsMenu(renderer.get(), config);
+                switch (action) {
+                    case SettingsMenuAction::Back:
+                        app_status = AppStatus::ShowingMainMenu;
+                        break;
+                    case SettingsMenuAction::ToggleFullscreen: {
+                        // Check the current fullscreen state and toggle it.
+                        Uint32 flags = SDL_GetWindowFlags(window.get());
+                        bool is_fullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+                        SDL_SetWindowFullscreen(window.get(), is_fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+                        break;
+                    }
+                    case SettingsMenuAction::ChangePlayerColor:
+                        // Color was changed, but we stay in the settings menu.
+                        // The loop will continue, re-rendering the menu.
+                        break;
                 }
                 break;
             }
