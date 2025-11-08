@@ -37,24 +37,24 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
+ 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev
-
+      # Install xvfb to create a virtual display for running SDL tests.
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev xvfb
+ 
     - name: Configure CMake
       # We run cmake from the test directory, as it contains the correct CMakeLists.txt
       run: cmake -S cpp_dev/test -B cpp_dev/test/build
-
+ 
     - name: Build
       run: cmake --build cpp_dev/test/build
-
+ 
     - name: Run tests
-      # Use a dummy video driver for SDL in a headless environment
-      env:
-        SDL_VIDEODRIVER: dummy
+      # Use xvfb-run to create a virtual display with a specific resolution.
+      # TODO: remove this once a robust solution for playing with configurable screen sizes is found.
       run: |
         cd cpp_dev/test/build
-        ctest --verbose
+        xvfb-run --server-args="-screen 0 2560x1600x24" ctest --verbose
 
   python-test:
     name: "Python Tests"
