@@ -37,6 +37,18 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
 
+  gitleaks:
+    name: "Gitleaks Secret Scan"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for gitleaks to scan the full repository history
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+
   # Note: The following jobs run in parallel with the CodeQL scan.
   # You could make them dependent on the scan if you prefer a sequential workflow.
   # For example:
