@@ -6,6 +6,40 @@ on:
   pull_request:
     branches: [ "main", "dev" ]
 jobs:
+  codeql:
+    name: "CodeQL Security Scan"
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # Required to upload CodeQL results
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+        # If you wish to specify a different query suite, add it here.
+        # queries: security-extended
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, Java, or Swift).
+    # If this step fails, you may need to replace it with custom build steps.
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  # Note: The following jobs run in parallel with the CodeQL scan.
+  # You could make them dependent on the scan if you prefer a sequential workflow.
+  # For example:
+  #   needs: codeql
+
   cpp-lint:
     name: "C++ Linter"
     runs-on: ubuntu-latest
