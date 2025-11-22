@@ -10,6 +10,7 @@ jobs:
     name: "CodeQL Security Scan"
     runs-on: ubuntu-latest
     permissions:
+      actions: read      # Required for the action to read workflow metadata
       contents: read      # Required to check out the code
       security-events: write # Required to upload CodeQL results
 
