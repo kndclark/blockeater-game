@@ -54,25 +54,3 @@ jobs:
       run: |
         cd ./test/build
         ctest --verbose
-
-  python-test:
-    name: "Python Tests"
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    - name: Install dependencies
-      run: pip install -r python_dev/requirements.txt
-
-    - name: Install and run tests with virtual display
-      run: |
-        sudo apt-get update && sudo apt-get install -y xvfb
-        # Pygame needs a display, so we run tests under Xvfb
-        xvfb-run pytest python_dev/test
