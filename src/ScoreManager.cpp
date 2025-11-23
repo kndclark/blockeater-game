@@ -6,7 +6,7 @@ ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameSt
     float final_score = static_cast<float>(base_score);
 
     // Apply dash boost if the player is currently dashing.
-    if (game_state.player.is_dashing) {
+    if (game_state.player.state == PlayerState::Dashing) {
         final_score *= config_.getDashBoostMultiplier();
         result.dash_boost_applied = true;
     }

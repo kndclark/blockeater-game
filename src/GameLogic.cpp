@@ -323,7 +323,7 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
         renderGame(renderer, game_state, config);
         scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
                            game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
-                           game_state.player.rect.w, game_state.player.on_cooldown, game_state.player.getDashCooldownRemaining());
+                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining());
         SDL_RenderPresent(renderer);
     }
 

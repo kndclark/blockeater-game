@@ -140,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --- ScoreManager Test ---
 struct ScoreManagerParams {
-    bool is_dashing;
+    PlayerState player_state;
     int player_width;
     int gap_size;
     int base_score;
@@ -158,7 +158,7 @@ TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
     auto params = GetParam();
     GameState game_state(config, 800, 600);
 
-    game_state.player.is_dashing = params.is_dashing;
+    game_state.player.state = params.player_state;
     game_state.player.rect.w = params.player_width;
     game_state.ui_next_checkpoint_gap_size = params.gap_size;
 
@@ -183,10 +183,10 @@ INSTANTIATE_TEST_SUITE_P(
         const int player_width_at_threshold = static_cast<int>(gap_size * (static_cast<float>(size_threshold_percent) / 100.0f) + 0.1f);
 
         return std::vector<ScoreManagerParams>{
-            {false, 40, gap_size, base_score, base_score, "NoBoosts"},
-            {true, 40, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
-            {false, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * size_multiplier), "SizeBoostOnly"},
-            {true, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * size_multiplier), "DashAndSizeBoost"}
+            {PlayerState::Ready, 40, gap_size, base_score, base_score, "NoBoosts"},
+            {PlayerState::Dashing, 40, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
+            {PlayerState::Ready, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * size_multiplier), "SizeBoostOnly"},
+            {PlayerState::Dashing, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * size_multiplier), "DashAndSizeBoost"}
         };
     }()),
     [](const testing::TestParamInfo<ScoreManagerTest::ParamType>& info) { return info.param.description; }
