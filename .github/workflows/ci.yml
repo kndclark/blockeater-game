@@ -68,6 +68,7 @@ jobs:
 
   cpp-lint:
     name: "C++ Linter"
+    needs: [codeql, gitleaks]
     runs-on: ubuntu-latest
 
     steps:
@@ -91,6 +92,7 @@ jobs:
 
   cpp-test:
     name: "C++ Tests"
+    needs: [codeql, gitleaks]
     runs-on: ubuntu-latest
 
     steps:
