@@ -10,7 +10,7 @@
     </a>
     <a href="https://trello.com/b/Lb3KjuAS/blockeater-game"><img src="https://img.shields.io/badge/Trello-board-blue.svg?logo=trello" alt="Trello Board"></a>
     <a href="#"><img src="https://img.shields.io/badge/status-work%20in%20progress-yellow.svg" alt="Status: Work in Progress"></a>
-    <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/github/license/kndclark/blockeater-game" alt="License: GPL v3"></a>
+    <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://github.com/kndclark/blockeater-game/blob/dev/LICENSE" alt="License: GPL v3"></a>
   </p>
 </p>
 
