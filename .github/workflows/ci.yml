@@ -23,17 +23,22 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: cpp
-        # If you wish to specify a different query suite, add it here.
+        # specify different query suites here
         # queries: security-extended
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y build-essential cmake libsdl2-dev libgtest-dev libsdl2-ttf-dev
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, Java, or Swift).
-    # If this step fails, you may need to replace it with custom build steps.
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+    - name: Build main project
+      # Build the main project so CodeQL can analyze it.
+      # This assumes a Makefile is in the root.
+      run: make
 
+    - name: Build tests
+      # Build the tests so CodeQL can analyze them.
+      run: |
+        cmake -S ./test -B ./test/build
+        cmake --build ./test/build
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
 
