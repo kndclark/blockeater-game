@@ -1,27 +1,13 @@
-<!-- markdownlint-disable MD033 -->
-<p align="center">
-  <h1 align="center">Blockeater Game</h1>
-  <p align="center">
-    A simple 2D game created with C++ and SDL2.
-  </p>
-  <p align="center">
-    <a href="https://github.com/kndclark/blockeater-game/actions/workflows/ci.yml">
-      <img src="https://github.com/kndclark/blockeater-game/actions/workflows/ci.yml/badge.svg" alt="Build and Test">
-    </a>
-    <a href="https://trello.com/b/Lb3KjuAS/blockeater-game"><img src="https://img.shields.io/badge/Trello-board-blue.svg?logo=trello" alt="Trello Board"></a>
-    <a href="#"><img src="https://img.shields.io/badge/status-work%20in%20progress-yellow.svg" alt="Status: Work in Progress"></a>
-    <a href="https://www.gnu.org/licenses/gpl-3.0"><img src="https://img.shields.io/github/license/kndclark/blockeater-game" alt="License: GPL v3"></a>
-  </p>
-</p>
+# Blockeater Game
 
-> [!NOTE]
-> This project is a **work in progress**. Features may be incomplete or subject to change. Contributions are welcome!
+A simple 2D game created with C++ and SDL2.
+
+[![Build and Test](https://github.com/kndclark/blockeater-game/actions/workflows/ci.yml/badge.svg)](https://github.com/kndclark/blockeater-game/actions/workflows/ci.yml) [![Trello Board](https://img.shields.io/badge/Trello-board-blue.svg?logo=trello)](https://trello.com/b/Lb3KjuAS/blockeater-game) [![Status: Work in Progress](https://img.shields.io/badge/status-work%20in%20progress-yellow.svg)](https://github.com/kndclark/blockeater-game) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 <!-- TODO: Add a screenshot or GIF of the gameplay -->
-<!-- <p align="center">
-  <img src="docs/gameplay.gif" alt="Blockeater Gameplay" width="600"/>
-</p> -->
+<!-- ![Blockeater Gameplay](docs/gameplay.gif) -->
 
+> This project is a **work in progress**. Features may be incomplete or subject to change. Contributions are welcome!
 ## About The Game
 
 Blockeater is a 2D arcade-style game where the player controls a character to consume blocks that appear on the screen.
