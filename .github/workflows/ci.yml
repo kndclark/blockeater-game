@@ -40,6 +40,10 @@ jobs:
   gitleaks:
     name: "Gitleaks Secret Scan"
     runs-on: ubuntu-latest
+    permissions:
+      contents: read          # Required to check out the code
+      pull-requests: read     # Required for Gitleaks to analyze PRs
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
