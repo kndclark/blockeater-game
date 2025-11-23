@@ -1,38 +1,81 @@
 #include "Player.h"
 
 Player::Player(int x, int y, int w, int h, int s, Color c, float dash_mult, Uint32 dash_dur, Uint32 dash_cd)
-    : rect{x, y, w, h}, speed(s), color(c), default_w(w), default_h(h),
+    : rect{x, y, w, h}, speed(s), color(c),
+      default_w(w), default_h(h),
       dash_speed_multiplier(dash_mult),
       dash_duration_ms(dash_dur),
       dash_cooldown_ms(dash_cd)
 {}
 
 void Player::update(Uint32 current_time) {
-    // End the dash after its duration has passed
-    if (is_dashing && (current_time - dash_start_time >= dash_duration_ms)) {
-        is_dashing = false;
-        on_cooldown = true;
-        dash_cooldown_start_time = current_time;
+    switch (state) {
+        case PlayerState::Ready:
+            updateReady(current_time);
+            break;
+        case PlayerState::Dashing:
+            updateDashing(current_time);
+            break;
+        case PlayerState::Cooldown:
+            updateCooldown(current_time);
+            break;
     }
-    // End the cooldown after its duration has passed
-    if (on_cooldown && (current_time - dash_cooldown_start_time >= dash_cooldown_ms)) {
-        on_cooldown = false;
+
+    update_ghosts(current_time);
+}
+
+void Player::updateReady(Uint32 current_time) {
+    // Nothing to do in the Ready state for now.
+}
+
+void Player::updateDashing(Uint32 current_time) {
+    if (current_time - dash_start_time >= dash_duration_ms) {
+        state = PlayerState::Cooldown;
+        dash_cooldown_start_time = current_time;
+        ghosts.clear(); // Clear any remaining ghosts when dash ends
+    }
+}
+
+void Player::updateCooldown(Uint32 current_time) {
+    if (current_time - dash_cooldown_start_time >= dash_cooldown_ms) {
+        state = PlayerState::Ready;
+    }
+}
+
+void Player::update_ghosts(Uint32 current_time) {
+    // Spawn new ghosts if dashing
+    if (state == PlayerState::Dashing && (current_time - last_ghost_spawn_time > GHOST_SPAWN_INTERVAL_MS)) {
+        ghosts.push_back({rect, current_time});
+        last_ghost_spawn_time = current_time;
+    }
+
+    // Remove old ghosts that have faded out
+    ghosts.erase(
+        std::remove_if(ghosts.begin(), ghosts.end(), [current_time](const Ghost& g) {
+            return current_time - g.creation_time > GHOST_LIFETIME_MS;
+        }),
+        ghosts.end()
+    );
+
+    // If not dashing, ensure ghosts fade out and are eventually cleared.
+    if (state != PlayerState::Dashing && ghosts.empty()) {
+        // All ghosts have faded out, nothing more to do.
     }
 }
 
 void Player::handle_input(const Uint8* keystate, int screen_width, int screen_height) {
     // Check for dash input. Can't dash if already dashing or on cooldown.
-    if ((keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]) && !is_dashing && !on_cooldown) {
-        is_dashing = true;
+    if ((keystate[SDL_SCANCODE_LSHIFT] || keystate[SDL_SCANCODE_RSHIFT]) && state == PlayerState::Ready) {
+        state = PlayerState::Dashing;
         dash_start_time = SDL_GetTicks();
     }
 
-    float current_speed = is_dashing ? static_cast<float>(speed) * dash_speed_multiplier : static_cast<float>(speed);
+    float current_speed = (state == PlayerState::Dashing) ? static_cast<float>(speed) * dash_speed_multiplier : static_cast<float>(speed);
 
     bool any_direction_pressed = keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_RIGHT] ||
                                  keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_DOWN];
 
-    if (is_dashing && !any_direction_pressed) {
+    if (state == PlayerState::Dashing && !any_direction_pressed) {
         // If dashing with no directional input, move forward.
         rect.x += static_cast<int>(current_speed);
     }
@@ -50,6 +93,21 @@ void Player::handle_input(const Uint8* keystate, int screen_width, int screen_he
 
 void Player::draw(SDL_Renderer* renderer) const {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+    // --- Draw Ghosts ---
+    if (!ghosts.empty()) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // Enable alpha blending
+        Uint32 current_time = SDL_GetTicks();
+        for (const auto& ghost : ghosts) {
+            float age_ratio = static_cast<float>(current_time - ghost.creation_time) / GHOST_LIFETIME_MS;
+            Uint8 alpha = static_cast<Uint8>(GHOST_INITIAL_ALPHA * (1.0f - std::min(1.0f, age_ratio)));
+            SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
+            SDL_RenderFillRect(renderer, &ghost.rect);
+        }
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE); // Disable alpha blending
+    }
+
+    // --- Draw Player ---
     SDL_RenderFillRect(renderer, &rect);
 }
 
@@ -69,7 +127,7 @@ void Player::resetSize() {
 }
 
 Uint32 Player::getDashCooldownRemaining() const {
-    if (!on_cooldown) {
+    if (state != PlayerState::Cooldown) {
         return 0;
     }
     Uint32 elapsed = SDL_GetTicks() - dash_cooldown_start_time;
