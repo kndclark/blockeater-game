@@ -173,20 +173,32 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn([] {
         TestConfig config(kTestRootPath);
         const int base_score = 100;
-        const float dash_multiplier = config.getDashBoostMultiplier();
-        const float size_multiplier = config.getSizeBoostMultiplier();
-        const int size_threshold_percent = config.getSizeBoostThreshold();
-
-        // Calculate player width needed to be exactly at the threshold for a gap of 200
         const int gap_size = 200;
-        // Add a small epsilon to ensure floating point comparison works as expected.
-        const int player_width_at_threshold = static_cast<int>(gap_size * (static_cast<float>(size_threshold_percent) / 100.0f) + 0.1f);
+        const float dash_multiplier = config.getDashBoostMultiplier();
+        const auto& tiers = config.getSizeBoostTiers();
+
+        // Assuming tiers are sorted descending by threshold in config
+        const float perfect_mult = tiers[0].multiplier; // 80%
+        const float great_mult = tiers[1].multiplier;     // 50%
+        const float good_mult = tiers[2].multiplier;      // 30%
+
+        // Player widths to hit each tier for a gap of 200
+        const int width_no_boost = static_cast<int>(gap_size * 0.29f); // 29%
+        const int width_good_boost = static_cast<int>(gap_size * 0.30f); // 30%
+        const int width_great_boost = static_cast<int>(gap_size * 0.50f); // 50%
+        const int width_perfect_boost = static_cast<int>(gap_size * 0.80f); // 80%
 
         return std::vector<ScoreManagerParams>{
-            {PlayerState::Ready, 40, gap_size, base_score, base_score, "NoBoosts"},
-            {PlayerState::Dashing, 40, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
-            {PlayerState::Ready, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * size_multiplier), "SizeBoostOnly"},
-            {PlayerState::Dashing, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * size_multiplier), "DashAndSizeBoost"}
+            {PlayerState::Ready, width_no_boost, gap_size, base_score, base_score, "NoBoosts"},
+            {PlayerState::Dashing, width_no_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
+
+            {PlayerState::Ready, width_good_boost, gap_size, base_score, static_cast<int>(base_score * good_mult), "GoodSizeBoost"},
+            {PlayerState::Ready, width_great_boost, gap_size, base_score, static_cast<int>(base_score * great_mult), "GreatSizeBoost"},
+            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, static_cast<int>(base_score * perfect_mult), "PerfectSizeBoost"},
+
+            {PlayerState::Dashing, width_good_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * good_mult), "DashAndGoodSizeBoost"},
+            {PlayerState::Dashing, width_great_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * great_mult), "DashAndGreatSizeBoost"},
+            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * perfect_mult), "DashAndPerfectSizeBoost"}
         };
     }()),
     [](const testing::TestParamInfo<ScoreManagerTest::ParamType>& info) { return info.param.description; }

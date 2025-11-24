@@ -31,6 +31,12 @@ struct ObstacleConfig {
     int checkpoint_points;
 };
 
+/// @brief Holds configuration for a single tier of the size-based score boost.
+struct SizeBoostTier {
+    int threshold_percent;
+    float multiplier;
+};
+
 
 
 class Config {
@@ -69,7 +75,6 @@ public:
     ObstacleSize getShrinkDimensions() const;
     float getDashBoostMultiplier() const;
     int getSizeBoostThreshold() const;
-    float getSizeBoostMultiplier() const;
     ObstacleSize getHurtDimensions() const;
     int getPlayerInitialX() const;
     int getPlayerWidth() const;
@@ -108,6 +113,7 @@ public:
     Color getCooldownIndicatorColor() const;
     const std::vector<Color>& getPlayerColorChoices() const;
     void setPlayerColor(const Color& color);
+    const std::vector<SizeBoostTier>& getSizeBoostTiers() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -135,8 +141,7 @@ private:
     int score_per_shrink;
     int score_per_hurt;
     float dash_boost_multiplier_;
-    int size_boost_threshold_;
-    float size_boost_multiplier_;
+    std::vector<SizeBoostTier> size_boost_tiers_;
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;

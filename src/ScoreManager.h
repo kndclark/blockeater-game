@@ -4,10 +4,17 @@
 
 struct GameState; // Forward declaration to break include cycle
 
+enum class SizeBoostLevel {
+    None,
+    Good,
+    Great,
+    Perfect
+};
+
 struct ScoreCalculationResult {
     int score;
     bool dash_boost_applied = false;
-    bool size_boost_applied = false;
+    SizeBoostLevel size_boost_level = SizeBoostLevel::None;
 };
 
 class ScoreManager {

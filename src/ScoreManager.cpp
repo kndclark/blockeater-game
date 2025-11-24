@@ -13,10 +13,18 @@ ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameSt
 
     // Apply size boost if the player's width is a certain percentage of the upcoming gap size.
     if (game_state.ui_next_checkpoint_gap_size > 0) {
-        float size_percentage = (static_cast<float>(game_state.player.rect.w) / game_state.ui_next_checkpoint_gap_size) * 100.0f;
-        if (size_percentage >= config_.getSizeBoostThreshold()) {
-            final_score *= config_.getSizeBoostMultiplier();
-            result.size_boost_applied = true;
+        const float size_percentage = (static_cast<float>(game_state.player.rect.w) / game_state.ui_next_checkpoint_gap_size) * 100.0f;
+        const auto& tiers = config_.getSizeBoostTiers();
+
+        // Tiers should be sorted by threshold descending. Find the first tier the player qualifies for.
+        auto tier_it = std::find_if(tiers.cbegin(), tiers.cend(), [size_percentage](const auto& tier) {
+            return size_percentage >= tier.threshold_percent;
+        });
+
+        if (tier_it != tiers.cend()) {
+            final_score *= tier_it->multiplier;
+            // This assumes 3 tiers: Perfect, Great, Good.
+            result.size_boost_level = static_cast<SizeBoostLevel>(std::distance(tiers.cbegin(), tier_it) + 1);
         }
     }
 

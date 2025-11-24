@@ -194,20 +194,40 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // --- Obstacle Placement Test ---
-// Test to ensure obstacles are not placed inside the safe gap.
-TEST(ObstaclePlacementTest, CalculateSafeY_AvoidsGap) {
+// Test to ensure regular obstacles are NOT placed inside a checkpoint's gap.
+TEST(ObstaclePlacementTest, CalculateSafeY_RegularObstacleAvoidsCheckpointGap) {
     const int screen_height = 600;
     const int obstacle_height = 50;
-    // Checkpoint with a gap from y=200 to y=400. The walls are forbidden.
-    std::vector<Obstacle> nearby_obstacles = { Obstacle({0, 0, 10, 200}, {0, 400, 10, 200}, 1, 0) };
+    const int clearance = 50; // from calculateSafeY
+
+    // Checkpoint with a gap from y=250 to y=400.
+    // The gap itself is 150px. The new obstacle (50px) should fit outside it.
+    std::vector<Obstacle> nearby_obstacles = { Obstacle({0, 0, 10, 250}, {0, 400, 10, 200}, 1, 0) };
 
     const int num_trials = 1000;
     for (int i = 0; i < num_trials; ++i) {
-        int y = Obstacle::calculateSafeY(screen_height, obstacle_height, nearby_obstacles);
-        // The forbidden zones are the walls [0, 200] and [400, 600].
-        // The new obstacle must not overlap with them.
-        EXPECT_FALSE((y < 200 && y + obstacle_height > 0) || (y < 600 && y + obstacle_height > 400))
-            << "Obstacle at y=" << y << " overlaps with checkpoint walls.";
+        // We are placing a regular obstacle, so gap_height is nullopt.
+        int y = Obstacle::calculateSafeY(screen_height, obstacle_height, nearby_obstacles, std::nullopt);
+
+        // The gap is from y=250 to y=400. The new obstacle should NOT be placed here.
+        bool is_in_gap = (y >= 250 && (y + obstacle_height) <= 400);
+        if (is_in_gap) {
+            // If the test fails, print detailed debug information.
+            ADD_FAILURE() << "Obstacle at y=" << y << " was placed inside the checkpoint gap [250, 400].\n"
+                          << "This likely means calculateSafeY() found no valid safe zones and used its fallback.\n"
+                          << "Let's debug the zones:\n"
+                          << "Screen Height: " << screen_height << ", Obstacle Height: " << obstacle_height << ", Clearance: " << clearance << "\n"
+                          << "Nearby Obstacle (Checkpoint): Top Wall [y=0, h=250], Bottom Wall [y=400, h=200]\n"
+                          << "--- Zone Calculation Trace ---\n"
+                          << "Initial Forbidden Zones (from checkpoint walls): {0, 250}, {400, 200}\n"
+                          << "Forbidden Zone added for Checkpoint Gap (since we're placing a regular obstacle): {250, 150}\n"
+                          << "Forbidden Zones with Clearance: {0, 300}, {200, 250}, {350, 600}\n"
+                          << "Merged Forbidden Zones: {0, 600} (This is likely the problem! The zones are merging into one giant zone).\n"
+                          << "Resulting Safe Zones: EMPTY\n";
+            // Fail fast on the first error to avoid spamming the log.
+            break;
+        }
+        EXPECT_FALSE(is_in_gap);
     }
 }
 

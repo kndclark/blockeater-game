@@ -22,6 +22,11 @@ void from_json(const json& j, ObstacleSize& dims) {
     j.at("h").get_to(dims.h);
 }
 
+void from_json(const json& j, SizeBoostTier& tier) {
+    j.at("threshold_percent").get_to(tier.threshold_percent);
+    j.at("multiplier").get_to(tier.multiplier);
+}
+
 // Helper to parse LevelConfig from json. `value()` is used for optional fields.
 void from_json(const json& j, LevelConfig& lc) {
     if (j.contains("spawn_interval_ms")) {
@@ -111,6 +116,12 @@ void Config::load_defaults() {
     settings_menu_instructions_ = "C = Change Color | T = Toggle Fullscreen | B = Back";
     scoreboard_title_ = "Scoreboard";
     scoreboard_instructions_ = "B = Back to Menu";
+    size_boost_tiers_ = {
+        {80, 2.0f}, // Perfect
+        {50, 1.5f}, // Great
+        {30, 1.2f}  // Good
+    };
+
     enter_name_prompt_ = "Enter Your Name:";
     final_score_text_ = "Final Score: ";
     player_color_choices_ = {
@@ -272,8 +283,7 @@ void Config::load_from_path(const std::string& filepath) {
             score_per_grow = data.value("/game/score_per_grow"_json_pointer, 200);
             score_per_shrink = data.value("/game/score_per_shrink"_json_pointer, 100);
             dash_boost_multiplier_ = data.value("/game/score_boosts/dash_multiplier"_json_pointer, 1.0f);
-            size_boost_threshold_ = data.value("/game/score_boosts/size_threshold_percent"_json_pointer, 80);
-            size_boost_multiplier_ = data.value("/game/score_boosts/size_multiplier"_json_pointer, 1.0f);
+            size_boost_tiers_ = data.value("/game/score_boosts/tiers"_json_pointer, size_boost_tiers_);
             score_per_hurt = data.value("/game/score_per_hurt"_json_pointer, -500);
             checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
             obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
@@ -410,14 +420,6 @@ int Config::getScorePerHurt() const {
 
 float Config::getDashBoostMultiplier() const {
     return dash_boost_multiplier_;
-}
-
-int Config::getSizeBoostThreshold() const {
-    return size_boost_threshold_;
-}
-
-float Config::getSizeBoostMultiplier() const {
-    return size_boost_multiplier_;
 }
 
 ObstacleConfig Config::getObstacleConfig() const {
@@ -591,4 +593,8 @@ void Config::setPlayerColor(const Color& color) {
 
 void from_json(const json& j, std::vector<Color>& colors) {
     for (const auto& item : j) { colors.push_back(item.get<Color>()); }
+}
+
+const std::vector<SizeBoostTier>& Config::getSizeBoostTiers() const {
+    return size_boost_tiers_;
 }
