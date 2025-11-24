@@ -275,10 +275,10 @@ TEST_F(GameLogicTest, LevelUp) {
     GameState game_state(config, 800, 600);
     
     // --- Test Level 1 -> 2 ---
-    const int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
-    game_state.checkpoints_passed_in_level = checkpoints_for_lvl1 - 1;
+    // From levels.json, level 1 requires 5 checkpoints. Set state to 4 passed.
+    game_state.checkpoints_passed_in_level = 4;
 
-    // Pass a checkpoint. This should trigger a level up to 2.
+    // Pass one more checkpoint. This should trigger a level up to 2.
     Obstacle checkpoint1 = createPlacedCheckpoint(50); // Place it behind the player
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
     
