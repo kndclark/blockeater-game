@@ -6,6 +6,7 @@
 #include <map>
 #include "../src/Color.h"
 #include "../src/Obstacle.h" // For ObstacleType, and dimension structs
+#include "../src/Enums.h" // For SizeBoostLevel
 
 /// @brief Holds configuration that can be overridden on a per-level basis.
 struct LevelConfig {
@@ -113,6 +114,7 @@ public:
     Color getCooldownIndicatorColor() const;
     const std::vector<Color>& getPlayerColorChoices() const;
     void setPlayerColor(const Color& color);
+    const std::string& getSizeBoostText(SizeBoostLevel level) const;
     const std::vector<SizeBoostTier>& getSizeBoostTiers() const;
     const LevelConfig* getLevelConfig(int level) const;
 
@@ -186,6 +188,9 @@ private:
     std::string scoreboard_instructions_;
     std::string enter_name_prompt_;
     std::string final_score_text_;
+    std::string size_boost_good_text_;
+    std::string size_boost_great_text_;
+    std::string size_boost_perfect_text_;
     std::string font_path_;
     Color ui_text_color_;
     int font_size_;

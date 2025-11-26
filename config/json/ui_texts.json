@@ -31,6 +31,9 @@
         "scoreboard_title": "Scoreboard",
         "scoreboard_instructions": "B = Back to Menu",
         "enter_name_prompt": "Enter Your Name:",
-        "final_score_text": "Final Score: "
+        "final_score_text": "Final Score: ",
+        "size_boost_good_text": "Good size boost!",
+        "size_boost_great_text": "Great size boost!",
+        "size_boost_perfect_text": "Perfect size boost!"
     }
 }

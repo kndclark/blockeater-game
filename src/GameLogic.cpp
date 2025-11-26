@@ -21,31 +21,21 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
         }
         case ObstacleType::Grow:
         {
-            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state, it->type);
             game_state.score += score_result.score;
             game_state.player.grow(game_state.config.getPlayerSizeChangeAmount());
             std::string log_message = "Collision with Grow obstacle! Player grows.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
-            if (score_result.size_boost_level != SizeBoostLevel::None) {
-                if (score_result.size_boost_level == SizeBoostLevel::Perfect) log_message += "Perfect size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Great) log_message += "Great size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Good) log_message += "Good size boost!";
-            }
             SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
         }
         case ObstacleType::Shrink:
         {
-            auto score_result = game_state.score_manager.calculateScore(it->points, game_state);
+            auto score_result = game_state.score_manager.calculateScore(it->points, game_state, it->type);
             game_state.score += score_result.score;
             game_state.player.shrink(game_state.config.getPlayerSizeChangeAmount());
             std::string log_message = "Collision with Shrink obstacle! Player shrinks.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
-            if (score_result.size_boost_level != SizeBoostLevel::None) {
-                if (score_result.size_boost_level == SizeBoostLevel::Perfect) log_message += "Perfect size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Great) log_message += "Great size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Good) log_message += "Good size boost!";
-            }
             SDL_Log("%s", log_message.c_str());
             return obstacles.erase(it); // Erase and get next valid iterator
         }
@@ -136,7 +126,7 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
         // Check if the player's front has passed the obstacle's back
         if (player.rect.x > obstacle.rect.x + obstacle.rect.w) {
             obstacle.passed = true;
-            auto score_result = game_state.score_manager.calculateScore(game_state.config.getScorePerCheckpoint(), game_state);
+            auto score_result = game_state.score_manager.calculateScore(game_state.config.getScorePerCheckpoint(), game_state, ObstacleType::Checkpoint);
             game_state.score += score_result.score;
             game_state.checkpoints_passed_in_level++;
             game_state.checkpoints_passed++;
@@ -151,9 +141,7 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
             std::string log_message = "Checkpoint passed! Player size reset.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
             if (score_result.size_boost_level != SizeBoostLevel::None) {
-                if (score_result.size_boost_level == SizeBoostLevel::Perfect) log_message += "Perfect size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Great) log_message += "Great size boost!";
-                else if (score_result.size_boost_level == SizeBoostLevel::Good) log_message += "Good size boost!";
+                log_message += " " + game_state.config.getSizeBoostText(score_result.size_boost_level);
             }
             SDL_Log("%s Score: %d. Level: %d. Checkpoints: %d.", log_message.c_str(), game_state.score, game_state.level, game_state.checkpoints_passed);
         }

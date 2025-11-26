@@ -1,15 +1,10 @@
 #pragma once
 
-#include "../config/Config.h"
+#include "Enums.h"
+#include "Obstacle.h" // For ObstacleType
 
+class Config; // Forward declaration
 struct GameState; // Forward declaration to break include cycle
-
-enum class SizeBoostLevel {
-    None,
-    Good,
-    Great,
-    Perfect
-};
 
 struct ScoreCalculationResult {
     int score;
@@ -21,7 +16,7 @@ class ScoreManager {
 public:
     explicit ScoreManager(const Config& config) : config_(config) {}
 
-    ScoreCalculationResult calculateScore(int base_score, const GameState& game_state) const;
+    ScoreCalculationResult calculateScore(int base_score, const GameState& game_state, ObstacleType obstacle_type) const;
     bool applyPenalty(int& score, int penalty) const;
 
 private:

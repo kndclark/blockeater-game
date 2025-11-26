@@ -1,7 +1,9 @@
 #include "ScoreManager.h"
 #include "GameState.h"
+#include "../config/Config.h"
+#include "Obstacle.h"
 
-ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameState& game_state) const {
+ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameState& game_state, ObstacleType obstacle_type) const {
     ScoreCalculationResult result;
     float final_score = static_cast<float>(base_score);
 
@@ -11,8 +13,8 @@ ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameSt
         result.dash_boost_applied = true;
     }
 
-    // Apply size boost if the player's width is a certain percentage of the upcoming gap size.
-    if (game_state.ui_next_checkpoint_gap_size > 0) {
+    // Apply size boost ONLY for checkpoints, based on the player's width as a percentage of the upcoming gap size.
+    if (obstacle_type == ObstacleType::Checkpoint && game_state.ui_next_checkpoint_gap_size > 0) {
         const float size_percentage = (static_cast<float>(game_state.player.rect.w) / game_state.ui_next_checkpoint_gap_size) * 100.0f;
         const auto& tiers = config_.getSizeBoostTiers();
 

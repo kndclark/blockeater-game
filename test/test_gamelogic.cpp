@@ -144,6 +144,7 @@ struct ScoreManagerParams {
     int player_width;
     int gap_size;
     int base_score;
+    ObstacleType obstacle_type; // To distinguish between regular and checkpoint scoring
     int expected_score;
     std::string description;
 };
@@ -162,7 +163,7 @@ TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
     game_state.player.rect.w = params.player_width;
     game_state.ui_next_checkpoint_gap_size = params.gap_size;
 
-    int final_score = game_state.score_manager.calculateScore(params.base_score, game_state).score;
+    int final_score = game_state.score_manager.calculateScore(params.base_score, game_state, params.obstacle_type).score;
 
     EXPECT_EQ(final_score, params.expected_score);
 }
@@ -189,16 +190,16 @@ INSTANTIATE_TEST_SUITE_P(
         const int width_perfect_boost = static_cast<int>(gap_size * 0.80f); // 80%
 
         return std::vector<ScoreManagerParams>{
-            {PlayerState::Ready, width_no_boost, gap_size, base_score, base_score, "NoBoosts"},
-            {PlayerState::Dashing, width_no_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
-
-            {PlayerState::Ready, width_good_boost, gap_size, base_score, static_cast<int>(base_score * good_mult), "GoodSizeBoost"},
-            {PlayerState::Ready, width_great_boost, gap_size, base_score, static_cast<int>(base_score * great_mult), "GreatSizeBoost"},
-            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, static_cast<int>(base_score * perfect_mult), "PerfectSizeBoost"},
-
-            {PlayerState::Dashing, width_good_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * good_mult), "DashAndGoodSizeBoost"},
-            {PlayerState::Dashing, width_great_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * great_mult), "DashAndGreatSizeBoost"},
-            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * perfect_mult), "DashAndPerfectSizeBoost"}
+            {PlayerState::Ready, width_no_boost, gap_size, base_score, ObstacleType::Checkpoint, base_score, "NoBoosts"},
+            {PlayerState::Dashing, width_no_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
+            // Size boosts should NOT apply for Grow/Shrink obstacles
+            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, ObstacleType::Grow, base_score, "NoSizeBoostOnGrow"},
+            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, ObstacleType::Shrink, static_cast<int>(base_score * dash_multiplier), "NoSizeBoostOnShrink_DashOnly"},
+            // Size boosts should apply for Checkpoints
+            {PlayerState::Ready, width_good_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * good_mult), "GoodSizeBoostOnCheckpoint"},
+            {PlayerState::Ready, width_great_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * great_mult), "GreatSizeBoostOnCheckpoint"},
+            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * perfect_mult), "PerfectSizeBoostOnCheckpoint"},
+            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * dash_multiplier * perfect_mult), "DashAndPerfectSizeBoostOnCheckpoint"}
         };
     }()),
     [](const testing::TestParamInfo<ScoreManagerTest::ParamType>& info) { return info.param.description; }
@@ -245,7 +246,7 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     handleCheckpointPassing(game_state.player, obstacle, game_state);
     // If the score was expected to change, we need to account for the boost in our expectation
     if (params.expected_score != old_score) {
-        game_state.score = old_score + game_state.score_manager.calculateScore(params.expected_score - old_score, game_state).score;
+        game_state.score = old_score + game_state.score_manager.calculateScore(params.expected_score - old_score, game_state, ObstacleType::Checkpoint).score;
     }
 
     EXPECT_EQ(game_state.score, params.expected_score);

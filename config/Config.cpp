@@ -124,6 +124,9 @@ void Config::load_defaults() {
 
     enter_name_prompt_ = "Enter Your Name:";
     final_score_text_ = "Final Score: ";
+    size_boost_good_text_ = "Good size boost!";
+    size_boost_great_text_ = "Great size boost!";
+    size_boost_perfect_text_ = "Perfect size boost!";
     player_color_choices_ = {
         {128, 0, 128, 255},   // Purple
         {0, 128, 0, 255},     // Green
@@ -207,6 +210,9 @@ void Config::load_ui_texts(const std::string& base_path) {
             scoreboard_instructions_ = data.value("/ui_text/scoreboard_instructions"_json_pointer, scoreboard_instructions_);
             enter_name_prompt_ = data.value("/ui_text/enter_name_prompt"_json_pointer, enter_name_prompt_);
             final_score_text_ = data.value("/ui_text/final_score_text"_json_pointer, final_score_text_);
+            size_boost_good_text_ = data.value("/ui_text/size_boost_good_text"_json_pointer, size_boost_good_text_);
+            size_boost_great_text_ = data.value("/ui_text/size_boost_great_text"_json_pointer, size_boost_great_text_);
+            size_boost_perfect_text_ = data.value("/ui_text/size_boost_perfect_text"_json_pointer, size_boost_perfect_text_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -585,6 +591,17 @@ const std::string& Config::getFinalScoreText() const {
 
 const std::vector<Color>& Config::getPlayerColorChoices() const {
     return player_color_choices_;
+}
+
+const std::string& Config::getSizeBoostText(SizeBoostLevel level) const {
+    switch (level) {
+        case SizeBoostLevel::Good: return size_boost_good_text_;
+        case SizeBoostLevel::Great: return size_boost_great_text_;
+        case SizeBoostLevel::Perfect: return size_boost_perfect_text_;
+        default:
+            static const std::string empty_string = "";
+            return empty_string;
+    }
 }
 
 void Config::setPlayerColor(const Color& color) {
