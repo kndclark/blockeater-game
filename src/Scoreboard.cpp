@@ -13,7 +13,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -63,14 +63,15 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // Position the level text just below the score text.
     SDL_Rect level_dest_rect = {10, 10 + score_dest_rect.h + 5, level_surface->w, level_surface->h};
     // Copy the texture to the renderer.
-    // - renderer_: Our game's main renderer.
+    // - renderer_: game's main renderer.
     // - level_texture.get(): The texture we just made from the level text surface.
     // - nullptr: Use the entire texture as the source (no clipping).
     // - &level_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 
     // --- Render Next Gap Size ---
-    std::string gap_text = config_.getGapSizePrefix() + std::to_string(current_gap_size);
+    // This now displays the player's size as a percentage of the upcoming gap.
+    std::string gap_text = getPlayerSizeText(player_size, current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
@@ -85,33 +86,29 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // Position the gap text just below the level text.
     SDL_Rect gap_dest_rect = {10, level_dest_rect.y + level_dest_rect.h + 5, gap_surface->w, gap_surface->h};
-    // Copy the texture to the renderer.
-    // - renderer_: Our game's main renderer.
-    // - gap_texture.get(): The texture we just made from the gap text surface.
-    // - nullptr: Use the entire texture as the source (no clipping).
-    // - &gap_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
 
-    // --- Render Player Size ---
-    std::string player_size_text = getPlayerSizeText(player_size, current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_.get(), player_size_text.c_str(), color));
-    if (!player_size_surface) {
-        SDL_Log("Unable to create text surface for player size: %s", TTF_GetError());
-        return;
-    }
-
-    std::unique_ptr<SDL_Texture, SdlTextureDeleter> player_size_texture(SDL_CreateTextureFromSurface(renderer_, player_size_surface.get()));
-    if (!player_size_texture) {
-        SDL_Log("Unable to create texture from surface for player size: %s", SDL_GetError());
-        return;
-    }
-
-    // Position the player size text just below the gap text.
-    SDL_Rect player_size_dest_rect = {10, gap_dest_rect.y + gap_dest_rect.h + 5, player_size_surface->w, player_size_surface->h};
-    // Copy the texture to the renderer.
-    SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
-
     renderDashStatus(on_cooldown, cooldown_remaining);
+
+    // --- Render Size Boost Message ---
+    if (last_boost_level != SizeBoostLevel::None) {
+        std::string boost_text = config_.getSizeBoostText(last_boost_level);
+        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), color));
+        if (!boost_surface) {
+            SDL_Log("Unable to create text surface for boost message: %s", TTF_GetError());
+            return;
+        }
+
+        std::unique_ptr<SDL_Texture, SdlTextureDeleter> boost_texture(SDL_CreateTextureFromSurface(renderer_, boost_surface.get()));
+        if (!boost_texture) {
+            SDL_Log("Unable to create texture from surface for boost message: %s", SDL_GetError());
+            return;
+        }
+
+        // Position the boost text to the right of the gap size text.
+        SDL_Rect boost_dest_rect = {gap_dest_rect.x + gap_dest_rect.w + 10, gap_dest_rect.y, boost_surface->w, boost_surface->h};
+        SDL_RenderCopy(renderer_, boost_texture.get(), nullptr, &boost_dest_rect);
+    }
 
 }
 
@@ -129,11 +126,11 @@ std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int chec
 
 std::string Scoreboard::getPlayerSizeText(int player_size, int gap_size) const {
     if (gap_size <= 0) {
-        return config_.getPlayerSizePrefix() + "N/A";
+        return config_.getGapSizePrefix() + "N/A";
     }
     int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
-    return config_.getPlayerSizePrefix() + std::to_string(percentage) +
-           config_.getPlayerSizeSuffix();
+    return config_.getGapSizePrefix() + std::to_string(percentage) +
+           config_.getGapSizeSuffix();
 }
 
 std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const {

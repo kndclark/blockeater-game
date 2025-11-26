@@ -25,8 +25,10 @@ ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameSt
 
         if (tier_it != tiers.cend()) {
             final_score *= tier_it->multiplier;
-            // This assumes 3 tiers: Perfect, Great, Good.
-            result.size_boost_level = static_cast<SizeBoostLevel>(std::distance(tiers.cbegin(), tier_it) + 1);
+            if (tier_it->tier == "Perfect") result.size_boost_level = SizeBoostLevel::Perfect;
+            else if (tier_it->tier == "Great") result.size_boost_level = SizeBoostLevel::Great;
+            else if (tier_it->tier == "Good") result.size_boost_level = SizeBoostLevel::Good;
+            else result.size_boost_level = SizeBoostLevel::None;
         }
     }
 

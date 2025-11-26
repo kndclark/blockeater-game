@@ -36,6 +36,7 @@ struct ObstacleConfig {
 struct SizeBoostTier {
     int threshold_percent;
     float multiplier;
+    std::string tier;
 };
 
 
@@ -65,8 +66,8 @@ public:
     int getCheckpointsPerLevel() const;
     Uint32 getCheckpointInterval() const;
     Uint32 getCheckpointSafeZoneDuration() const;
-    int getGrowChance() const;
-    int getShrinkChance() const;
+    virtual int getGrowChance() const;
+    virtual int getShrinkChance() const;
     int getHurtChance() const;
     ObstacleSize getGrowDimensions() const;
     int getScorePerGrow() const;
@@ -90,9 +91,8 @@ public:
     const std::string& getLevelPrefix() const;
     const std::string& getGapSizePrefix() const;
     const std::string& getLevelProgressPrefix() const;
-    const std::string& getPlayerSizePrefix() const;
-    const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
+    const std::string& getGapSizeSuffix() const;
     const std::string& getGameOverText() const;
     const std::string& getVictoryText() const;
     const std::string& getGameOverInstructions() const;
@@ -173,8 +173,7 @@ private:
     int cooldown_indicator_radius_;
     Color cooldown_indicator_color_;
     std::string gap_size_prefix_;
-    std::string player_size_prefix_;
-    std::string player_size_suffix_;
+    std::string gap_size_suffix_;
     std::string game_over_text_;
     std::string victory_text_;
     std::string game_over_instructions_;

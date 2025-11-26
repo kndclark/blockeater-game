@@ -72,15 +72,18 @@
       "tiers": [
         {
           "threshold_percent": 80,
-          "multiplier": 5.0
+          "multiplier": 5.0,
+          "tier": "Perfect"
         },
         {
           "threshold_percent": 50,
-          "multiplier": 2.0
+          "multiplier": 2.0,
+          "tier": "Great"
         },
         {
           "threshold_percent": 30,
-          "multiplier": 1.5
+          "multiplier": 1.5,
+          "tier": "Good"
         }
       ]
     },

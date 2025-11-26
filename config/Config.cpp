@@ -25,6 +25,7 @@ void from_json(const json& j, ObstacleSize& dims) {
 void from_json(const json& j, SizeBoostTier& tier) {
     j.at("threshold_percent").get_to(tier.threshold_percent);
     j.at("multiplier").get_to(tier.multiplier);
+    j.at("tier").get_to(tier.tier);
 }
 
 // Helper to parse LevelConfig from json. `value()` is used for optional fields.
@@ -95,8 +96,7 @@ void Config::load_defaults() {
     level_progress_prefix_ = " (";
     level_progress_suffix_ = " checkpoints to next level)";
     gap_size_prefix_ = "Gap Size: ";
-    player_size_prefix_ = "Player Size: ";
-    player_size_suffix_ = "% of gap size";
+    gap_size_suffix_ = "%";
     game_over_text_ = "GAME OVER";
     victory_text_ = "YOU WIN!";
     game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
@@ -117,9 +117,9 @@ void Config::load_defaults() {
     scoreboard_title_ = "Scoreboard";
     scoreboard_instructions_ = "B = Back to Menu";
     size_boost_tiers_ = {
-        {80, 2.0f}, // Perfect
-        {50, 1.5f}, // Great
-        {30, 1.2f}  // Good
+        {80, 2.0f, "Perfect"},
+        {50, 1.5f, "Great"},
+        {30, 1.2f, "Good"}
     };
 
     enter_name_prompt_ = "Enter Your Name:";
@@ -195,8 +195,7 @@ void Config::load_ui_texts(const std::string& base_path) {
             level_progress_prefix_ = data.value("/ui_text/level_progress_prefix"_json_pointer, level_progress_prefix_);
             level_progress_suffix_ = data.value("/ui_text/level_progress_suffix"_json_pointer, level_progress_suffix_);
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
-            player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
-            player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
+            gap_size_suffix_ = data.value("/ui_text/gap_size_suffix"_json_pointer, gap_size_suffix_);
             game_over_text_ = data.value("/ui_text/game_over_text"_json_pointer, game_over_text_);
             victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
             game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
@@ -529,14 +528,6 @@ const std::string& Config::getGapSizePrefix() const {
     return gap_size_prefix_;
 }
 
-const std::string& Config::getPlayerSizePrefix() const {
-    return player_size_prefix_;
-}
-
-const std::string& Config::getPlayerSizeSuffix() const {
-    return player_size_suffix_;
-}
-
 const std::string& Config::getLevelProgressPrefix() const {
     return level_progress_prefix_;
 }
@@ -551,6 +542,10 @@ const std::string& Config::getDashReadyText() const {
 
 const std::string& Config::getDashCooldownPrefix() const {
     return dash_cooldown_prefix_;
+}
+
+const std::string& Config::getGapSizeSuffix() const {
+    return gap_size_suffix_;
 }
 
 const std::string& Config::getDashCooldownSuffix() const {

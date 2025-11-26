@@ -35,7 +35,7 @@ inline ObstacleType determineObstacleType(int percent_grow, int percent_shrink, 
     }
 }
 
-struct ObstacleConfig; // Forward declaration
+class Config; // Forward declaration
 
 // --- Obstacle Struct ---
 // Encapsulates all data and behavior for a single obstacle.
@@ -95,11 +95,11 @@ struct Obstacle {
 private:
     // Helper to select obstacle properties based on a random roll.
     // Kept private as it's an implementation detail of createRegular.
-    static std::tuple<ObstacleType, ObstacleSize, int> getObstacleTypeAndSize(const ObstacleConfig& obs_cfg);
+    static std::tuple<ObstacleType, ObstacleSize, int> getObstacleTypeAndSize(const Config& config);
 
 public:
     static Obstacle createRegular(int screen_width, int screen_height, int speed,
-                                  const ObstacleConfig& obs_cfg,
+                                  const Config& config,
                                   const std::vector<Obstacle>& nearby_obstacles);
 
 };

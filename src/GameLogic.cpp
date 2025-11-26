@@ -74,9 +74,9 @@ int ObstacleSpawner::calculateCheckpointGapSize() const {
 }
 
 void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state) {
+    std::vector<Obstacle> nearby_obstacles;
     // Find all obstacles in the "spawn zone" (e.g., right quarter of the screen)
     // to avoid spawning new obstacles on top of them.
-    nearby_obstacles.clear();
     for (const auto& obs : game_state.obstacles) {
         if (obs.rect.x > screen_width * 3 / 4) {
             nearby_obstacles.push_back(obs);
@@ -84,33 +84,31 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
     }
 
     // Prioritize spawning checkpoints.
-    if (current_time > 0 && current_time >= last_checkpoint_spawn_time + level_manager.getCheckpointInterval()) {
+    bool should_spawn_checkpoint = current_time > 0 && current_time >= last_checkpoint_spawn_time + level_manager.getCheckpointInterval();
+    if (should_spawn_checkpoint) {
         last_checkpoint_spawn_time = current_time;
 
-        const int gap_height = calculateCheckpointGapSize();
+        const int gap_height = game_state.next_checkpoint_gap_size;
         int gap_y;
-        // Add the new checkpoint and get a pointer to it.
         game_state.obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, game_state.config.getScorePerCheckpoint(), nearby_obstacles, gap_y));
         last_checkpoint = &game_state.obstacles.back();
 
         // Reset the trackers for the next interval.
         shrink_powerups_since_checkpoint.clear();
-        // After spawning a checkpoint, calculate the size for the *next* one.
-        // The UI should display the size of the checkpoint that was just spawned.
+        // The UI should now display the size of the checkpoint that was just spawned.
         game_state.ui_next_checkpoint_gap_size = gap_height;
+        // After spawning a checkpoint, calculate the size for the *next* one.
         game_state.next_checkpoint_gap_size = calculateCheckpointGapSize();
         // Also reset the regular spawn timer to avoid spawning a regular obstacle immediately after.
         last_spawn_time = current_time;
         return; // Return early to enforce the safe zone after a checkpoint.
-    }
-    // Check for regular obstacle spawns only if a checkpoint was not spawned.
-    else if (current_time > 0 &&
+    } else if (current_time > 0 &&
         current_time >= last_spawn_time + level_manager.getSpawnInterval() &&
-        current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration) {
-
+        (!last_checkpoint || current_time >= last_checkpoint_spawn_time + checkpoint_safe_zone_duration)) {
+        // Check for regular obstacle spawns only if a checkpoint was not spawned.
         last_spawn_time = current_time;
-        Obstacle new_obstacle = Obstacle::createRegular(screen_width, screen_height, level_manager.getObstacleSpeed(),
-                                                      game_state.config.getObstacleConfig(),
+        Obstacle new_obstacle = Obstacle::createRegular(this->screen_width, this->screen_height, level_manager.getObstacleSpeed(),
+                                                      game_state.config,
                                                       nearby_obstacles);
         if (new_obstacle.type == ObstacleType::Shrink) {
             shrink_powerups_since_checkpoint.push_back(1);
@@ -141,6 +139,10 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
             std::string log_message = "Checkpoint passed! Player size reset.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
             if (score_result.size_boost_level != SizeBoostLevel::None) {
+                // Set the boost level and time in the game state so the UI can display it.
+                game_state.last_size_boost_level = score_result.size_boost_level;
+                game_state.last_size_boost_time = SDL_GetTicks();
+
                 log_message += " " + game_state.config.getSizeBoostText(score_result.size_boost_level);
             }
             SDL_Log("%s Score: %d. Level: %d. Checkpoints: %d.", log_message.c_str(), game_state.score, game_state.level, game_state.checkpoints_passed);
@@ -214,9 +216,7 @@ void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREE
 
 /// @brief Updates the state of all game objects and handles game logic.
 /// @param game_state The current state of the game to be updated.
-void updateGame(GameState& game_state) {
-    Uint32 current_time = SDL_GetTicks();
-
+void updateGame(GameState& game_state, Uint32 current_time) {
     // Update player state (e.g., for dash cooldown)
     game_state.player.update(current_time);
 
@@ -315,7 +315,13 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
     processInput(game_state, config.getScreenWidth(), config.getScreenHeight());
 
     if (!game_state.paused) {
-        updateGame(game_state);
+        updateGame(game_state, frame_start_time);
+
+        // Clear the size boost message after a certain duration
+        const Uint32 BOOST_MESSAGE_DURATION_MS = 2000;
+        if (game_state.last_size_boost_level != SizeBoostLevel::None && frame_start_time > game_state.last_size_boost_time + BOOST_MESSAGE_DURATION_MS) {
+            game_state.last_size_boost_level = SizeBoostLevel::None;
+        }
     }
 
     // Only render if the game is still running after the update phase
@@ -323,7 +329,8 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
         renderGame(renderer, game_state, config);
         scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
                            game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
-                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining());
+                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(),
+                           game_state.last_size_boost_level);
         SDL_RenderPresent(renderer);
     }
 

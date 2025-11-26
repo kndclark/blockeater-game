@@ -73,23 +73,35 @@ TEST(ObstacleTest, TypeAssignment) {
 }
 
 TEST(ObstacleCreationTest, CreateRegularWithPoints) {
-    Config config(kTestRootPath);
-    ObstacleConfig obs_config = config.getObstacleConfig();
-    ASSERT_EQ(obs_config.grow_points, 200);
-    ASSERT_EQ(obs_config.shrink_points, 100);
+    // Create a mock config class to control the spawn chances for this test.
+    class MockConfig : public Config {
+    public:
+        MockConfig() : Config(kTestRootPath) {} // Base constructor
+        int getGrowChance() const override { return grow_chance_override; }
+        int getShrinkChance() const override { return shrink_chance_override; }
+
+        int grow_chance_override = 0;
+        int shrink_chance_override = 0;
+    };
+
+    MockConfig mock_config;
+    ASSERT_EQ(mock_config.getScorePerGrow(), 200);
+    ASSERT_EQ(mock_config.getScorePerShrink(), 100);
 
     // Force a "Grow" obstacle by setting shrink/hurt chances to 0
-    obs_config.grow_chance = 100;
-    obs_config.shrink_chance = 0;
+    mock_config.grow_chance_override = 100;
+    mock_config.shrink_chance_override = 0;
+
     std::vector<Obstacle> nearby;
-    Obstacle grow_obstacle = Obstacle::createRegular(800, 600, 3, obs_config, nearby);
+    Obstacle grow_obstacle = Obstacle::createRegular(800, 600, 3, mock_config, nearby);
     EXPECT_EQ(grow_obstacle.type, ObstacleType::Grow);
     EXPECT_EQ(grow_obstacle.points, 200);
 
     // Force a "Shrink" obstacle
-    obs_config.grow_chance = 0;
-    obs_config.shrink_chance = 100;
-    Obstacle shrink_obstacle = Obstacle::createRegular(800, 600, 3, obs_config, nearby);
+    mock_config.grow_chance_override = 0;
+    mock_config.shrink_chance_override = 100;
+
+    Obstacle shrink_obstacle = Obstacle::createRegular(800, 600, 3, mock_config, nearby);
     EXPECT_EQ(shrink_obstacle.type, ObstacleType::Shrink);
     EXPECT_EQ(shrink_obstacle.points, 100);
 }
