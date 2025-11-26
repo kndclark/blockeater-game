@@ -128,7 +128,7 @@ std::string Scoreboard::getPlayerSizeText(int player_size, int gap_size) const {
     if (gap_size <= 0) {
         return config_.getGapSizePrefix() + "N/A";
     }
-    int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
+    int percentage = static_cast<int>(std::round((static_cast<double>(player_size) / gap_size) * 100.0));
     return config_.getGapSizePrefix() + std::to_string(percentage) +
            config_.getGapSizeSuffix();
 }

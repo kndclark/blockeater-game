@@ -15,12 +15,14 @@ ScoreCalculationResult ScoreManager::calculateScore(int base_score, const GameSt
 
     // Apply size boost ONLY for checkpoints, based on the player's width as a percentage of the upcoming gap size.
     if (obstacle_type == ObstacleType::Checkpoint && game_state.ui_next_checkpoint_gap_size > 0) {
-        const float size_percentage = (static_cast<float>(game_state.player.rect.w) / game_state.ui_next_checkpoint_gap_size) * 100.0f;
+        const float raw_size_percentage = (static_cast<float>(game_state.player.rect.w) / game_state.ui_next_checkpoint_gap_size) * 100.0f;
+        // Round to the nearest whole number to match what the UI displays.
+        const int rounded_percentage = static_cast<int>(std::round(raw_size_percentage));
         const auto& tiers = config_.getSizeBoostTiers();
 
-        // Tiers should be sorted by threshold descending. Find the first tier the player qualifies for.
-        auto tier_it = std::find_if(tiers.cbegin(), tiers.cend(), [size_percentage](const auto& tier) {
-            return size_percentage >= tier.threshold_percent;
+        // Tiers are sorted by threshold descending. Find the first tier the player qualifies for based on the rounded percentage.
+        auto tier_it = std::find_if(tiers.cbegin(), tiers.cend(), [rounded_percentage](const auto& tier) {
+            return rounded_percentage >= tier.threshold_percent;
         });
 
         if (tier_it != tiers.cend()) {

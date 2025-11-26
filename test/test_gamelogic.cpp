@@ -231,8 +231,12 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         SizeBoostLevelParams{29, 100, SizeBoostLevel::None, "BelowGoodThreshold"},
         SizeBoostLevelParams{30, 100, SizeBoostLevel::Good, "AtGoodThreshold"},
-        SizeBoostLevelParams{79, 100, SizeBoostLevel::Great, "AtGreatThreshold"},
-        SizeBoostLevelParams{80, 100, SizeBoostLevel::Perfect, "AtPerfectThreshold"}
+        SizeBoostLevelParams{494, 1000, SizeBoostLevel::Good, "RoundsDownBelowGreat"},
+        SizeBoostLevelParams{50, 100, SizeBoostLevel::Great, "AtGreatThreshold"},
+        SizeBoostLevelParams{794, 1000, SizeBoostLevel::Great, "RoundsDownBelowPerfect"},
+        SizeBoostLevelParams{799, 1000, SizeBoostLevel::Perfect, "RoundsUpToPerfect"},
+        SizeBoostLevelParams{80, 100, SizeBoostLevel::Perfect, "AtPerfectThreshold"},
+        SizeBoostLevelParams{100, 100, SizeBoostLevel::Perfect, "AtMaximumPercentage"}
     ),
     [](const testing::TestParamInfo<SizeBoostLevelTest::ParamType>& info) { return info.param.description; }
 );
