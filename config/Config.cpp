@@ -22,6 +22,12 @@ void from_json(const json& j, ObstacleSize& dims) {
     j.at("h").get_to(dims.h);
 }
 
+void from_json(const json& j, SizeBoostTier& tier) {
+    j.at("threshold_percent").get_to(tier.threshold_percent);
+    j.at("multiplier").get_to(tier.multiplier);
+    j.at("tier").get_to(tier.tier);
+}
+
 // Helper to parse LevelConfig from json. `value()` is used for optional fields.
 void from_json(const json& j, LevelConfig& lc) {
     if (j.contains("spawn_interval_ms")) {
@@ -90,8 +96,7 @@ void Config::load_defaults() {
     level_progress_prefix_ = " (";
     level_progress_suffix_ = " checkpoints to next level)";
     gap_size_prefix_ = "Gap Size: ";
-    player_size_prefix_ = "Player Size: ";
-    player_size_suffix_ = "% of gap size";
+    gap_size_suffix_ = "%";
     game_over_text_ = "GAME OVER";
     victory_text_ = "YOU WIN!";
     game_over_instructions_ = "R = Restart | M = Menu | Q = Quit";
@@ -111,13 +116,34 @@ void Config::load_defaults() {
     settings_menu_instructions_ = "C = Change Color | T = Toggle Fullscreen | B = Back";
     scoreboard_title_ = "Scoreboard";
     scoreboard_instructions_ = "B = Back to Menu";
+    size_boost_tiers_ = {
+        {80, 2.0f, "Perfect"},
+        {50, 1.5f, "Great"},
+        {30, 1.2f, "Good"}
+    };
+
     enter_name_prompt_ = "Enter Your Name:";
     final_score_text_ = "Final Score: ";
+    size_boost_good_text_ = "Good size boost!";
+    size_boost_great_text_ = "Great size boost!";
+    size_boost_perfect_text_ = "Perfect size boost!";
     player_color_choices_ = {
         {128, 0, 128, 255},   // Purple
         {0, 128, 0, 255},     // Green
         {0, 0, 128, 255},     // Blue
         {255, 165, 0, 255}    // Orange
+    };
+    
+    size_boost_tier_colors_[SizeBoostLevel::Good] = {0, 255, 0, 255};
+    size_boost_tier_colors_[SizeBoostLevel::Great] = {255, 200, 0, 255};
+    size_boost_tier_colors_[SizeBoostLevel::Perfect] = {255, 0, 255, 255};
+    rainbow_colors_ = {
+        { 255, 0, 0, 255 },
+        { 255, 165, 0, 255 },
+        { 255, 255, 0, 255 },
+        { 0, 255, 0, 255 },
+        { 0, 0, 255, 255 },
+        { 75, 0, 130, 255 }
     };
 }
 
@@ -181,8 +207,7 @@ void Config::load_ui_texts(const std::string& base_path) {
             level_progress_prefix_ = data.value("/ui_text/level_progress_prefix"_json_pointer, level_progress_prefix_);
             level_progress_suffix_ = data.value("/ui_text/level_progress_suffix"_json_pointer, level_progress_suffix_);
             gap_size_prefix_ = data.value("/ui_text/gap_size_prefix"_json_pointer, gap_size_prefix_);
-            player_size_prefix_ = data.value("/ui_text/player_size_prefix"_json_pointer, player_size_prefix_);
-            player_size_suffix_ = data.value("/ui_text/player_size_suffix"_json_pointer, player_size_suffix_);
+            gap_size_suffix_ = data.value("/ui_text/gap_size_suffix"_json_pointer, gap_size_suffix_);
             game_over_text_ = data.value("/ui_text/game_over_text"_json_pointer, game_over_text_);
             victory_text_ = data.value("/ui_text/victory_text"_json_pointer, victory_text_);
             game_over_instructions_ = data.value("/ui_text/game_over_instructions"_json_pointer, game_over_instructions_);
@@ -196,6 +221,9 @@ void Config::load_ui_texts(const std::string& base_path) {
             scoreboard_instructions_ = data.value("/ui_text/scoreboard_instructions"_json_pointer, scoreboard_instructions_);
             enter_name_prompt_ = data.value("/ui_text/enter_name_prompt"_json_pointer, enter_name_prompt_);
             final_score_text_ = data.value("/ui_text/final_score_text"_json_pointer, final_score_text_);
+            size_boost_good_text_ = data.value("/ui_text/size_boost_good_text"_json_pointer, size_boost_good_text_);
+            size_boost_great_text_ = data.value("/ui_text/size_boost_great_text"_json_pointer, size_boost_great_text_);
+            size_boost_perfect_text_ = data.value("/ui_text/size_boost_perfect_text"_json_pointer, size_boost_perfect_text_);
             dash_ready_text_ = data.value("/ui_text/dash_ready_text"_json_pointer, dash_ready_text_);
             dash_cooldown_prefix_ = data.value("/ui_text/dash_cooldown_prefix"_json_pointer, dash_cooldown_prefix_);
             dash_cooldown_suffix_ = data.value("/ui_text/dash_cooldown_suffix"_json_pointer, dash_cooldown_suffix_);
@@ -204,6 +232,12 @@ void Config::load_ui_texts(const std::string& base_path) {
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
+            size_boost_tier_colors_[SizeBoostLevel::Good] = data.value("/ui_text/size_boost_tier_colors/good"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Good]);
+            size_boost_tier_colors_[SizeBoostLevel::Great] = data.value("/ui_text/size_boost_tier_colors/great"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Great]);
+            size_boost_tier_colors_[SizeBoostLevel::Perfect] = data.value("/ui_text/size_boost_tier_colors/perfect"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Perfect]);
+            if (data.contains("ui_text") && data["ui_text"].contains("rainbow_colors")) {
+                rainbow_colors_ = data.at("ui_text").at("rainbow_colors").get<std::vector<Color>>();
+            }
 
             if (data.contains("player_color_choices")) {
                 // Clear the default choices before loading from the file to avoid duplicates.
@@ -272,8 +306,7 @@ void Config::load_from_path(const std::string& filepath) {
             score_per_grow = data.value("/game/score_per_grow"_json_pointer, 200);
             score_per_shrink = data.value("/game/score_per_shrink"_json_pointer, 100);
             dash_boost_multiplier_ = data.value("/game/score_boosts/dash_multiplier"_json_pointer, 1.0f);
-            size_boost_threshold_ = data.value("/game/score_boosts/size_threshold_percent"_json_pointer, 80);
-            size_boost_multiplier_ = data.value("/game/score_boosts/size_multiplier"_json_pointer, 1.0f);
+            size_boost_tiers_ = data.value("/game/score_boosts/tiers"_json_pointer, size_boost_tiers_);
             score_per_hurt = data.value("/game/score_per_hurt"_json_pointer, -500);
             checkpoints_per_level = data.value("/game/checkpoints_per_level"_json_pointer, 10);
             obstacle_speed = data.value("/game/obstacle_speed"_json_pointer, 3);
@@ -412,14 +445,6 @@ float Config::getDashBoostMultiplier() const {
     return dash_boost_multiplier_;
 }
 
-int Config::getSizeBoostThreshold() const {
-    return size_boost_threshold_;
-}
-
-float Config::getSizeBoostMultiplier() const {
-    return size_boost_multiplier_;
-}
-
 ObstacleConfig Config::getObstacleConfig() const {
     return {
         getGrowChance(),
@@ -521,14 +546,6 @@ const std::string& Config::getGapSizePrefix() const {
     return gap_size_prefix_;
 }
 
-const std::string& Config::getPlayerSizePrefix() const {
-    return player_size_prefix_;
-}
-
-const std::string& Config::getPlayerSizeSuffix() const {
-    return player_size_suffix_;
-}
-
 const std::string& Config::getLevelProgressPrefix() const {
     return level_progress_prefix_;
 }
@@ -543,6 +560,10 @@ const std::string& Config::getDashReadyText() const {
 
 const std::string& Config::getDashCooldownPrefix() const {
     return dash_cooldown_prefix_;
+}
+
+const std::string& Config::getGapSizeSuffix() const {
+    return gap_size_suffix_;
 }
 
 const std::string& Config::getDashCooldownSuffix() const {
@@ -585,10 +606,37 @@ const std::vector<Color>& Config::getPlayerColorChoices() const {
     return player_color_choices_;
 }
 
+const std::string& Config::getSizeBoostText(SizeBoostLevel level) const {
+    switch (level) {
+        case SizeBoostLevel::Good: return size_boost_good_text_;
+        case SizeBoostLevel::Great: return size_boost_great_text_;
+        case SizeBoostLevel::Perfect: return size_boost_perfect_text_;
+        default:
+            static const std::string empty_string = "";
+            return empty_string;
+    }
+}
+
 void Config::setPlayerColor(const Color& color) {
     playerColor = color;
 }
 
+Color Config::getSizeBoostTierColor(SizeBoostLevel level) const {
+    auto it = size_boost_tier_colors_.find(level);
+    if (it != size_boost_tier_colors_.end()) {
+        return it->second;
+    }
+    return getUiTextColor(); // Fallback to default UI color
+}
+
+const std::vector<Color>& Config::getRainbowColors() const {
+    return rainbow_colors_;
+}
+
 void from_json(const json& j, std::vector<Color>& colors) {
     for (const auto& item : j) { colors.push_back(item.get<Color>()); }
+}
+
+const std::vector<SizeBoostTier>& Config::getSizeBoostTiers() const {
+    return size_boost_tiers_;
 }

@@ -19,8 +19,13 @@ TEST_P(PlayerMovementTest, HandlesMovementCorrectly) {
     Color c = {0,0,0,0};
     // Use default dash values for this test as it doesn't involve dashing.
     Config config(kTestRootPath);
-    Player player(params.start_x, params.start_y, 40, 40, 5, c,
-                  config.getDashSpeedMultiplier(), config.getDashDurationMs(), config.getDashCooldownMs());
+    Player player({params.start_x,
+                   params.start_y,
+                   40, 40, 5, c,
+                   config.getDashSpeedMultiplier(),
+                   config.getDashDurationMs(),
+                   config.getDashCooldownMs()
+                  });
 
     const int screen_width = 640;
     const int screen_height = 480;
@@ -61,10 +66,11 @@ class PlayerDashTest : public SdlTest {
 protected:
     Config config{kTestRootPath};
     // Use a speed of 10 for easier math in tests
-    Player player{100, 100, 40, 40, 10, {0,0,0,0},
-                  config.getDashSpeedMultiplier(),
-                  config.getDashDurationMs(),
-                  config.getDashCooldownMs()};
+    Player player{{100, 100, 40, 40, 10, {0,0,0,0},
+                   config.getDashSpeedMultiplier(),
+                   config.getDashDurationMs(),
+                   config.getDashCooldownMs()
+                  }};
 
     const int screen_width = 640;
     const int screen_height = 480;
@@ -168,10 +174,12 @@ TEST_F(PlayerDashTest, DashBecomesAvailableAfterCooldown) {
 class PlayerGhostingTest : public SdlTest {
 protected:
     Config config{kTestRootPath};
-    Player player{100, 100, 40, 40, 10, {0,0,0,0},
-                  config.getDashSpeedMultiplier(),
-                  config.getDashDurationMs(),
-                  config.getDashCooldownMs()};
+    Player player;
+
+    PlayerGhostingTest() : player({100, 100, 40, 40, 10, {0,0,0,0},
+                                   config.getDashSpeedMultiplier(),
+                                   config.getDashDurationMs(),
+                                   config.getDashCooldownMs()}) {}
 };
 
 TEST_F(PlayerGhostingTest, SpawnsGhostsWhileDashing) {
@@ -261,8 +269,9 @@ TEST_F(PlayerGhostingTest, ClearsGhostsWhenDashEnds) {
 TEST(PlayerTest, CreationAndSizeModification) {
     // NOLINTNEXTLINE(readability-magic-numbers)
     Config config(kTestRootPath);
-    Player player(10, 20, 30, 40, 5, {0,0,0,0},
-                  config.getDashSpeedMultiplier(), config.getDashDurationMs(), config.getDashCooldownMs());
+    Player player({10, 20, 30, 40, 5, {0,0,0,0},
+                   config.getDashSpeedMultiplier(), config.getDashDurationMs(), config.getDashCooldownMs()
+                  });
     EXPECT_EQ(player.rect.x, 10);
     EXPECT_EQ(player.rect.y, 20);
     EXPECT_EQ(player.rect.w, 30);

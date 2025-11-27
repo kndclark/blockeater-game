@@ -82,9 +82,23 @@ TEST_F(UiTest, ScoreboardRender) {
 
     // This is a smoke test to ensure render() doesn't crash.
     // We can't easily verify the visual output in a unit test.
+    ScoreboardRenderData data = {
+        12345,                   // score
+        1,                       // level
+        80,                      // current_gap_size
+        2,                       // checkpoints_passed
+        5,                       // checkpoints_per_level
+        40,                      // player_size
+        false,                   // on_cooldown
+        0,                       // cooldown_remaining
+        SizeBoostLevel::None,    // last_boost_level
+        0,                       // time_since_boost
+        false,                   // dash_boost_active
+        0                        // time_since_dash_boost
+    };
     EXPECT_NO_THROW({
-        SDL_RenderClear(renderer_.get());
-        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0);
+        SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
+        scoreboard.render(data); // NOLINT(readability-magic-numbers)
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -115,14 +129,17 @@ TEST_F(UiTest, CalculatesPlayerSizeTextCorrectly) {
 
     // Helper lambda to build the expected string from the config.
     auto build_expected_text = [&](int player_size, int gap_size) {
-        if (gap_size <= 0) return config_.getPlayerSizePrefix() + "N/A";
-        int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
-        return config_.getPlayerSizePrefix() + std::to_string(percentage) + config_.getPlayerSizeSuffix();
+        if (gap_size <= 0) return config_.getGapSizePrefix() + "N/A";
+        int percentage = static_cast<int>(std::round((static_cast<double>(player_size) / gap_size) * 100.0));
+        return config_.getGapSizePrefix() + std::to_string(percentage) + config_.getGapSizeSuffix();
     };
 
     EXPECT_EQ(scoreboard.getPlayerSizeText(40, 200), build_expected_text(40, 200)); // 20%
     EXPECT_EQ(scoreboard.getPlayerSizeText(60, 150), build_expected_text(60, 150)); // 40%
     EXPECT_EQ(scoreboard.getPlayerSizeText(150, 150), build_expected_text(150, 150)); // 100%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(89, 100), build_expected_text(89, 100)); // 89%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(90, 100), build_expected_text(90, 100)); // 90%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(89, 99), build_expected_text(89, 99));   // 89.89... -> 90%
     EXPECT_EQ(scoreboard.getPlayerSizeText(50, 0), build_expected_text(50, 0)); // N/A
 }
 
@@ -153,9 +170,9 @@ TEST_F(UiTest, ScoreboardRendersDashStatus) {
     // Smoke test to ensure renderDashStatus() doesn't crash in various states.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get());
-        scoreboard.renderDashStatus(false, 0); // Ready
-        scoreboard.renderDashStatus(true, 2000); // Full cooldown
-        scoreboard.renderDashStatus(true, 999);  // Partial cooldown
+        scoreboard.renderDashStatus(false, 0, false, 0); // Ready
+        scoreboard.renderDashStatus(true, 2000, false, 0); // Full cooldown
+        scoreboard.renderDashStatus(true, 999, true, 100);  // Partial cooldown with boost
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -180,18 +197,104 @@ TEST_F(UiTest, ScoreboardCalculatesCooldownCirclePoints) {
     EXPECT_EQ(points.size(), segments + 1);
 }
 
+struct BoostFlashColorParams {
+    SizeBoostLevel level;
+    Uint32 time_since_boost;
+    Color expected_color;
+    std::string description;
+};
+
+class BoostFlashColorTest : public UiTest, public ::testing::WithParamInterface<BoostFlashColorParams> {};
+
+TEST_P(BoostFlashColorTest, SelectsCorrectFlashColorForBoostMessage) {
+    auto params = GetParam();
+    Scoreboard scoreboard(renderer_.get(), config_);
+
+    // The function under test. It should return the flashing color for the boost message.
+    Color result_color = scoreboard.getFlashColorForBoostMessage(params.level, params.time_since_boost);
+
+    EXPECT_EQ(result_color, params.expected_color) << "Failed on: " << params.description;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ScoreboardColorTests,
+    BoostFlashColorTest,
+    ::testing::ValuesIn([] {
+        Config config(kTestRootPath); // Use the real Config to load from JSON
+        Color good_color = config.getSizeBoostTierColor(SizeBoostLevel::Good);
+        Color great_color = config.getSizeBoostTierColor(SizeBoostLevel::Great);
+        Color default_color = config.getUiTextColor();
+        const auto& rainbow_colors = config.getRainbowColors();
+
+        return std::vector<BoostFlashColorParams>{
+            // Good tier should flash between green and default
+            {SizeBoostLevel::Good, 100, good_color, "Good_FirstFlash"},
+            {SizeBoostLevel::Good, 250, default_color, "Good_SecondFlash"},
+            {SizeBoostLevel::Good, 400, good_color, "Good_ThirdFlash"},
+
+            // Great tier should flash between yellow and default
+            {SizeBoostLevel::Great, 100, great_color, "Great_FirstFlash"},
+            {SizeBoostLevel::Great, 250, default_color, "Great_SecondFlash"},
+
+            // Perfect tier should cycle through rainbow colors
+            {SizeBoostLevel::Perfect, 50, rainbow_colors[0], "Perfect_Rainbow_0"},
+            {SizeBoostLevel::Perfect, 100, rainbow_colors[1], "Perfect_Rainbow_1"},
+            {SizeBoostLevel::Perfect, 150, rainbow_colors[2], "Perfect_Rainbow_2"},
+            {SizeBoostLevel::Perfect, 200, rainbow_colors[3], "Perfect_Rainbow_3"},
+            {SizeBoostLevel::Perfect, 250, rainbow_colors[4], "Perfect_Rainbow_4"},
+            {SizeBoostLevel::Perfect, 300, rainbow_colors[5], "Perfect_Rainbow_5"},
+            {SizeBoostLevel::Perfect, 350, rainbow_colors[0], "Perfect_Rainbow_WrapAround"}, // Wraps around
+        };
+    }()),
+    [](const testing::TestParamInfo<BoostFlashColorTest::ParamType>& info) { return info.param.description; }
+);
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
     Scoreboard scoreboard(renderer_.get(), config_);
 
     // We can't easily check the visual output, but we can confirm that
     // rendering different values completes without throwing any exceptions.
+    // Initial score, dash ready
+    ScoreboardRenderData data1 = {0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0};
+
+    // High score and level, dash on cooldown
+    ScoreboardRenderData data2 = {
+        99999,                   // score
+        10,                      // level
+        60,                      // current_gap_size
+        53,                      // checkpoints_passed
+        10,                      // checkpoints_per_level
+        60,                      // player_size
+        true,                    // on_cooldown
+        1234,                    // cooldown_remaining
+        SizeBoostLevel::Good,    // last_boost_level
+        100,                     // time_since_boost
+        true,                    // dash_boost_active
+        50                       // time_since_dash_boost
+    };
+
+    // Negative score (if possible in game)
+    ScoreboardRenderData data3 = {
+        -100,                    // score
+        5,                       // level
+        25,                      // current_gap_size
+        28,                      // checkpoints_passed
+        8,                       // checkpoints_per_level
+        20,                      // player_size
+        false,                   // on_cooldown
+        0,                       // cooldown_remaining
+        SizeBoostLevel::Perfect, // last_boost_level
+        200,                     // time_since_boost
+        false,                   // dash_boost_active
+        0                        // time_since_dash_boost
+    };
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
-        SDL_RenderClear(renderer_.get());
-        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0);        // Initial score, dash ready
-        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234);   // High score and level, dash on cooldown
-        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0);     // Negative score (if possible in game)
+        SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
+        scoreboard.render(data1);
+        scoreboard.render(data2);
+        scoreboard.render(data3);
         SDL_RenderPresent(renderer_.get());
     });
 }

@@ -20,6 +20,15 @@ enum class PlayerState {
     Cooldown
 };
 
+/// @brief A data structure to hold all the information needed to create a Player.
+struct PlayerDef {
+    int x, y, w, h, speed;
+    Color color;
+    float dash_speed_multiplier;
+    Uint32 dash_duration_ms;
+    Uint32 dash_cooldown_ms;
+};
+
 // Encapsulates all data and behavior for the player character.
 struct Player {
     SDL_Rect rect;
@@ -48,7 +57,7 @@ struct Player {
     static constexpr Uint32 GHOST_SPAWN_INTERVAL_MS = 30;
     static constexpr Uint8 GHOST_INITIAL_ALPHA = 100;
 
-    Player(int x, int y, int w, int h, int s, Color c, float dash_mult, Uint32 dash_dur, Uint32 dash_cd);
+    explicit Player(const PlayerDef& def);
 
     // Updates the player's state, like managing dash timers.
     void update(Uint32 current_time);

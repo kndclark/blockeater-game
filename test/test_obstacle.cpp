@@ -27,7 +27,13 @@ TEST(ObstacleCreationTest, CreateCheckpoint) {
     // We don't need to test the randomness, just that it creates the right kind of obstacle.
     int dummy_gap_y;
     std::vector<Obstacle> nearby;
-    Obstacle o = Obstacle::createCheckpoint(800, 600, 3, 150, 50, nearby, dummy_gap_y); // Pass a fixed gap height for testing
+    CheckpointDef def = {800,  // screen_width
+                         600,  // screen_height
+                         3,    // speed
+                         150,  // gap_height
+                         50    // points
+    };
+    Obstacle o = Obstacle::createCheckpoint(def, nearby, dummy_gap_y); // Pass a fixed gap height for testing
     EXPECT_EQ(o.type, ObstacleType::Checkpoint);
     EXPECT_EQ(o.points, 50);
     EXPECT_TRUE(o.rect2.has_value());
@@ -73,23 +79,35 @@ TEST(ObstacleTest, TypeAssignment) {
 }
 
 TEST(ObstacleCreationTest, CreateRegularWithPoints) {
-    Config config(kTestRootPath);
-    ObstacleConfig obs_config = config.getObstacleConfig();
-    ASSERT_EQ(obs_config.grow_points, 200);
-    ASSERT_EQ(obs_config.shrink_points, 100);
+    // Create a mock config class to control the spawn chances for this test.
+    class MockConfig : public Config {
+    public:
+        MockConfig() : Config(kTestRootPath) {} // Base constructor
+        int getGrowChance() const override { return grow_chance_override; }
+        int getShrinkChance() const override { return shrink_chance_override; }
+
+        int grow_chance_override = 0;
+        int shrink_chance_override = 0;
+    };
+
+    MockConfig mock_config;
+    ASSERT_EQ(mock_config.getScorePerGrow(), 200);
+    ASSERT_EQ(mock_config.getScorePerShrink(), 100);
 
     // Force a "Grow" obstacle by setting shrink/hurt chances to 0
-    obs_config.grow_chance = 100;
-    obs_config.shrink_chance = 0;
+    mock_config.grow_chance_override = 100;
+    mock_config.shrink_chance_override = 0;
+
     std::vector<Obstacle> nearby;
-    Obstacle grow_obstacle = Obstacle::createRegular(800, 600, 3, obs_config, nearby);
+    Obstacle grow_obstacle = Obstacle::createRegular(800, 600, 3, mock_config, nearby);
     EXPECT_EQ(grow_obstacle.type, ObstacleType::Grow);
     EXPECT_EQ(grow_obstacle.points, 200);
 
     // Force a "Shrink" obstacle
-    obs_config.grow_chance = 0;
-    obs_config.shrink_chance = 100;
-    Obstacle shrink_obstacle = Obstacle::createRegular(800, 600, 3, obs_config, nearby);
+    mock_config.grow_chance_override = 0;
+    mock_config.shrink_chance_override = 100;
+
+    Obstacle shrink_obstacle = Obstacle::createRegular(800, 600, 3, mock_config, nearby);
     EXPECT_EQ(shrink_obstacle.type, ObstacleType::Shrink);
     EXPECT_EQ(shrink_obstacle.points, 100);
 }
@@ -260,7 +278,13 @@ TEST_P(CheckpointAvoidanceTest, CheckpointWallsAvoidNearbyObstacles) {
     const int num_trials = 100;
     for (int i = 0; i < num_trials; ++i) {
         int dummy_gap_y;
-        Obstacle checkpoint = Obstacle::createCheckpoint(screen_width, screen_height, speed, params.checkpoint_gap_height, points, nearby_obstacles, dummy_gap_y);
+        CheckpointDef def = {screen_width,
+                             screen_height,
+                             speed,
+                             params.checkpoint_gap_height,
+                             points
+        };
+        Obstacle checkpoint = Obstacle::createCheckpoint(def, nearby_obstacles, dummy_gap_y);
 
         for (const auto& rect : params.nearby_obstacle_rects) {
             // Check that the top wall does not overlap with the nearby obstacle.

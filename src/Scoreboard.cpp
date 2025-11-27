@@ -1,6 +1,7 @@
 #include "Scoreboard.h"
 #include <stdexcept> // For std::runtime_error
 #include <iomanip>   // For std::fixed, std::setprecision
+#include <algorithm> // For std::find_if
 #include <memory>    // For std::unique_ptr
 #include "Player.h"  // For Player::DASH_COOLDOWN_MS
 
@@ -13,7 +14,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining) const {
+void Scoreboard::render(const ScoreboardRenderData& data) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -24,7 +25,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     };
 
     // --- Render Score ---
-    std::string score_text = config_.getScorePrefix() + std::to_string(score);
+    std::string score_text = config_.getScorePrefix() + std::to_string(data.score);
     Color c = config_.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
 
@@ -46,8 +47,31 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_Rect score_dest_rect = {10, 10, score_surface->w, score_surface->h};
     SDL_RenderCopy(renderer_, score_texture.get(), nullptr, &score_dest_rect);
 
+    // --- Render Dash Boost Message ---
+    if (data.dash_boost_active) {
+        Color boost_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, data.time_since_dash_boost); // Reuse rainbow flash
+        SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
+
+        std::string boost_text = "Dash boost!";
+        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), boost_color));
+        if (!boost_surface) {
+            SDL_Log("Unable to create text surface for dash boost message: %s", TTF_GetError());
+            return;
+        }
+
+        std::unique_ptr<SDL_Texture, SdlTextureDeleter> boost_texture(SDL_CreateTextureFromSurface(renderer_, boost_surface.get()));
+        if (!boost_texture) {
+            SDL_Log("Unable to create texture from surface for dash boost message: %s", SDL_GetError());
+            return;
+        }
+
+        // Position the dash boost message to the right of the score.
+        SDL_Rect boost_dest_rect = {score_dest_rect.x + score_dest_rect.w + 10, score_dest_rect.y, boost_surface->w, boost_surface->h};
+        SDL_RenderCopy(renderer_, boost_texture.get(), nullptr, &boost_dest_rect);
+    }
+
     // --- Render Level ---
-    std::string level_text = getLevelText(level, checkpoints_passed, checkpoints_per_level);
+    std::string level_text = getLevelText(data.level, data.checkpoints_passed, data.checkpoints_per_level);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_.get(), level_text.c_str(), color));
     if (!level_surface) {
         SDL_Log("Unable to create text surface for level: %s", TTF_GetError());
@@ -63,15 +87,19 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // Position the level text just below the score text.
     SDL_Rect level_dest_rect = {10, 10 + score_dest_rect.h + 5, level_surface->w, level_surface->h};
     // Copy the texture to the renderer.
-    // - renderer_: Our game's main renderer.
+    // - renderer_: game's main renderer.
     // - level_texture.get(): The texture we just made from the level text surface.
     // - nullptr: Use the entire texture as the source (no clipping).
     // - &level_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, level_texture.get(), nullptr, &level_dest_rect);
 
     // --- Render Next Gap Size ---
-    std::string gap_text = config_.getGapSizePrefix() + std::to_string(current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), color));
+    // This now displays the player's size as a percentage of the upcoming gap.
+    Color gap_text_color_struct = getColorForSizeBoostTier(data.player_size, data.current_gap_size);
+    SDL_Color gap_text_color = {gap_text_color_struct.r, gap_text_color_struct.g, gap_text_color_struct.b, gap_text_color_struct.a};
+
+    std::string gap_text = getPlayerSizeText(data.player_size, data.current_gap_size);
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), gap_text_color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
         return;
@@ -85,33 +113,32 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // Position the gap text just below the level text.
     SDL_Rect gap_dest_rect = {10, level_dest_rect.y + level_dest_rect.h + 5, gap_surface->w, gap_surface->h};
-    // Copy the texture to the renderer.
-    // - renderer_: Our game's main renderer.
-    // - gap_texture.get(): The texture we just made from the gap text surface.
-    // - nullptr: Use the entire texture as the source (no clipping).
-    // - &gap_dest_rect: The destination rectangle on the screen.
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
 
-    // --- Render Player Size ---
-    std::string player_size_text = getPlayerSizeText(player_size, current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> player_size_surface(TTF_RenderText_Solid(font_.get(), player_size_text.c_str(), color));
-    if (!player_size_surface) {
-        SDL_Log("Unable to create text surface for player size: %s", TTF_GetError());
-        return;
+    renderDashStatus(data.on_cooldown, data.cooldown_remaining, data.dash_boost_active, data.time_since_dash_boost);
+
+    // --- Render Size Boost Message ---
+    if (data.last_boost_level != SizeBoostLevel::None) {
+        Color boost_color_struct = getFlashColorForBoostMessage(data.last_boost_level, data.time_since_boost);
+        SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
+
+        std::string boost_text = config_.getSizeBoostText(data.last_boost_level);
+        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), boost_color));
+        if (!boost_surface) {
+            SDL_Log("Unable to create text surface for boost message: %s", TTF_GetError());
+            return;
+        }
+
+        std::unique_ptr<SDL_Texture, SdlTextureDeleter> boost_texture(SDL_CreateTextureFromSurface(renderer_, boost_surface.get()));
+        if (!boost_texture) {
+            SDL_Log("Unable to create texture from surface for boost message: %s", SDL_GetError());
+            return;
+        }
+
+        // Position the boost text to the right of the gap size text.
+        SDL_Rect boost_dest_rect = {gap_dest_rect.x + gap_dest_rect.w + 10, gap_dest_rect.y, boost_surface->w, boost_surface->h};
+        SDL_RenderCopy(renderer_, boost_texture.get(), nullptr, &boost_dest_rect);
     }
-
-    std::unique_ptr<SDL_Texture, SdlTextureDeleter> player_size_texture(SDL_CreateTextureFromSurface(renderer_, player_size_surface.get()));
-    if (!player_size_texture) {
-        SDL_Log("Unable to create texture from surface for player size: %s", SDL_GetError());
-        return;
-    }
-
-    // Position the player size text just below the gap text.
-    SDL_Rect player_size_dest_rect = {10, gap_dest_rect.y + gap_dest_rect.h + 5, player_size_surface->w, player_size_surface->h};
-    // Copy the texture to the renderer.
-    SDL_RenderCopy(renderer_, player_size_texture.get(), nullptr, &player_size_dest_rect);
-
-    renderDashStatus(on_cooldown, cooldown_remaining);
 
 }
 
@@ -129,11 +156,11 @@ std::string Scoreboard::getLevelText(int level, int checkpoints_passed, int chec
 
 std::string Scoreboard::getPlayerSizeText(int player_size, int gap_size) const {
     if (gap_size <= 0) {
-        return config_.getPlayerSizePrefix() + "N/A";
+        return config_.getGapSizePrefix() + "N/A";
     }
-    int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
-    return config_.getPlayerSizePrefix() + std::to_string(percentage) +
-           config_.getPlayerSizeSuffix();
+    int percentage = static_cast<int>(std::round((static_cast<double>(player_size) / gap_size) * 100.0));
+    return config_.getGapSizePrefix() + std::to_string(percentage) +
+           config_.getGapSizeSuffix();
 }
 
 std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const {
@@ -150,7 +177,54 @@ std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_rema
     }
 }
 
-void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const {
+Color Scoreboard::getColorForSizeBoostTier(int player_width, int gap_size) const {
+    if (gap_size <= 0) {
+        return config_.getUiTextColor();
+    }
+
+    const float raw_size_percentage = (static_cast<float>(player_width) / gap_size) * 100.0f;
+    const int rounded_percentage = static_cast<int>(std::round(raw_size_percentage));
+    const auto& tiers = config_.getSizeBoostTiers();
+
+    auto tier_it = std::find_if(tiers.cbegin(), tiers.cend(), [rounded_percentage](const auto& tier) {
+        return rounded_percentage >= tier.threshold_percent;
+    });
+
+    if (tier_it != tiers.cend()) {
+        SizeBoostLevel level = SizeBoostLevel::None;
+        if (tier_it->tier == "Perfect") level = SizeBoostLevel::Perfect;
+        else if (tier_it->tier == "Great") level = SizeBoostLevel::Great;
+        else if (tier_it->tier == "Good") level = SizeBoostLevel::Good;
+
+        if (level != SizeBoostLevel::None) {
+            return config_.getSizeBoostTierColor(level);
+        }
+    }
+
+    return config_.getUiTextColor();
+}
+
+Color Scoreboard::getFlashColorForBoostMessage(SizeBoostLevel level, Uint32 time_since_boost) const {
+    if (level == SizeBoostLevel::Perfect) {
+        const auto& rainbow_colors = config_.getRainbowColors();
+        if (rainbow_colors.empty()) return config_.getUiTextColor();
+        const Uint32 rainbow_cycle_time = 50; // ms per color
+        int color_index = ((time_since_boost - 1) / rainbow_cycle_time) % rainbow_colors.size();
+        return rainbow_colors[color_index];
+    }
+
+    // For Good and Great, flash between tier color and default UI color
+    const Uint32 flash_interval = 150; // ms
+    bool use_tier_color = (time_since_boost / flash_interval) % 2 == 0;
+
+    if (use_tier_color) {
+        return config_.getSizeBoostTierColor(level);
+    } else {
+        return config_.getUiTextColor();
+    }
+}
+
+void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining, bool dash_boost_active, Uint32 time_since_dash_boost) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -182,8 +256,13 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         dash_text_x_offset = circle_center_x + radius + cooldown_indicator_padding;
     }
     std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
-    Color c = config_.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
+    
+    Color text_color_struct = config_.getUiTextColor();
+    if (dash_boost_active) {
+        text_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, time_since_dash_boost); // Reuse rainbow flash
+    }
+    SDL_Color color = {text_color_struct.r, text_color_struct.g, text_color_struct.b, text_color_struct.a};
+
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
     if (!dash_surface) {
         SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());

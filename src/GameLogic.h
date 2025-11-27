@@ -24,7 +24,6 @@ struct ObstacleSpawner {
     Uint32 last_spawn_time = 0;
     Uint32 last_checkpoint_spawn_time = 0;
     const Uint32 checkpoint_safe_zone_duration;
-    std::vector<Obstacle> nearby_obstacles;
     Obstacle* last_checkpoint = nullptr;
     // Track power-ups to influence checkpoint gap size. The values are dummy
     // values; only the count of elements matters.
@@ -85,7 +84,7 @@ void batchRenderObstacles(SDL_Renderer* renderer, const std::vector<Obstacle>& o
 void processInput(GameState& game_state, const int SCREEN_WIDTH, const int SCREEN_HEIGHT);
 
 /// @brief Updates the state of all game objects and handles game logic.
-void updateGame(GameState& game_state);
+void updateGame(GameState& game_state, Uint32 current_time);
 
 /// @brief Renders all game objects to the screen.
 void renderGame(SDL_Renderer* renderer, const GameState& game_state, const Config& config);
