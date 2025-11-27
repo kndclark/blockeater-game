@@ -24,6 +24,10 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
             auto score_result = game_state.score_manager.calculateScore(it->points, game_state, it->type);
             game_state.score += score_result.score;
             game_state.player.grow(game_state.config.getPlayerSizeChangeAmount());
+            if (score_result.dash_boost_applied) {
+                game_state.dash_boost_active = true;
+                game_state.last_dash_boost_time = SDL_GetTicks();
+            }
             std::string log_message = "Collision with Grow obstacle! Player grows.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
             SDL_Log("%s", log_message.c_str());
@@ -34,6 +38,10 @@ std::vector<Obstacle>::iterator handleCollision(GameState& game_state, std::vect
             auto score_result = game_state.score_manager.calculateScore(it->points, game_state, it->type);
             game_state.score += score_result.score;
             game_state.player.shrink(game_state.config.getPlayerSizeChangeAmount());
+            if (score_result.dash_boost_applied) {
+                game_state.dash_boost_active = true;
+                game_state.last_dash_boost_time = SDL_GetTicks();
+            }
             std::string log_message = "Collision with Shrink obstacle! Player shrinks.";
             if (score_result.dash_boost_applied) log_message += " Dash boost! ";
             SDL_Log("%s", log_message.c_str());
@@ -137,7 +145,11 @@ void handleCheckpointPassing(Player& player, Obstacle& obstacle, GameState& game
                 SDL_Log("Level up! You are now on level %d.", game_state.level);
             }
             std::string log_message = "Checkpoint passed! Player size reset.";
-            if (score_result.dash_boost_applied) log_message += " Dash boost! ";
+            if (score_result.dash_boost_applied) {
+                game_state.dash_boost_active = true;
+                game_state.last_dash_boost_time = SDL_GetTicks();
+                log_message += " Dash boost! ";
+            }
             if (score_result.size_boost_level != SizeBoostLevel::None) {
                 // Set the boost level and time in the game state so the UI can display it.
                 game_state.last_size_boost_level = score_result.size_boost_level;
@@ -316,22 +328,27 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
 
     if (!game_state.paused) {
         updateGame(game_state, frame_start_time);
+        const Uint32 BOOST_MESSAGE_DURATION_MS = 2000;
 
         // Clear the size boost message after a certain duration
-        const Uint32 BOOST_MESSAGE_DURATION_MS = 2000;
         if (game_state.last_size_boost_level != SizeBoostLevel::None && frame_start_time > game_state.last_size_boost_time + BOOST_MESSAGE_DURATION_MS) {
             game_state.last_size_boost_level = SizeBoostLevel::None;
+        }
+        // Clear the dash boost message after a certain duration
+        if (game_state.dash_boost_active && frame_start_time > game_state.last_dash_boost_time + BOOST_MESSAGE_DURATION_MS) {
+            game_state.dash_boost_active = false;
         }
     }
 
     // Only render if the game is still running after the update phase
     if (game_state.running) {
         Uint32 time_since_boost = (game_state.last_size_boost_level != SizeBoostLevel::None) ? (frame_start_time - game_state.last_size_boost_time) : 0;
+        Uint32 time_since_dash_boost = game_state.dash_boost_active ? (frame_start_time - game_state.last_dash_boost_time) : 0;
         renderGame(renderer, game_state, config);
         scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
                            game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
-                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(), game_state.last_size_boost_level,
-                           time_since_boost);
+                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(), game_state.last_size_boost_level, time_since_boost,
+                           game_state.dash_boost_active, time_since_dash_boost);
         SDL_RenderPresent(renderer);
     }
 

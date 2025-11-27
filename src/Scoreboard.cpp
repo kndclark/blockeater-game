@@ -14,7 +14,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level, Uint32 time_since_boost) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level, Uint32 time_since_boost, bool dash_boost_active, Uint32 time_since_dash_boost) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -46,6 +46,29 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     // Define where on the screen to draw the score text.
     SDL_Rect score_dest_rect = {10, 10, score_surface->w, score_surface->h};
     SDL_RenderCopy(renderer_, score_texture.get(), nullptr, &score_dest_rect);
+
+    // --- Render Dash Boost Message ---
+    if (dash_boost_active) {
+        Color boost_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, time_since_dash_boost); // Reuse rainbow flash
+        SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
+
+        std::string boost_text = "Dash boost!";
+        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), boost_color));
+        if (!boost_surface) {
+            SDL_Log("Unable to create text surface for dash boost message: %s", TTF_GetError());
+            return;
+        }
+
+        std::unique_ptr<SDL_Texture, SdlTextureDeleter> boost_texture(SDL_CreateTextureFromSurface(renderer_, boost_surface.get()));
+        if (!boost_texture) {
+            SDL_Log("Unable to create texture from surface for dash boost message: %s", SDL_GetError());
+            return;
+        }
+
+        // Position the dash boost message to the right of the score.
+        SDL_Rect boost_dest_rect = {score_dest_rect.x + score_dest_rect.w + 10, score_dest_rect.y, boost_surface->w, boost_surface->h};
+        SDL_RenderCopy(renderer_, boost_texture.get(), nullptr, &boost_dest_rect);
+    }
 
     // --- Render Level ---
     std::string level_text = getLevelText(level, checkpoints_passed, checkpoints_per_level);
@@ -92,7 +115,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_Rect gap_dest_rect = {10, level_dest_rect.y + level_dest_rect.h + 5, gap_surface->w, gap_surface->h};
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
 
-    renderDashStatus(on_cooldown, cooldown_remaining);
+    renderDashStatus(on_cooldown, cooldown_remaining, dash_boost_active, time_since_dash_boost);
 
     // --- Render Size Boost Message ---
     if (last_boost_level != SizeBoostLevel::None) {
@@ -201,7 +224,7 @@ Color Scoreboard::getFlashColorForBoostMessage(SizeBoostLevel level, Uint32 time
     }
 }
 
-void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const {
+void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining, bool dash_boost_active, Uint32 time_since_dash_boost) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -233,8 +256,13 @@ void Scoreboard::renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) c
         dash_text_x_offset = circle_center_x + radius + cooldown_indicator_padding;
     }
     std::string dash_text = getDashStatusText(on_cooldown, cooldown_remaining);
-    Color c = config_.getUiTextColor();
-    SDL_Color color = {c.r, c.g, c.b, c.a};
+    
+    Color text_color_struct = config_.getUiTextColor();
+    if (dash_boost_active) {
+        text_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, time_since_dash_boost); // Reuse rainbow flash
+    }
+    SDL_Color color = {text_color_struct.r, text_color_struct.g, text_color_struct.b, text_color_struct.a};
+
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> dash_surface(TTF_RenderText_Solid(font_.get(), dash_text.c_str(), color));
     if (!dash_surface) {
         SDL_Log("Unable to create text surface for dash status: %s", TTF_GetError());

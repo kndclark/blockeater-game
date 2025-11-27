@@ -84,7 +84,7 @@ TEST_F(UiTest, ScoreboardRender) {
     // We can't easily verify the visual output in a unit test.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0, SizeBoostLevel::None, 0); // NOLINT(readability-magic-numbers)
+        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0); // NOLINT(readability-magic-numbers)
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -116,13 +116,16 @@ TEST_F(UiTest, CalculatesPlayerSizeTextCorrectly) {
     // Helper lambda to build the expected string from the config.
     auto build_expected_text = [&](int player_size, int gap_size) {
         if (gap_size <= 0) return config_.getGapSizePrefix() + "N/A";
-        int percentage = static_cast<int>((static_cast<double>(player_size) / gap_size) * 100.0);
+        int percentage = static_cast<int>(std::round((static_cast<double>(player_size) / gap_size) * 100.0));
         return config_.getGapSizePrefix() + std::to_string(percentage) + config_.getGapSizeSuffix();
     };
 
     EXPECT_EQ(scoreboard.getPlayerSizeText(40, 200), build_expected_text(40, 200)); // 20%
     EXPECT_EQ(scoreboard.getPlayerSizeText(60, 150), build_expected_text(60, 150)); // 40%
     EXPECT_EQ(scoreboard.getPlayerSizeText(150, 150), build_expected_text(150, 150)); // 100%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(89, 100), build_expected_text(89, 100)); // 89%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(90, 100), build_expected_text(90, 100)); // 90%
+    EXPECT_EQ(scoreboard.getPlayerSizeText(89, 99), build_expected_text(89, 99));   // 89.89... -> 90%
     EXPECT_EQ(scoreboard.getPlayerSizeText(50, 0), build_expected_text(50, 0)); // N/A
 }
 
@@ -153,9 +156,9 @@ TEST_F(UiTest, ScoreboardRendersDashStatus) {
     // Smoke test to ensure renderDashStatus() doesn't crash in various states.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get());
-        scoreboard.renderDashStatus(false, 0); // Ready
-        scoreboard.renderDashStatus(true, 2000); // Full cooldown
-        scoreboard.renderDashStatus(true, 999);  // Partial cooldown
+        scoreboard.renderDashStatus(false, 0, false, 0); // Ready
+        scoreboard.renderDashStatus(true, 2000, false, 0); // Full cooldown
+        scoreboard.renderDashStatus(true, 999, true, 100);  // Partial cooldown with boost
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -241,9 +244,9 @@ TEST_F(UiTest, ScoreboardRendersVariousValues) {
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0);        // Initial score, dash ready
-        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234, SizeBoostLevel::Good, 100);   // High score and level, dash on cooldown
-        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0, SizeBoostLevel::Perfect, 200);     // Negative score (if possible in game)
+        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0);        // Initial score, dash ready
+        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234, SizeBoostLevel::Good, 100, true, 50);   // High score and level, dash on cooldown
+        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0, SizeBoostLevel::Perfect, 200, false, 0);     // Negative score (if possible in game)
         SDL_RenderPresent(renderer_.get());
     });
 }
