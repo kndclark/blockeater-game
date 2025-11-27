@@ -116,6 +116,8 @@ public:
     void setPlayerColor(const Color& color);
     const std::string& getSizeBoostText(SizeBoostLevel level) const;
     const std::vector<SizeBoostTier>& getSizeBoostTiers() const;
+    Color getSizeBoostTierColor(SizeBoostLevel level) const;
+    const std::vector<Color>& getRainbowColors() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -192,6 +194,8 @@ private:
     std::string size_boost_perfect_text_;
     std::string font_path_;
     Color ui_text_color_;
+    std::map<SizeBoostLevel, Color> size_boost_tier_colors_;
+    std::vector<Color> rainbow_colors_;
     int font_size_;
 
     std::vector<Color> player_color_choices_;

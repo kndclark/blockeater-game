@@ -84,7 +84,7 @@ TEST_F(UiTest, ScoreboardRender) {
     // We can't easily verify the visual output in a unit test.
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0, SizeBoostLevel::None); // NOLINT(readability-magic-numbers)
+        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0, SizeBoostLevel::None, 0); // NOLINT(readability-magic-numbers)
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -180,6 +180,58 @@ TEST_F(UiTest, ScoreboardCalculatesCooldownCirclePoints) {
     EXPECT_EQ(points.size(), segments + 1);
 }
 
+struct BoostFlashColorParams {
+    SizeBoostLevel level;
+    Uint32 time_since_boost;
+    Color expected_color;
+    std::string description;
+};
+
+class BoostFlashColorTest : public UiTest, public ::testing::WithParamInterface<BoostFlashColorParams> {};
+
+TEST_P(BoostFlashColorTest, SelectsCorrectFlashColorForBoostMessage) {
+    auto params = GetParam();
+    Scoreboard scoreboard(renderer_.get(), config_);
+
+    // The function under test. It should return the flashing color for the boost message.
+    Color result_color = scoreboard.getFlashColorForBoostMessage(params.level, params.time_since_boost);
+
+    EXPECT_EQ(result_color, params.expected_color) << "Failed on: " << params.description;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ScoreboardColorTests,
+    BoostFlashColorTest,
+    ::testing::ValuesIn([] {
+        Config config(kTestRootPath); // Use the real Config to load from JSON
+        Color good_color = config.getSizeBoostTierColor(SizeBoostLevel::Good);
+        Color great_color = config.getSizeBoostTierColor(SizeBoostLevel::Great);
+        Color default_color = config.getUiTextColor();
+        const auto& rainbow_colors = config.getRainbowColors();
+
+        return std::vector<BoostFlashColorParams>{
+            // Good tier should flash between green and default
+            {SizeBoostLevel::Good, 100, good_color, "Good_FirstFlash"},
+            {SizeBoostLevel::Good, 250, default_color, "Good_SecondFlash"},
+            {SizeBoostLevel::Good, 400, good_color, "Good_ThirdFlash"},
+
+            // Great tier should flash between yellow and default
+            {SizeBoostLevel::Great, 100, great_color, "Great_FirstFlash"},
+            {SizeBoostLevel::Great, 250, default_color, "Great_SecondFlash"},
+
+            // Perfect tier should cycle through rainbow colors
+            {SizeBoostLevel::Perfect, 50, rainbow_colors[0], "Perfect_Rainbow_0"},
+            {SizeBoostLevel::Perfect, 100, rainbow_colors[1], "Perfect_Rainbow_1"},
+            {SizeBoostLevel::Perfect, 150, rainbow_colors[2], "Perfect_Rainbow_2"},
+            {SizeBoostLevel::Perfect, 200, rainbow_colors[3], "Perfect_Rainbow_3"},
+            {SizeBoostLevel::Perfect, 250, rainbow_colors[4], "Perfect_Rainbow_4"},
+            {SizeBoostLevel::Perfect, 300, rainbow_colors[5], "Perfect_Rainbow_5"},
+            {SizeBoostLevel::Perfect, 350, rainbow_colors[0], "Perfect_Rainbow_WrapAround"}, // Wraps around
+        };
+    }()),
+    [](const testing::TestParamInfo<BoostFlashColorTest::ParamType>& info) { return info.param.description; }
+);
+
 // Test that rendering different score and level values works without crashing.
 TEST_F(UiTest, ScoreboardRendersVariousValues) {
     Scoreboard scoreboard(renderer_.get(), config_);
@@ -189,9 +241,9 @@ TEST_F(UiTest, ScoreboardRendersVariousValues) {
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None);        // Initial score, dash ready
-        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234, SizeBoostLevel::Good);   // High score and level, dash on cooldown
-        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0, SizeBoostLevel::Perfect);     // Negative score (if possible in game)
+        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0);        // Initial score, dash ready
+        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234, SizeBoostLevel::Good, 100);   // High score and level, dash on cooldown
+        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0, SizeBoostLevel::Perfect, 200);     // Negative score (if possible in game)
         SDL_RenderPresent(renderer_.get());
     });
 }

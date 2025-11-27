@@ -1,6 +1,7 @@
 #include "Scoreboard.h"
 #include <stdexcept> // For std::runtime_error
 #include <iomanip>   // For std::fixed, std::setprecision
+#include <algorithm> // For std::find_if
 #include <memory>    // For std::unique_ptr
 #include "Player.h"  // For Player::DASH_COOLDOWN_MS
 
@@ -13,7 +14,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level) const {
+void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level, Uint32 time_since_boost) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -71,8 +72,11 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Next Gap Size ---
     // This now displays the player's size as a percentage of the upcoming gap.
+    Color gap_text_color_struct = getColorForSizeBoostTier(player_size, current_gap_size);
+    SDL_Color gap_text_color = {gap_text_color_struct.r, gap_text_color_struct.g, gap_text_color_struct.b, gap_text_color_struct.a};
+
     std::string gap_text = getPlayerSizeText(player_size, current_gap_size);
-    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), color));
+    std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), gap_text_color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
         return;
@@ -92,8 +96,11 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Size Boost Message ---
     if (last_boost_level != SizeBoostLevel::None) {
+        Color boost_color_struct = getFlashColorForBoostMessage(last_boost_level, time_since_boost);
+        SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
+
         std::string boost_text = config_.getSizeBoostText(last_boost_level);
-        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), color));
+        std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), boost_color));
         if (!boost_surface) {
             SDL_Log("Unable to create text surface for boost message: %s", TTF_GetError());
             return;
@@ -144,6 +151,53 @@ std::string Scoreboard::getDashStatusText(bool on_cooldown, Uint32 cooldown_rema
     } else {
         // Show "ready" if not on cooldown or if the cooldown has just expired.
         return config_.getDashReadyText();
+    }
+}
+
+Color Scoreboard::getColorForSizeBoostTier(int player_width, int gap_size) const {
+    if (gap_size <= 0) {
+        return config_.getUiTextColor();
+    }
+
+    const float raw_size_percentage = (static_cast<float>(player_width) / gap_size) * 100.0f;
+    const int rounded_percentage = static_cast<int>(std::round(raw_size_percentage));
+    const auto& tiers = config_.getSizeBoostTiers();
+
+    auto tier_it = std::find_if(tiers.cbegin(), tiers.cend(), [rounded_percentage](const auto& tier) {
+        return rounded_percentage >= tier.threshold_percent;
+    });
+
+    if (tier_it != tiers.cend()) {
+        SizeBoostLevel level = SizeBoostLevel::None;
+        if (tier_it->tier == "Perfect") level = SizeBoostLevel::Perfect;
+        else if (tier_it->tier == "Great") level = SizeBoostLevel::Great;
+        else if (tier_it->tier == "Good") level = SizeBoostLevel::Good;
+
+        if (level != SizeBoostLevel::None) {
+            return config_.getSizeBoostTierColor(level);
+        }
+    }
+
+    return config_.getUiTextColor();
+}
+
+Color Scoreboard::getFlashColorForBoostMessage(SizeBoostLevel level, Uint32 time_since_boost) const {
+    if (level == SizeBoostLevel::Perfect) {
+        const auto& rainbow_colors = config_.getRainbowColors();
+        if (rainbow_colors.empty()) return config_.getUiTextColor();
+        const Uint32 rainbow_cycle_time = 50; // ms per color
+        int color_index = ((time_since_boost - 1) / rainbow_cycle_time) % rainbow_colors.size();
+        return rainbow_colors[color_index];
+    }
+
+    // For Good and Great, flash between tier color and default UI color
+    const Uint32 flash_interval = 150; // ms
+    bool use_tier_color = (time_since_boost / flash_interval) % 2 == 0;
+
+    if (use_tier_color) {
+        return config_.getSizeBoostTierColor(level);
+    } else {
+        return config_.getUiTextColor();
     }
 }
 

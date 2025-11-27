@@ -33,6 +33,19 @@
         "final_score_text": "Final Score: ",
         "size_boost_good_text": "Good size boost!",
         "size_boost_great_text": "Great size boost!",
-        "size_boost_perfect_text": "Perfect size boost!"
+        "size_boost_perfect_text": "Perfect size boost!",
+        "size_boost_tier_colors": {
+            "good": { "r": 0, "g": 255, "b": 0, "a": 255 },
+            "great": { "r": 255, "g": 200, "b": 0, "a": 255 },
+            "perfect": { "r": 255, "g": 0, "b": 0, "a": 255 }
+        },
+        "rainbow_colors": [
+            { "r": 255, "g": 0, "b": 0, "a": 255 },
+            { "r": 255, "g": 165, "b": 0, "a": 255 },
+            { "r": 255, "g": 255, "b": 0, "a": 255 },
+            { "r": 0, "g": 255, "b": 0, "a": 255 },
+            { "r": 0, "g": 0, "b": 255, "a": 255 },
+            { "r": 75, "g": 0, "b": 130, "a": 255 }
+        ]
     }
 }

@@ -133,6 +133,18 @@ void Config::load_defaults() {
         {0, 0, 128, 255},     // Blue
         {255, 165, 0, 255}    // Orange
     };
+    
+    size_boost_tier_colors_[SizeBoostLevel::Good] = {0, 255, 0, 255};
+    size_boost_tier_colors_[SizeBoostLevel::Great] = {255, 200, 0, 255};
+    size_boost_tier_colors_[SizeBoostLevel::Perfect] = {255, 0, 255, 255};
+    rainbow_colors_ = {
+        { 255, 0, 0, 255 },
+        { 255, 165, 0, 255 },
+        { 255, 255, 0, 255 },
+        { 0, 255, 0, 255 },
+        { 0, 0, 255, 255 },
+        { 75, 0, 130, 255 }
+    };
 }
 
 Config::Config(const std::string& root_path) : root_path_(root_path) {
@@ -220,6 +232,12 @@ void Config::load_ui_texts(const std::string& base_path) {
             font_path_ = data.value("/ui_text/font/path"_json_pointer, font_path_);
             font_size_ = data.value("/ui_text/font/size"_json_pointer, font_size_);
             ui_text_color_ = data.value("/ui_text/text_color"_json_pointer, ui_text_color_);
+            size_boost_tier_colors_[SizeBoostLevel::Good] = data.value("/ui_text/size_boost_tier_colors/good"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Good]);
+            size_boost_tier_colors_[SizeBoostLevel::Great] = data.value("/ui_text/size_boost_tier_colors/great"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Great]);
+            size_boost_tier_colors_[SizeBoostLevel::Perfect] = data.value("/ui_text/size_boost_tier_colors/perfect"_json_pointer, size_boost_tier_colors_[SizeBoostLevel::Perfect]);
+            if (data.contains("ui_text") && data["ui_text"].contains("rainbow_colors")) {
+                rainbow_colors_ = data.at("ui_text").at("rainbow_colors").get<std::vector<Color>>();
+            }
 
             if (data.contains("player_color_choices")) {
                 // Clear the default choices before loading from the file to avoid duplicates.
@@ -601,6 +619,18 @@ const std::string& Config::getSizeBoostText(SizeBoostLevel level) const {
 
 void Config::setPlayerColor(const Color& color) {
     playerColor = color;
+}
+
+Color Config::getSizeBoostTierColor(SizeBoostLevel level) const {
+    auto it = size_boost_tier_colors_.find(level);
+    if (it != size_boost_tier_colors_.end()) {
+        return it->second;
+    }
+    return getUiTextColor(); // Fallback to default UI color
+}
+
+const std::vector<Color>& Config::getRainbowColors() const {
+    return rainbow_colors_;
 }
 
 void from_json(const json& j, std::vector<Color>& colors) {

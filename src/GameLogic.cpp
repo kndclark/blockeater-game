@@ -326,11 +326,12 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
 
     // Only render if the game is still running after the update phase
     if (game_state.running) {
+        Uint32 time_since_boost = (game_state.last_size_boost_level != SizeBoostLevel::None) ? (frame_start_time - game_state.last_size_boost_time) : 0;
         renderGame(renderer, game_state, config);
         scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
                            game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
-                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(),
-                           game_state.last_size_boost_level);
+                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(), game_state.last_size_boost_level,
+                           time_since_boost);
         SDL_RenderPresent(renderer);
     }
 

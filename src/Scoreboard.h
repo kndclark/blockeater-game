@@ -15,13 +15,17 @@ public:
     Scoreboard(const Scoreboard&) = delete;
     Scoreboard& operator=(const Scoreboard&) = delete;
 
-    void render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level) const;
+    void render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level, Uint32 time_since_boost) const;
 
     // Generates the text for the level display. Made public for easier testing.
     std::string getLevelText(int level, int checkpoints_passed, int checkpoints_per_level) const;
     void renderDashStatus(bool on_cooldown, Uint32 cooldown_remaining) const;
     std::string getPlayerSizeText(int player_size, int gap_size) const;
     std::string getDashStatusText(bool on_cooldown, Uint32 cooldown_remaining) const;
+
+    // Public for testing
+    Color getColorForSizeBoostTier(int player_width, int gap_size) const;
+    Color getFlashColorForBoostMessage(SizeBoostLevel level, Uint32 time_since_boost) const;
 
     void drawCooldownCircle(float progress, int x, int y, int radius, SDL_Color color, std::vector<SDL_Point>* out_points = nullptr) const;
 
