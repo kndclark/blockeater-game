@@ -98,7 +98,13 @@ void ObstacleSpawner::spawn_obstacles(Uint32 current_time, GameState& game_state
 
         const int gap_height = game_state.next_checkpoint_gap_size;
         int gap_y;
-        game_state.obstacles.push_back(Obstacle::createCheckpoint(screen_width, screen_height, level_manager.getObstacleSpeed(), gap_height, game_state.config.getScorePerCheckpoint(), nearby_obstacles, gap_y));
+        CheckpointDef checkpoint_def = {screen_width,
+                                        screen_height,
+                                        level_manager.getObstacleSpeed(),
+                                        gap_height,
+                                        game_state.config.getScorePerCheckpoint()
+                                       };
+        game_state.obstacles.push_back(Obstacle::createCheckpoint(checkpoint_def, nearby_obstacles, gap_y));
         last_checkpoint = &game_state.obstacles.back();
 
         // Reset the trackers for the next interval.
@@ -344,11 +350,24 @@ void handleGameLoop(SDL_Renderer* renderer, GameState& game_state, Scoreboard& s
     if (game_state.running) {
         Uint32 time_since_boost = (game_state.last_size_boost_level != SizeBoostLevel::None) ? (frame_start_time - game_state.last_size_boost_time) : 0;
         Uint32 time_since_dash_boost = game_state.dash_boost_active ? (frame_start_time - game_state.last_dash_boost_time) : 0;
+        
+        ScoreboardRenderData render_data = {
+            game_state.score,
+            game_state.level,
+            game_state.ui_next_checkpoint_gap_size,
+            game_state.checkpoints_passed_in_level,
+            game_state.level_manager.getCheckpointsPerLevel(),
+            game_state.player.rect.w,
+            (game_state.player.state == PlayerState::Cooldown),
+            game_state.player.getDashCooldownRemaining(),
+            game_state.last_size_boost_level,
+            time_since_boost,
+            game_state.dash_boost_active,
+            time_since_dash_boost
+        };
+
         renderGame(renderer, game_state, config);
-        scoreboard.render(game_state.score, game_state.level, game_state.ui_next_checkpoint_gap_size,
-                           game_state.checkpoints_passed_in_level, game_state.level_manager.getCheckpointsPerLevel(),
-                           game_state.player.rect.w, game_state.player.state == PlayerState::Cooldown, game_state.player.getDashCooldownRemaining(), game_state.last_size_boost_level, time_since_boost,
-                           game_state.dash_boost_active, time_since_dash_boost);
+        scoreboard.render(render_data);
         SDL_RenderPresent(renderer);
     }
 

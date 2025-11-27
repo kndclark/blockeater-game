@@ -35,6 +35,15 @@ inline ObstacleType determineObstacleType(int percent_grow, int percent_shrink, 
     }
 }
 
+/// @brief A data structure to hold all the information needed to create a Checkpoint.
+struct CheckpointDef {
+    int screen_width;
+    int screen_height;
+    int speed;
+    int gap_height;
+    int points;
+};
+
 class Config; // Forward declaration
 
 // --- Obstacle Struct ---
@@ -89,7 +98,7 @@ struct Obstacle {
         );
     }
 
-    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y);
+    static Obstacle createCheckpoint(const CheckpointDef& def, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y);
     static int calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height = std::nullopt);
 
 private:

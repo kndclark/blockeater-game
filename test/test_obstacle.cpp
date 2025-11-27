@@ -27,7 +27,13 @@ TEST(ObstacleCreationTest, CreateCheckpoint) {
     // We don't need to test the randomness, just that it creates the right kind of obstacle.
     int dummy_gap_y;
     std::vector<Obstacle> nearby;
-    Obstacle o = Obstacle::createCheckpoint(800, 600, 3, 150, 50, nearby, dummy_gap_y); // Pass a fixed gap height for testing
+    CheckpointDef def = {800,  // screen_width
+                         600,  // screen_height
+                         3,    // speed
+                         150,  // gap_height
+                         50    // points
+    };
+    Obstacle o = Obstacle::createCheckpoint(def, nearby, dummy_gap_y); // Pass a fixed gap height for testing
     EXPECT_EQ(o.type, ObstacleType::Checkpoint);
     EXPECT_EQ(o.points, 50);
     EXPECT_TRUE(o.rect2.has_value());
@@ -272,7 +278,13 @@ TEST_P(CheckpointAvoidanceTest, CheckpointWallsAvoidNearbyObstacles) {
     const int num_trials = 100;
     for (int i = 0; i < num_trials; ++i) {
         int dummy_gap_y;
-        Obstacle checkpoint = Obstacle::createCheckpoint(screen_width, screen_height, speed, params.checkpoint_gap_height, points, nearby_obstacles, dummy_gap_y);
+        CheckpointDef def = {screen_width,
+                             screen_height,
+                             speed,
+                             params.checkpoint_gap_height,
+                             points
+        };
+        Obstacle checkpoint = Obstacle::createCheckpoint(def, nearby_obstacles, dummy_gap_y);
 
         for (const auto& rect : params.nearby_obstacle_rects) {
             // Check that the top wall does not overlap with the nearby obstacle.

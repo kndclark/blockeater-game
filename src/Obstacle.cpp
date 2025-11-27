@@ -1,15 +1,15 @@
 #include "Obstacle.h"
 #include "../config/Config.h"
 
-Obstacle Obstacle::createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y) {
+Obstacle Obstacle::createCheckpoint(const CheckpointDef& def, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y) {
     // Let calculateSafeY do the heavy lifting of finding a safe spot for the whole structure.
     // We pass the gap_height to signal that we are placing a checkpoint.
-    out_gap_y = calculateSafeY(screen_height, 0, nearby_obstacles, gap_height);
+    out_gap_y = calculateSafeY(def.screen_height, 0, nearby_obstacles, def.gap_height);
     
     const int checkpoint_width = 30;
-    SDL_Rect top_wall = {screen_width, 0, checkpoint_width, out_gap_y};
-    SDL_Rect bottom_wall = {screen_width, out_gap_y + gap_height, checkpoint_width, screen_height - (out_gap_y + gap_height)};
-    return Obstacle(top_wall, bottom_wall, speed, points);
+    SDL_Rect top_wall = {def.screen_width, 0, checkpoint_width, out_gap_y};
+    SDL_Rect bottom_wall = {def.screen_width, out_gap_y + def.gap_height, checkpoint_width, def.screen_height - (out_gap_y + def.gap_height)};
+    return Obstacle(top_wall, bottom_wall, def.speed, def.points);
 }
 
 int Obstacle::calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height) {

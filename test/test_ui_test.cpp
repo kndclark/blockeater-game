@@ -82,9 +82,23 @@ TEST_F(UiTest, ScoreboardRender) {
 
     // This is a smoke test to ensure render() doesn't crash.
     // We can't easily verify the visual output in a unit test.
+    ScoreboardRenderData data = {
+        12345,                   // score
+        1,                       // level
+        80,                      // current_gap_size
+        2,                       // checkpoints_passed
+        5,                       // checkpoints_per_level
+        40,                      // player_size
+        false,                   // on_cooldown
+        0,                       // cooldown_remaining
+        SizeBoostLevel::None,    // last_boost_level
+        0,                       // time_since_boost
+        false,                   // dash_boost_active
+        0                        // time_since_dash_boost
+    };
     EXPECT_NO_THROW({
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(12345, 1, 80, 2, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0); // NOLINT(readability-magic-numbers)
+        scoreboard.render(data); // NOLINT(readability-magic-numbers)
         SDL_RenderPresent(renderer_.get());
     });
 }
@@ -241,12 +255,46 @@ TEST_F(UiTest, ScoreboardRendersVariousValues) {
 
     // We can't easily check the visual output, but we can confirm that
     // rendering different values completes without throwing any exceptions.
+    // Initial score, dash ready
+    ScoreboardRenderData data1 = {0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0};
+
+    // High score and level, dash on cooldown
+    ScoreboardRenderData data2 = {
+        99999,                   // score
+        10,                      // level
+        60,                      // current_gap_size
+        53,                      // checkpoints_passed
+        10,                      // checkpoints_per_level
+        60,                      // player_size
+        true,                    // on_cooldown
+        1234,                    // cooldown_remaining
+        SizeBoostLevel::Good,    // last_boost_level
+        100,                     // time_since_boost
+        true,                    // dash_boost_active
+        50                       // time_since_dash_boost
+    };
+
+    // Negative score (if possible in game)
+    ScoreboardRenderData data3 = {
+        -100,                    // score
+        5,                       // level
+        25,                      // current_gap_size
+        28,                      // checkpoints_passed
+        8,                       // checkpoints_per_level
+        20,                      // player_size
+        false,                   // on_cooldown
+        0,                       // cooldown_remaining
+        SizeBoostLevel::Perfect, // last_boost_level
+        200,                     // time_since_boost
+        false,                   // dash_boost_active
+        0                        // time_since_dash_boost
+    };
     EXPECT_NO_THROW({
         SDL_SetRenderDrawColor(renderer_.get(), 0, 0, 0, 255);
         SDL_RenderClear(renderer_.get()); // NOLINT(readability-magic-numbers)
-        scoreboard.render(0, 1, 80, 0, 5, 40, false, 0, SizeBoostLevel::None, 0, false, 0);        // Initial score, dash ready
-        scoreboard.render(99999, 10, 60, 53, 10, 60, true, 1234, SizeBoostLevel::Good, 100, true, 50);   // High score and level, dash on cooldown
-        scoreboard.render(-100, 5, 25, 28, 8, 20, false, 0, SizeBoostLevel::Perfect, 200, false, 0);     // Negative score (if possible in game)
+        scoreboard.render(data1);
+        scoreboard.render(data2);
+        scoreboard.render(data3);
         SDL_RenderPresent(renderer_.get());
     });
 }

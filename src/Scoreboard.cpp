@@ -14,7 +14,7 @@ Scoreboard::Scoreboard(SDL_Renderer* renderer, const Config& config) : renderer_
 
 Scoreboard::~Scoreboard() = default;
 
-void Scoreboard::render(int score, int level, int current_gap_size, int checkpoints_passed, int checkpoints_per_level, int player_size, bool on_cooldown, Uint32 cooldown_remaining, SizeBoostLevel last_boost_level, Uint32 time_since_boost, bool dash_boost_active, Uint32 time_since_dash_boost) const {
+void Scoreboard::render(const ScoreboardRenderData& data) const {
     // Custom deleters for SDL resources. These are simple structs that define
     // how to properly destroy a Surface or a Texture.
     struct SdlSurfaceDeleter {
@@ -25,7 +25,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     };
 
     // --- Render Score ---
-    std::string score_text = config_.getScorePrefix() + std::to_string(score);
+    std::string score_text = config_.getScorePrefix() + std::to_string(data.score);
     Color c = config_.getUiTextColor();
     SDL_Color color = {c.r, c.g, c.b, c.a};
 
@@ -48,8 +48,8 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_RenderCopy(renderer_, score_texture.get(), nullptr, &score_dest_rect);
 
     // --- Render Dash Boost Message ---
-    if (dash_boost_active) {
-        Color boost_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, time_since_dash_boost); // Reuse rainbow flash
+    if (data.dash_boost_active) {
+        Color boost_color_struct = getFlashColorForBoostMessage(SizeBoostLevel::Perfect, data.time_since_dash_boost); // Reuse rainbow flash
         SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
 
         std::string boost_text = "Dash boost!";
@@ -71,7 +71,7 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     }
 
     // --- Render Level ---
-    std::string level_text = getLevelText(level, checkpoints_passed, checkpoints_per_level);
+    std::string level_text = getLevelText(data.level, data.checkpoints_passed, data.checkpoints_per_level);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> level_surface(TTF_RenderText_Solid(font_.get(), level_text.c_str(), color));
     if (!level_surface) {
         SDL_Log("Unable to create text surface for level: %s", TTF_GetError());
@@ -95,10 +95,10 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
 
     // --- Render Next Gap Size ---
     // This now displays the player's size as a percentage of the upcoming gap.
-    Color gap_text_color_struct = getColorForSizeBoostTier(player_size, current_gap_size);
+    Color gap_text_color_struct = getColorForSizeBoostTier(data.player_size, data.current_gap_size);
     SDL_Color gap_text_color = {gap_text_color_struct.r, gap_text_color_struct.g, gap_text_color_struct.b, gap_text_color_struct.a};
 
-    std::string gap_text = getPlayerSizeText(player_size, current_gap_size);
+    std::string gap_text = getPlayerSizeText(data.player_size, data.current_gap_size);
     std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> gap_surface(TTF_RenderText_Solid(font_.get(), gap_text.c_str(), gap_text_color));
     if (!gap_surface) {
         SDL_Log("Unable to create text surface for gap size: %s", TTF_GetError());
@@ -115,14 +115,14 @@ void Scoreboard::render(int score, int level, int current_gap_size, int checkpoi
     SDL_Rect gap_dest_rect = {10, level_dest_rect.y + level_dest_rect.h + 5, gap_surface->w, gap_surface->h};
     SDL_RenderCopy(renderer_, gap_texture.get(), nullptr, &gap_dest_rect);
 
-    renderDashStatus(on_cooldown, cooldown_remaining, dash_boost_active, time_since_dash_boost);
+    renderDashStatus(data.on_cooldown, data.cooldown_remaining, data.dash_boost_active, data.time_since_dash_boost);
 
     // --- Render Size Boost Message ---
-    if (last_boost_level != SizeBoostLevel::None) {
-        Color boost_color_struct = getFlashColorForBoostMessage(last_boost_level, time_since_boost);
+    if (data.last_boost_level != SizeBoostLevel::None) {
+        Color boost_color_struct = getFlashColorForBoostMessage(data.last_boost_level, data.time_since_boost);
         SDL_Color boost_color = {boost_color_struct.r, boost_color_struct.g, boost_color_struct.b, boost_color_struct.a};
 
-        std::string boost_text = config_.getSizeBoostText(last_boost_level);
+        std::string boost_text = config_.getSizeBoostText(data.last_boost_level);
         std::unique_ptr<SDL_Surface, SdlSurfaceDeleter> boost_surface(TTF_RenderText_Solid(font_.get(), boost_text.c_str(), boost_color));
         if (!boost_surface) {
             SDL_Log("Unable to create text surface for boost message: %s", TTF_GetError());

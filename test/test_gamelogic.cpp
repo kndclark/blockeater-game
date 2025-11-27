@@ -313,7 +313,13 @@ INSTANTIATE_TEST_SUITE_P(
 Obstacle createPlacedCheckpoint(int x_pos) {
     int dummy_gap_y;
     std::vector<Obstacle> nearby;
-    Obstacle checkpoint = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
+    CheckpointDef def = {0,    // screen_width
+                         600,  // screen_height
+                         3,    // speed
+                         150,  // gap_height
+                         10    // points
+    };
+    Obstacle checkpoint = Obstacle::createCheckpoint(def, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint.rect.x = x_pos;
     if(checkpoint.rect2) checkpoint.rect2->x = x_pos;
     return checkpoint;

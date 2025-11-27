@@ -1,11 +1,11 @@
 #include "Player.h"
 
-Player::Player(int x, int y, int w, int h, int s, Color c, float dash_mult, Uint32 dash_dur, Uint32 dash_cd)
-    : rect{x, y, w, h}, speed(s), color(c),
-      default_w(w), default_h(h),
-      dash_speed_multiplier(dash_mult),
-      dash_duration_ms(dash_dur),
-      dash_cooldown_ms(dash_cd)
+Player::Player(const PlayerDef& def)
+    : rect{def.x, def.y, def.w, def.h}, speed(def.speed), color(def.color),
+      default_w(def.w), default_h(def.h),
+      dash_speed_multiplier(def.dash_speed_multiplier),
+      dash_duration_ms(def.dash_duration_ms),
+      dash_cooldown_ms(def.dash_cooldown_ms)
 {}
 
 void Player::update(Uint32 current_time) {
