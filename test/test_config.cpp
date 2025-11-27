@@ -127,3 +127,13 @@ TEST_F(ConfigFileTest, LoadsLevelsConfig) {
     const LevelConfig* non_existent_level_config = config.getLevelConfig(99);
     EXPECT_EQ(non_existent_level_config, nullptr);
 }
+
+TEST_F(ConfigFileTest, LoadsSizeBoostUiTexts) {
+    // This test relies on the main config file being present at kTestConfigPath
+    // and the associated ui_texts.json being in the same directory.
+    Config config(kTestRootPath);
+
+    EXPECT_EQ(config.getSizeBoostText(SizeBoostLevel::Good), "Good size boost!");
+    EXPECT_EQ(config.getSizeBoostText(SizeBoostLevel::Great), "Great size boost!");
+    EXPECT_EQ(config.getSizeBoostText(SizeBoostLevel::Perfect), "Perfect size boost!");
+}

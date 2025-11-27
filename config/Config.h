@@ -6,6 +6,7 @@
 #include <map>
 #include "../src/Color.h"
 #include "../src/Obstacle.h" // For ObstacleType, and dimension structs
+#include "../src/Enums.h" // For SizeBoostLevel
 
 /// @brief Holds configuration that can be overridden on a per-level basis.
 struct LevelConfig {
@@ -29,6 +30,13 @@ struct ObstacleConfig {
     int grow_points;
     int shrink_points;
     int checkpoint_points;
+};
+
+/// @brief Holds configuration for a single tier of the size-based score boost.
+struct SizeBoostTier {
+    int threshold_percent;
+    float multiplier;
+    std::string tier;
 };
 
 
@@ -58,8 +66,8 @@ public:
     int getCheckpointsPerLevel() const;
     Uint32 getCheckpointInterval() const;
     Uint32 getCheckpointSafeZoneDuration() const;
-    int getGrowChance() const;
-    int getShrinkChance() const;
+    virtual int getGrowChance() const;
+    virtual int getShrinkChance() const;
     int getHurtChance() const;
     ObstacleSize getGrowDimensions() const;
     int getScorePerGrow() const;
@@ -69,7 +77,6 @@ public:
     ObstacleSize getShrinkDimensions() const;
     float getDashBoostMultiplier() const;
     int getSizeBoostThreshold() const;
-    float getSizeBoostMultiplier() const;
     ObstacleSize getHurtDimensions() const;
     int getPlayerInitialX() const;
     int getPlayerWidth() const;
@@ -84,9 +91,8 @@ public:
     const std::string& getLevelPrefix() const;
     const std::string& getGapSizePrefix() const;
     const std::string& getLevelProgressPrefix() const;
-    const std::string& getPlayerSizePrefix() const;
-    const std::string& getPlayerSizeSuffix() const;
     Color getUiTextColor() const;
+    const std::string& getGapSizeSuffix() const;
     const std::string& getGameOverText() const;
     const std::string& getVictoryText() const;
     const std::string& getGameOverInstructions() const;
@@ -108,6 +114,10 @@ public:
     Color getCooldownIndicatorColor() const;
     const std::vector<Color>& getPlayerColorChoices() const;
     void setPlayerColor(const Color& color);
+    const std::string& getSizeBoostText(SizeBoostLevel level) const;
+    const std::vector<SizeBoostTier>& getSizeBoostTiers() const;
+    Color getSizeBoostTierColor(SizeBoostLevel level) const;
+    const std::vector<Color>& getRainbowColors() const;
     const LevelConfig* getLevelConfig(int level) const;
 
 protected:
@@ -135,8 +145,7 @@ private:
     int score_per_shrink;
     int score_per_hurt;
     float dash_boost_multiplier_;
-    int size_boost_threshold_;
-    float size_boost_multiplier_;
+    std::vector<SizeBoostTier> size_boost_tiers_;
     int checkpoints_per_level;
     Uint32 spawn_interval_ms;
     Uint32 checkpoint_interval_ms;
@@ -166,8 +175,7 @@ private:
     int cooldown_indicator_radius_;
     Color cooldown_indicator_color_;
     std::string gap_size_prefix_;
-    std::string player_size_prefix_;
-    std::string player_size_suffix_;
+    std::string gap_size_suffix_;
     std::string game_over_text_;
     std::string victory_text_;
     std::string game_over_instructions_;
@@ -181,8 +189,13 @@ private:
     std::string scoreboard_instructions_;
     std::string enter_name_prompt_;
     std::string final_score_text_;
+    std::string size_boost_good_text_;
+    std::string size_boost_great_text_;
+    std::string size_boost_perfect_text_;
     std::string font_path_;
     Color ui_text_color_;
+    std::map<SizeBoostLevel, Color> size_boost_tier_colors_;
+    std::vector<Color> rainbow_colors_;
     int font_size_;
 
     std::vector<Color> player_color_choices_;
