@@ -1,15 +1,15 @@
 #include "Obstacle.h"
 #include "../config/Config.h"
 
-Obstacle Obstacle::createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y) {
+Obstacle Obstacle::createCheckpoint(const CheckpointDef& def, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y) {
     // Let calculateSafeY do the heavy lifting of finding a safe spot for the whole structure.
     // We pass the gap_height to signal that we are placing a checkpoint.
-    out_gap_y = calculateSafeY(screen_height, 0, nearby_obstacles, gap_height);
+    out_gap_y = calculateSafeY(def.screen_height, 0, nearby_obstacles, def.gap_height);
     
     const int checkpoint_width = 30;
-    SDL_Rect top_wall = {screen_width, 0, checkpoint_width, out_gap_y};
-    SDL_Rect bottom_wall = {screen_width, out_gap_y + gap_height, checkpoint_width, screen_height - (out_gap_y + gap_height)};
-    return Obstacle(top_wall, bottom_wall, speed, points);
+    SDL_Rect top_wall = {def.screen_width, 0, checkpoint_width, out_gap_y};
+    SDL_Rect bottom_wall = {def.screen_width, out_gap_y + def.gap_height, checkpoint_width, def.screen_height - (out_gap_y + def.gap_height)};
+    return Obstacle(top_wall, bottom_wall, def.speed, def.points);
 }
 
 int Obstacle::calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height) {
@@ -81,20 +81,20 @@ int Obstacle::calculateSafeY(int screen_height, int entity_height, const std::ve
     }
 }
 
-std::tuple<ObstacleType, ObstacleSize, int> Obstacle::getObstacleTypeAndSize(const ObstacleConfig& obs_cfg) {
+std::tuple<ObstacleType, ObstacleSize, int> Obstacle::getObstacleTypeAndSize(const Config& config) {
     int type_roll = rand() % 100; // Roll a number between 0 and 99
-    ObstacleType type = determineObstacleType(obs_cfg.grow_chance, obs_cfg.shrink_chance, type_roll);
+    ObstacleType type = determineObstacleType(config.getGrowChance(), config.getShrinkChance(), type_roll);
     switch (type) {
-        case ObstacleType::Grow:   return {type, obs_cfg.grow_dims, obs_cfg.grow_points};
-        case ObstacleType::Shrink: return {type, obs_cfg.shrink_dims, obs_cfg.shrink_points};
-        default:                   return {type, obs_cfg.hurt_dims, 0};
+        case ObstacleType::Grow:   return {type, config.getGrowDimensions(), config.getScorePerGrow()};
+        case ObstacleType::Shrink: return {type, config.getShrinkDimensions(), config.getScorePerShrink()};
+        default:                   return {type, config.getHurtDimensions(), 0};
     }
 }
 
 Obstacle Obstacle::createRegular(int screen_width, int screen_height, int speed,
-                              const ObstacleConfig& obs_cfg,
+                              const Config& config,
                               const std::vector<Obstacle>& nearby_obstacles) {
-    auto [type, dims, points] = getObstacleTypeAndSize(obs_cfg);
+    auto [type, dims, points] = getObstacleTypeAndSize(config);
     int y = calculateSafeY(screen_height, dims.h, nearby_obstacles);
     return Obstacle(screen_width, y, dims.w, dims.h, speed, type, points);
 }

@@ -43,4 +43,5 @@ TEST_F(GameStateTest, Initialization) {
     EXPECT_EQ(game_state.level_manager.getGrowChance(), level1_config->grow_chance_percent.value());
     EXPECT_EQ(game_state.level_manager.getShrinkChance(), level1_config->shrink_chance_percent.value());
     EXPECT_EQ(game_state.level_manager.getBaseCheckpointGap(), level1_config->base_checkpoint_gap.value());
+    EXPECT_EQ(game_state.level_manager.getCheckpointsPerLevel(), level1_config->checkpoints_per_level.value());
 }

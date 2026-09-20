@@ -8,9 +8,10 @@
 TEST_F(SdlTest, CollisionDetection) {
     // NOLINTNEXTLINE(readability-magic-numbers)
     Config config(kTestRootPath);
-    Player player(100, 100, 40, 40, 5, {0,0,0,0},
-                  config.getDashSpeedMultiplier(), config.getDashDurationMs(),
-                  config.getDashCooldownMs());
+    Player player({100, 100, 40, 40, 5, {0,0,0,0},
+                   config.getDashSpeedMultiplier(), config.getDashDurationMs(),
+                   config.getDashCooldownMs()
+                  });
 
     // No collision
     Obstacle no_collision(200, 200, 20, 20, 3, ObstacleType::Hurt);
@@ -28,9 +29,10 @@ TEST_F(SdlTest, CollisionDetection) {
 TEST_F(SdlTest, CheckpointCollisionDetection) {
     // NOLINTNEXTLINE(readability-magic-numbers)
     Config config(kTestRootPath);
-    Player player(100, 100, 40, 40, 5, {0,0,0,0},
-                  config.getDashSpeedMultiplier(), config.getDashDurationMs(),
-                  config.getDashCooldownMs());
+    Player player({100, 100, 40, 40, 5, {0,0,0,0},
+                   config.getDashSpeedMultiplier(), config.getDashDurationMs(),
+                   config.getDashCooldownMs()
+                  });
 
     // Checkpoint with a gap the player can fit through
     SDL_Rect top_wall = {110, 0, 20, 90};

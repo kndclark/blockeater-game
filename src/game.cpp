@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Creates context for 2D drawing operations (renderer) to be shown in the window.
-    // Uses a back-buffer system: clear the screen, draw all your objects to a hidden
+    // Uses a back-buffer system: clear the screen, draw all objects to a hidden
     // buffer, then "present" that buffer to the screen all at once to prevent flickering.
     std::unique_ptr<SDL_Renderer, SdlDeleter> renderer(SDL_CreateRenderer(
         window.get(),                 // The window to render to.
@@ -158,6 +158,11 @@ int main(int argc, char* argv[]) {
                         if (game_state->paused) {
                             PauseMenuAction action = MenuManager::showPauseMenu(renderer.get(), config);
                             handlePauseMenuAction(action, *game_state, app_status);
+                            // If the game was un-paused, reset the frame timer to prevent a large time jump.
+                            // This prevents the game from trying to "catch up" on all the frames
+                            // that were missed while paused, which causes objects to jump.
+                            // This is a common issue when alt-tabbing.
+                            if (!game_state->paused) { game_state->last_fps_update_time = SDL_GetTicks(); }
                         } else {
                             handleGameLoop(renderer.get(), *game_state, *scoreboard, config);
         

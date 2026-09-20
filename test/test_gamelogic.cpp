@@ -140,10 +140,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 // --- ScoreManager Test ---
 struct ScoreManagerParams {
-    bool is_dashing;
+    PlayerState player_state;
     int player_width;
     int gap_size;
     int base_score;
+    ObstacleType obstacle_type; // To distinguish between regular and checkpoint scoring
     int expected_score;
     std::string description;
 };
@@ -158,11 +159,11 @@ TEST_P(ScoreManagerTest, CalculatesScoreCorrectly) {
     auto params = GetParam();
     GameState game_state(config, 800, 600);
 
-    game_state.player.is_dashing = params.is_dashing;
+    game_state.player.state = params.player_state;
     game_state.player.rect.w = params.player_width;
     game_state.ui_next_checkpoint_gap_size = params.gap_size;
 
-    int final_score = game_state.score_manager.calculateScore(params.base_score, game_state).score;
+    int final_score = game_state.score_manager.calculateScore(params.base_score, game_state, params.obstacle_type).score;
 
     EXPECT_EQ(final_score, params.expected_score);
 }
@@ -173,25 +174,72 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::ValuesIn([] {
         TestConfig config(kTestRootPath);
         const int base_score = 100;
-        const float dash_multiplier = config.getDashBoostMultiplier();
-        const float size_multiplier = config.getSizeBoostMultiplier();
-        const int size_threshold_percent = config.getSizeBoostThreshold();
-
-        // Calculate player width needed to be exactly at the threshold for a gap of 200
         const int gap_size = 200;
-        // Add a small epsilon to ensure floating point comparison works as expected.
-        const int player_width_at_threshold = static_cast<int>(gap_size * (static_cast<float>(size_threshold_percent) / 100.0f) + 0.1f);
+        const float dash_multiplier = config.getDashBoostMultiplier();
+        const auto& tiers = config.getSizeBoostTiers();
+
+        // Assuming tiers are sorted descending by threshold in config
+        const float perfect_mult = tiers[0].multiplier; // 80%
+        const float great_mult = tiers[1].multiplier;     // 50%
+        const float good_mult = tiers[2].multiplier;      // 30%
+
+        // Player widths to hit each tier for a gap of 200
+        const int width_no_boost = static_cast<int>(gap_size * 0.29f); // 29%
+        const int width_good_boost = static_cast<int>(gap_size * 0.30f); // 30%
+        const int width_great_boost = static_cast<int>(gap_size * 0.50f); // 50%
+        const int width_perfect_boost = static_cast<int>(gap_size * 0.80f); // 80%
 
         return std::vector<ScoreManagerParams>{
-            {false, 40, gap_size, base_score, base_score, "NoBoosts"},
-            {true, 40, gap_size, base_score, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
-            {false, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * size_multiplier), "SizeBoostOnly"},
-            {true, player_width_at_threshold, gap_size, base_score, static_cast<int>(base_score * dash_multiplier * size_multiplier), "DashAndSizeBoost"}
+            {PlayerState::Ready, width_no_boost, gap_size, base_score, ObstacleType::Checkpoint, base_score, "NoBoosts"},
+            {PlayerState::Dashing, width_no_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * dash_multiplier), "DashBoostOnly"},
+            // Size boosts should NOT apply for Grow/Shrink obstacles
+            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, ObstacleType::Grow, base_score, "NoSizeBoostOnGrow"},
+            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, ObstacleType::Shrink, static_cast<int>(base_score * dash_multiplier), "NoSizeBoostOnShrink_DashOnly"},
+            // Size boosts should apply for Checkpoints
+            {PlayerState::Ready, width_good_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * good_mult), "GoodSizeBoostOnCheckpoint"},
+            {PlayerState::Ready, width_great_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * great_mult), "GreatSizeBoostOnCheckpoint"},
+            {PlayerState::Ready, width_perfect_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * perfect_mult), "PerfectSizeBoostOnCheckpoint"},
+            {PlayerState::Dashing, width_perfect_boost, gap_size, base_score, ObstacleType::Checkpoint, static_cast<int>(base_score * dash_multiplier * perfect_mult), "DashAndPerfectSizeBoostOnCheckpoint"}
         };
     }()),
     [](const testing::TestParamInfo<ScoreManagerTest::ParamType>& info) { return info.param.description; }
 );
 
+struct SizeBoostLevelParams {
+    int player_width;
+    int gap_size;
+    SizeBoostLevel expected_level;
+    std::string description;
+};
+
+class SizeBoostLevelTest : public GameLogicTest, public ::testing::WithParamInterface<SizeBoostLevelParams> {};
+
+TEST_P(SizeBoostLevelTest, ReturnsCorrectBoostLevel) {
+    auto params = GetParam();
+    GameState game_state(config, 800, 600);
+    game_state.player.rect.w = params.player_width;
+    game_state.ui_next_checkpoint_gap_size = params.gap_size;
+
+    auto result = game_state.score_manager.calculateScore(100, game_state, ObstacleType::Checkpoint);
+
+    EXPECT_EQ(result.size_boost_level, params.expected_level);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    GameLogicTests,
+    SizeBoostLevelTest,
+    ::testing::Values(
+        SizeBoostLevelParams{29, 100, SizeBoostLevel::None, "BelowGoodThreshold"},
+        SizeBoostLevelParams{30, 100, SizeBoostLevel::Good, "AtGoodThreshold"},
+        SizeBoostLevelParams{494, 1000, SizeBoostLevel::Good, "RoundsDownBelowGreat"},
+        SizeBoostLevelParams{50, 100, SizeBoostLevel::Great, "AtGreatThreshold"},
+        SizeBoostLevelParams{794, 1000, SizeBoostLevel::Great, "RoundsDownBelowPerfect"},
+        SizeBoostLevelParams{799, 1000, SizeBoostLevel::Perfect, "RoundsUpToPerfect"},
+        SizeBoostLevelParams{80, 100, SizeBoostLevel::Perfect, "AtPerfectThreshold"},
+        SizeBoostLevelParams{100, 100, SizeBoostLevel::Perfect, "AtMaximumPercentage"}
+    ),
+    [](const testing::TestParamInfo<SizeBoostLevelTest::ParamType>& info) { return info.param.description; }
+);
 // --- Checkpoint Passing Logic Test ---
 struct CheckpointPassingParams {
     int player_x;
@@ -233,7 +281,7 @@ TEST_P(CheckpointPassingTest, HandlesPassingCorrectly) {
     handleCheckpointPassing(game_state.player, obstacle, game_state);
     // If the score was expected to change, we need to account for the boost in our expectation
     if (params.expected_score != old_score) {
-        game_state.score = old_score + game_state.score_manager.calculateScore(params.expected_score - old_score, game_state).score;
+        game_state.score = old_score + game_state.score_manager.calculateScore(params.expected_score - old_score, game_state, ObstacleType::Checkpoint).score;
     }
 
     EXPECT_EQ(game_state.score, params.expected_score);
@@ -265,7 +313,13 @@ INSTANTIATE_TEST_SUITE_P(
 Obstacle createPlacedCheckpoint(int x_pos) {
     int dummy_gap_y;
     std::vector<Obstacle> nearby;
-    Obstacle checkpoint = Obstacle::createCheckpoint(0, 600, 3, 150, 10, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
+    CheckpointDef def = {0,    // screen_width
+                         600,  // screen_height
+                         3,    // speed
+                         150,  // gap_height
+                         10    // points
+    };
+    Obstacle checkpoint = Obstacle::createCheckpoint(def, nearby, dummy_gap_y); // NOLINT(readability-magic-numbers)
     checkpoint.rect.x = x_pos;
     if(checkpoint.rect2) checkpoint.rect2->x = x_pos;
     return checkpoint;
@@ -275,10 +329,10 @@ TEST_F(GameLogicTest, LevelUp) {
     GameState game_state(config, 800, 600);
     
     // --- Test Level 1 -> 2 ---
-    const int checkpoints_for_lvl1 = game_state.level_manager.getCheckpointsPerLevel();
-    game_state.checkpoints_passed_in_level = checkpoints_for_lvl1 - 1;
+    // From levels.json, level 1 requires 5 checkpoints. Set state to 4 passed.
+    game_state.checkpoints_passed_in_level = 4;
 
-    // Pass a checkpoint. This should trigger a level up to 2.
+    // Pass one more checkpoint. This should trigger a level up to 2.
     Obstacle checkpoint1 = createPlacedCheckpoint(50); // Place it behind the player
     handleCheckpointPassing(game_state.player, checkpoint1, game_state);
     
@@ -432,47 +486,41 @@ TEST_F(ObstacleSpawnerStateTest, TrackersAreClearedAfterCheckpoint) {
 };
 
 TEST_F(ObstacleSpawnerStateTest, UiNextGapSizeIsUpdatedOnlyOnCheckpoint) {
-    // This test uses the spawner injected in the test fixture's constructor.
-    // The checkpoint interval is set to 1000ms there.
+        // This test uses the spawner injected in the test fixture's constructor.
+        // The checkpoint interval is set to 1000ms there.
     const Uint32 checkpoint_interval = game_state.level_manager.getCheckpointInterval();
 
-    // Grab the initial values before any changes.
-    const int initial_ui_gap_size = game_state.ui_next_checkpoint_gap_size;
-    const int initial_internal_gap_size = game_state.next_checkpoint_gap_size;
+        // Grab the initial values before any changes.
+        const int initial_ui_gap_size = game_state.ui_next_checkpoint_gap_size;
+        const int initial_internal_gap_size = game_state.next_checkpoint_gap_size;
 
-    // Manually trigger the logic that happens when a shrink power-up is spawned.
-    // We simulate this happening at a time before the first checkpoint.
-    const Uint32 regular_spawn_time = 1000;
-    game_state.spawner.last_spawn_time = regular_spawn_time;
-    game_state.spawner.shrink_powerups_since_checkpoint.push_back(1);
-    // Manually call calculateCheckpointGapSize to update the internal prediction,
-    // just as spawn_obstacles would.
-    game_state.next_checkpoint_gap_size = game_state.spawner.calculateCheckpointGapSize();
+        // Manually trigger the logic that happens when a shrink power-up is spawned.
+        // We simulate this happening at a time before the first checkpoint.
+        const Uint32 regular_spawn_time = 1000;
+        game_state.spawner.last_spawn_time = regular_spawn_time;
+        game_state.spawner.shrink_powerups_since_checkpoint.push_back(1);
+        // Manually call calculateCheckpointGapSize to update the internal prediction,
+        // just as spawn_obstacles would.
+        game_state.next_checkpoint_gap_size = game_state.spawner.calculateCheckpointGapSize();
 
-    // Assert that the UI value has NOT changed, but the internal one has.
-    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, initial_ui_gap_size) << "UI gap size should not change when a shrink power-up spawns.";
-    EXPECT_NE(game_state.next_checkpoint_gap_size, initial_internal_gap_size) << "Internal gap size should change when a shrink power-up spawns.";
+        // Assert that the UI value has NOT changed, but the internal one has.
+        EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, initial_ui_gap_size) << "UI gap size should not change when a shrink power-up spawns.";
+        EXPECT_NE(game_state.next_checkpoint_gap_size, initial_internal_gap_size) << "Internal gap size should change when a shrink power-up spawns.";
 
-    // Now, spawn a checkpoint. This SHOULD update the UI value to the size of the checkpoint that was just created.
-    // The size of this new checkpoint is based on the *updated* internal prediction.
-    const int expected_spawned_gap_size = game_state.next_checkpoint_gap_size;
-    game_state.spawner.spawn_obstacles(checkpoint_interval, game_state);
+        // Now, spawn a checkpoint. This SHOULD update the UI value to the size of the checkpoint that was just created.
+        // The size of this new checkpoint is based on the *updated* internal prediction.
+        const int expected_spawned_gap_size = game_state.next_checkpoint_gap_size;
+        game_state.spawner.spawn_obstacles(checkpoint_interval, game_state);
 
-    // The UI should now show the size of the checkpoint that was just spawned.
-    EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, expected_spawned_gap_size) << "UI gap size should match the size of the newly spawned checkpoint.";
-    // The internal prediction is now for the *next* checkpoint, which should be the base size again.
-    EXPECT_EQ(game_state.next_checkpoint_gap_size, config.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
-}
+        // The UI should now show the size of the checkpoint that was just spawned.
+        EXPECT_EQ(game_state.ui_next_checkpoint_gap_size, expected_spawned_gap_size) << "UI gap size should match the size of the newly spawned checkpoint.";
+        // The internal prediction is now for the *next* checkpoint, which should be the base size again.
+        EXPECT_EQ(game_state.next_checkpoint_gap_size, config.getBaseCheckpointGap()) << "Internal gap size should reset to base after a checkpoint spawns.";
+};
 
 // --- Top-Level Game Logic Tests ---
 
 // Test fixture for game logic tests
-class TopLevelGameLogicTest : public SdlTest {
-protected:
-    TestConfig config{kTestRootPath};
-    const int SCREEN_WIDTH = 800;
-    const int SCREEN_HEIGHT = 600;
-};
 
 // Test fixture for game logic tests that require a renderer
 class GameLogicRendererTest : public SdlTest {
@@ -480,12 +528,13 @@ protected:
     const int SCREEN_WIDTH = 800;
     const int SCREEN_HEIGHT = 600;
     SDL_Window* window_ = nullptr;
+    TestConfig config{kTestRootPath};
     SDL_Renderer* renderer_ = nullptr;
 
     void SetUp() override {
         SdlTest::SetUp();
         ASSERT_EQ(TTF_Init(), 0);
-        window_ = SDL_CreateWindow("Test", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_HIDDEN);
+        window_ = SDL_CreateWindow("Test", 0, 0, config.getScreenWidth(), config.getScreenHeight(), SDL_WINDOW_HIDDEN);
         ASSERT_NE(window_, nullptr);
         renderer_ = SDL_CreateRenderer(window_, -1, 0);
         ASSERT_NE(renderer_, nullptr);
@@ -499,8 +548,10 @@ protected:
     }
 };
 
+class TopLevelGameLogicTest : public GameLogicRendererTest {};
+
 TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -514,7 +565,7 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
     gameState.obstacles.push_back(checkpoint);
 
     // Act: Run the game logic update. This should trigger the victory condition.
-    updateGame(gameState);
+    updateGame(gameState, SDL_GetTicks());
 
     // Assert: The level should now be greater than the max level.
     // The main game loop is responsible for setting `running` to false.
@@ -522,7 +573,7 @@ TEST_F(TopLevelGameLogicTest, VictoryConditionIsMetAtMaxLevel) {
 };
 
 TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
 
     // Set up the game state to be on the final level, about to pass the last checkpoint.
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -538,7 +589,7 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
     ASSERT_TRUE(gameState.running);
 
     // Act: Run one iteration of the game loop.
-    updateGame(gameState);
+    updateGame(gameState, SDL_GetTicks());
     checkVictoryCondition(gameState);
 
     // Assert: The game should no longer be running.
@@ -546,7 +597,7 @@ TEST_F(TopLevelGameLogicTest, GameEndsWhenVictoryConditionIsMet) {
 };
 
 TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
     ASSERT_TRUE(gameState.running);
 
     // Simulate a quit event
@@ -554,13 +605,13 @@ TEST_F(TopLevelGameLogicTest, ProcessInputSetsRunningFalseOnQuit) {
     quit_event.type = SDL_QUIT;
     SDL_PushEvent(&quit_event);
 
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config.getScreenWidth(), config.getScreenHeight());
 
     EXPECT_FALSE(gameState.running);
 };
 
 TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
 
     // 1. Test when level is NOT greater than max level
     gameState.level = gameState.level_manager.getMaxLevel();
@@ -576,22 +627,30 @@ TEST_F(TopLevelGameLogicTest, CheckVictoryCondition) {
 }
 
 TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
 
     // 1. Spawn a checkpoint.
     const Uint32 checkpoint_spawn_time = gameState.level_manager.getCheckpointInterval();
     gameState.spawner.spawn_obstacles(checkpoint_spawn_time, gameState);
-    ASSERT_EQ(gameState.obstacles.size(), 1) << "A checkpoint should have been spawned.";
+    ASSERT_EQ(gameState.obstacles.size(), 1) << "A checkpoint should have been spawned at t=" << checkpoint_spawn_time;
 
-    // 2. Simulate time passing and spawn a regular obstacle.
-    // The time must be after the checkpoint's safe zone and after the regular spawn interval.
-    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config.getCheckpointSafeZoneDuration() + 1;
+    // 2. Move time forward and spawn a regular obstacle.
+    // We must simulate the passage of time, which includes moving existing obstacles.
+    const Uint32 safe_zone_end_time = checkpoint_spawn_time + config.getCheckpointSafeZoneDuration();
     const Uint32 regular_spawn_time = checkpoint_spawn_time + gameState.level_manager.getSpawnInterval();
     const Uint32 next_spawn_time = std::max(safe_zone_end_time, regular_spawn_time);
-    gameState.spawner.spawn_obstacles(next_spawn_time, gameState);
-    ASSERT_EQ(gameState.obstacles.size(), 2) << "A regular obstacle should have been spawned after the checkpoint.";
 
-    // Simulate the game loop for a few seconds (e.g., 200 frames).
+    // Simulate the frames between the checkpoint spawn and the next spawn time.
+    // This is crucial because it moves the checkpoint out of the immediate spawn area.
+    const int frames_to_move = (next_spawn_time - checkpoint_spawn_time) / 16; // Assuming ~60 FPS
+    for (int i = 0; i < frames_to_move; ++i) {
+        Obstacle::updateAndRemove(gameState.obstacles);
+    }
+
+    gameState.spawner.spawn_obstacles(next_spawn_time + 1, gameState); // Add 1 to ensure we are clearly past the interval.
+    ASSERT_EQ(gameState.obstacles.size(), 2) << "A regular obstacle should have been spawned at t=" << next_spawn_time + 1;
+
+    // 3. Continue simulating the game loop to ensure no overlaps occur over time.
     const int num_frames_to_simulate = 200;
     for (int i = 0; i < num_frames_to_simulate; ++i) {
         // Update obstacle positions
@@ -614,19 +673,19 @@ TEST_F(TopLevelGameLogicTest, NoPostSpawnOverlaps) {
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithHurtObstacle_EndsGame) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
     // Place a "Hurt" obstacle directly on the player
     gameState.obstacles.emplace_back(gameState.player.rect.x, gameState.player.rect.y, 20, 20, 1, ObstacleType::Hurt, 0);
 
     ASSERT_TRUE(gameState.running);
 
-    updateGame(gameState);
+    updateGame(gameState, SDL_GetTicks());
 
     EXPECT_FALSE(gameState.running);
 };
 
 TEST_F(TopLevelGameLogicTest, ProcessInputTogglesPauseOnEscape) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
     ASSERT_FALSE(gameState.paused);
 
     // Simulate an ESC key press event
@@ -636,21 +695,21 @@ TEST_F(TopLevelGameLogicTest, ProcessInputTogglesPauseOnEscape) {
     SDL_PushEvent(&esc_event);
 
     // Process the event
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config.getScreenWidth(), config.getScreenHeight());
 
     // Assert that the game is now paused
     EXPECT_TRUE(gameState.paused);
 
     // Simulate another ESC key press event
     SDL_PushEvent(&esc_event);
-    processInput(gameState, SCREEN_WIDTH, SCREEN_HEIGHT);
+    processInput(gameState, config.getScreenWidth(), config.getScreenHeight());
 
     // Assert that the game is now unpaused
     EXPECT_FALSE(gameState.paused);
 }
 
 TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
 
     // Add an obstacle that would normally move
     gameState.obstacles.emplace_back(200, 200, 20, 20, 5, ObstacleType::Hurt, 0);
@@ -666,7 +725,7 @@ TEST_F(TopLevelGameLogicTest, GameDoesNotUpdateWhenPaused) {
     // To properly test the paused state, we can confirm that the game loop logic works.
     // Here, we'll just confirm that calling updateGame *does* change things, proving
     // that *not* calling it is what pauses the game.
-    updateGame(gameState);
+    updateGame(gameState, SDL_GetTicks());
     EXPECT_NE(gameState.obstacles[0].rect.x, initial_obstacle_x) << "updateGame should move obstacles even if paused flag is set; the main loop is responsible for not calling it.";
 }
 
@@ -687,7 +746,7 @@ class PauseMenuActionTest : public TopLevelGameLogicTest, public ::testing::With
 
 TEST_P(PauseMenuActionTest, HandlesStateTransitionsCorrectly) {
     auto params = GetParam();
-    GameState game_state(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState game_state(config, config.getScreenWidth(), config.getScreenHeight());
     game_state.paused = true; // All actions start from a paused state
     AppStatus app_status = AppStatus::Running; // Initial status before action
 
@@ -748,28 +807,27 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(GameLogicRendererTest, HandleGameLoopSmokeTest) {
     // This is a smoke test to ensure the main game loop function can be called
     // without crashing. It doesn't verify deep logic but checks the integration.
-    TestConfig config_(kTestRootPath);
-    GameState gameState(config_, SCREEN_WIDTH, SCREEN_HEIGHT);
-    Scoreboard scoreboard(renderer_, config_);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
+    Scoreboard scoreboard(renderer_, config);
 
     // Simulate one frame when not paused
     gameState.paused = false;
-    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config));
 
     // Simulate one frame when paused (handleGameLoop should do nothing)
     gameState.paused = true;
-    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config_));
+    EXPECT_NO_THROW(handleGameLoop(renderer_, gameState, scoreboard, config));
 }
 
 TEST_F(TopLevelGameLogicTest, UpdateGame_PlayerCollidesWithGrowObstacle_PlayerGrows) {
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
     int initial_width = gameState.player.rect.w;
     // Place a "Grow" obstacle directly on the player
     gameState.obstacles.emplace_back(gameState.player.rect.x, gameState.player.rect.y, 20, 20, 1, ObstacleType::Grow, 200);
 
     ASSERT_EQ(gameState.obstacles.size(), 1);
 
-    updateGame(gameState);
+    updateGame(gameState, SDL_GetTicks());
 
     EXPECT_TRUE(gameState.running);
     EXPECT_GT(gameState.player.rect.w, initial_width);
@@ -780,7 +838,7 @@ TEST_F(TopLevelGameLogicTest, RenderGameCompiles) {
     // This test's primary purpose is to ensure that renderGame compiles
     // correctly as part of the test suite. This helps catch `const`
     // correctness issues or other compile-time problems in the render path.
-    GameState gameState(config, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameState gameState(config, config.getScreenWidth(), config.getScreenHeight());
     renderGame(nullptr, gameState, config);
 };
 

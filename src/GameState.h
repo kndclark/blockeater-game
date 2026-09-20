@@ -18,6 +18,10 @@ struct GameState {
     int checkpoints_passed_in_level = 0;
     int checkpoints_passed = 0;
     int ui_next_checkpoint_gap_size = 0;
+    SizeBoostLevel last_size_boost_level = SizeBoostLevel::None;
+    Uint32 last_size_boost_time = 0;
+    bool dash_boost_active = false;
+    Uint32 last_dash_boost_time = 0;
     int next_checkpoint_gap_size = 0;
     LevelManager level_manager;
     ScoreManager score_manager;

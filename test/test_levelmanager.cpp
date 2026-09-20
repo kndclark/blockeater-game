@@ -17,8 +17,7 @@ protected:
             "game": {
                 "spawn_interval_ms": 1000,
                 "obstacle_speed": 3,
-                "base_checkpoint_gap": 100,
-                "checkpoints_per_level": 1
+                "base_checkpoint_gap": 100
             }
         })";
         base_config_file.close();
@@ -29,10 +28,12 @@ protected:
             "levels": {
                 "1": {
                     "obstacle_speed": 5,
-                    "spawn_interval_ms": 800
+                    "spawn_interval_ms": 800,
+                    "checkpoints_per_level": 5
                 },
                 "2": {
-                    "obstacle_speed": 10
+                    "obstacle_speed": 10,
+                    "checkpoints_per_level": 2
                 }
             }
         })";
@@ -56,19 +57,22 @@ TEST_F(LevelManagerTest, LoadsLevelSpecificConfig) {
     EXPECT_EQ(level_manager.getObstacleSpeed(), 5);
     EXPECT_EQ(level_manager.getSpawnInterval(), 800);
     // base_checkpoint_gap is not in level 1 config, so it should use the base config value
+    EXPECT_EQ(level_manager.getCheckpointsPerLevel(), 5);
     EXPECT_EQ(level_manager.getBaseCheckpointGap(), 100);
 
     // Update to level 2
     level_manager.updateForLevel(2);
     EXPECT_EQ(level_manager.getObstacleSpeed(), 10);
+    EXPECT_EQ(level_manager.getCheckpointsPerLevel(), 2);
     // spawn_interval_ms is not in level 2 config, so it should persist from level 1
     EXPECT_EQ(level_manager.getSpawnInterval(), 800);
     EXPECT_EQ(level_manager.getBaseCheckpointGap(), 100);
 
     // Update to level 3 (not in config)
     level_manager.updateForLevel(3);
-    // Values should remain from the last valid level config (level 2)
+    // Values should persist from the last valid level config (level 2)
     EXPECT_EQ(level_manager.getObstacleSpeed(), 10);
+    EXPECT_EQ(level_manager.getCheckpointsPerLevel(), 2);
     EXPECT_EQ(level_manager.getSpawnInterval(), 800);
     EXPECT_EQ(level_manager.getBaseCheckpointGap(), 100);
 }

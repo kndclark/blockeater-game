@@ -35,7 +35,16 @@ inline ObstacleType determineObstacleType(int percent_grow, int percent_shrink, 
     }
 }
 
-struct ObstacleConfig; // Forward declaration
+/// @brief A data structure to hold all the information needed to create a Checkpoint.
+struct CheckpointDef {
+    int screen_width;
+    int screen_height;
+    int speed;
+    int gap_height;
+    int points;
+};
+
+class Config; // Forward declaration
 
 // --- Obstacle Struct ---
 // Encapsulates all data and behavior for a single obstacle.
@@ -89,17 +98,17 @@ struct Obstacle {
         );
     }
 
-    static Obstacle createCheckpoint(int screen_width, int screen_height, int speed, int gap_height, int points, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y);
+    static Obstacle createCheckpoint(const CheckpointDef& def, const std::vector<Obstacle>& nearby_obstacles, int& out_gap_y);
     static int calculateSafeY(int screen_height, int entity_height, const std::vector<Obstacle>& nearby_obstacles, std::optional<int> gap_height = std::nullopt);
 
 private:
     // Helper to select obstacle properties based on a random roll.
     // Kept private as it's an implementation detail of createRegular.
-    static std::tuple<ObstacleType, ObstacleSize, int> getObstacleTypeAndSize(const ObstacleConfig& obs_cfg);
+    static std::tuple<ObstacleType, ObstacleSize, int> getObstacleTypeAndSize(const Config& config);
 
 public:
     static Obstacle createRegular(int screen_width, int screen_height, int speed,
-                                  const ObstacleConfig& obs_cfg,
+                                  const Config& config,
                                   const std::vector<Obstacle>& nearby_obstacles);
 
 };
