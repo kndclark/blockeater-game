@@ -1,0 +1,14 @@
+pub mod app;
+pub mod config;
+pub mod game;
+pub mod level;
+pub mod obstacle;
+pub mod particles;
+pub mod platform;
+pub mod player;
+pub mod render;
+pub mod score;
+pub mod scoreboard;
+pub mod spawner;
+pub mod types;
+pub mod ui;
