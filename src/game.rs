@@ -4,7 +4,7 @@ use crate::obstacle::Obstacle;
 use crate::player::Player;
 use crate::score::ScoreManager;
 use crate::spawner::ObstacleSpawner;
-use crate::types::{IntRect, ObstacleType};
+use crate::types::{IntRect, ObstacleType, PlayerState, ScoreboardRenderData, SizeBoostLevel};
 
 #[derive(Debug, Clone)]
 pub struct GameState {
@@ -26,6 +26,11 @@ pub struct GameState {
 
     pub frame_count: u32,
     pub last_fps_update_time: u32,
+
+    pub last_size_boost_level: SizeBoostLevel,
+    pub last_size_boost_time: u32,
+    pub dash_boost_active: bool,
+    pub last_dash_boost_time: u32,
 
     // Scratch batch rects for rendering and zero allocation
     pub hurt_rects: Vec<IntRect>,
@@ -80,6 +85,10 @@ impl GameState {
             paused: false,
             frame_count: 0,
             last_fps_update_time: 1, // Non-zero per tests
+            last_size_boost_level: SizeBoostLevel::None,
+            last_size_boost_time: 0,
+            dash_boost_active: false,
+            last_dash_boost_time: 0,
             hurt_rects: Vec::new(),
             grow_rects: Vec::new(),
             shrink_rects: Vec::new(),
@@ -87,7 +96,7 @@ impl GameState {
         }
     }
 
-    pub fn handle_collision_at(&mut self, idx: usize) -> bool {
+    pub fn handle_collision_at(&mut self, idx: usize, current_time: u32) -> bool {
         let obs = self.obstacles[idx].clone();
         match obs.obstacle_type {
             ObstacleType::Checkpoint => {
@@ -109,10 +118,15 @@ impl GameState {
                     self.player.is_dashing,
                     self.player.rect.w,
                     self.ui_next_checkpoint_gap_size,
+                    ObstacleType::Grow,
                     &self.config,
                 );
                 self.score += res.score;
                 self.player.grow(self.config.player_size_change_amount);
+                if res.dash_boost_applied {
+                    self.dash_boost_active = true;
+                    self.last_dash_boost_time = current_time;
+                }
                 self.obstacles.remove(idx);
                 true
             }
@@ -122,17 +136,22 @@ impl GameState {
                     self.player.is_dashing,
                     self.player.rect.w,
                     self.ui_next_checkpoint_gap_size,
+                    ObstacleType::Shrink,
                     &self.config,
                 );
                 self.score += res.score;
                 self.player.shrink(self.config.player_size_change_amount);
+                if res.dash_boost_applied {
+                    self.dash_boost_active = true;
+                    self.last_dash_boost_time = current_time;
+                }
                 self.obstacles.remove(idx);
                 true
             }
         }
     }
 
-    pub fn handle_checkpoint_passing(&mut self, idx: usize) {
+    pub fn handle_checkpoint_passing(&mut self, idx: usize, current_time: u32) {
         let obs = &mut self.obstacles[idx];
         if obs.obstacle_type == ObstacleType::Checkpoint
             && !obs.passed
@@ -144,9 +163,18 @@ impl GameState {
                 self.player.is_dashing,
                 self.player.rect.w,
                 self.ui_next_checkpoint_gap_size,
+                ObstacleType::Checkpoint,
                 &self.config,
             );
             self.score += res.score;
+            if res.dash_boost_applied {
+                self.dash_boost_active = true;
+                self.last_dash_boost_time = current_time;
+            }
+            if res.size_boost_level != SizeBoostLevel::None {
+                self.last_size_boost_level = res.size_boost_level;
+                self.last_size_boost_time = current_time;
+            }
             self.checkpoints_passed_in_level += 1;
             self.checkpoints_passed += 1;
             self.player.reset_size();
@@ -172,6 +200,18 @@ impl GameState {
     pub fn update(&mut self, current_time: u32) {
         self.player.update(current_time);
 
+        const BOOST_MESSAGE_DURATION_MS: u32 = 2000;
+        if self.last_size_boost_level != SizeBoostLevel::None
+            && current_time > self.last_size_boost_time + BOOST_MESSAGE_DURATION_MS
+        {
+            self.last_size_boost_level = SizeBoostLevel::None;
+        }
+        if self.dash_boost_active
+            && current_time > self.last_dash_boost_time + BOOST_MESSAGE_DURATION_MS
+        {
+            self.dash_boost_active = false;
+        }
+
         self.spawner.spawn_obstacles(
             current_time,
             &self.level_manager,
@@ -192,7 +232,7 @@ impl GameState {
             }
 
             if collided {
-                let removed = self.handle_collision_at(idx);
+                let removed = self.handle_collision_at(idx, current_time);
                 if !self.running {
                     break;
                 }
@@ -200,7 +240,7 @@ impl GameState {
                     idx += 1;
                 }
             } else {
-                self.handle_checkpoint_passing(idx);
+                self.handle_checkpoint_passing(idx, current_time);
                 idx += 1;
             }
 
@@ -211,6 +251,33 @@ impl GameState {
 
         if self.running {
             self.check_victory_condition();
+        }
+    }
+
+    pub fn get_scoreboard_render_data(&self, current_time: u32) -> ScoreboardRenderData {
+        let time_since_boost = if self.last_size_boost_level != SizeBoostLevel::None {
+            current_time.saturating_sub(self.last_size_boost_time)
+        } else {
+            0
+        };
+        let time_since_dash_boost = if self.dash_boost_active {
+            current_time.saturating_sub(self.last_dash_boost_time)
+        } else {
+            0
+        };
+        ScoreboardRenderData {
+            score: self.score,
+            level: self.level,
+            current_gap_size: self.ui_next_checkpoint_gap_size,
+            checkpoints_passed: self.checkpoints_passed_in_level,
+            checkpoints_per_level: self.level_manager.effective_checkpoints_per_level,
+            player_size: self.player.rect.w,
+            on_cooldown: self.player.state == PlayerState::Cooldown,
+            cooldown_remaining: self.player.get_dash_cooldown_remaining(current_time),
+            last_boost_level: self.last_size_boost_level,
+            time_since_boost,
+            dash_boost_active: self.dash_boost_active,
+            time_since_dash_boost,
         }
     }
 }

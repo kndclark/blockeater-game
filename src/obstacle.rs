@@ -227,6 +227,22 @@ impl Obstacle {
         Self::new_checkpoint(top_wall, bottom_wall, speed, points)
     }
 
+    pub fn create_checkpoint_from_def(
+        def: &crate::types::CheckpointDef,
+        nearby_obstacles: &[Obstacle],
+        out_gap_y: &mut i32,
+    ) -> Self {
+        Self::create_checkpoint(
+            def.screen_width,
+            def.screen_height,
+            def.speed,
+            def.gap_height,
+            def.points,
+            nearby_obstacles,
+            out_gap_y,
+        )
+    }
+
     pub fn get_obstacle_type_and_size(
         obs_cfg: &ObstacleConfig,
     ) -> (ObstacleType, ObstacleSize, i32) {

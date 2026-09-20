@@ -1,4 +1,4 @@
-use crate::types::{GameColor, IntRect};
+use crate::types::{GameColor, Ghost, IntRect, PlayerDef, PlayerState};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PlayerInput {
@@ -85,6 +85,7 @@ impl PlayerBuilder {
             color: self.color,
             default_w: self.rect.w,
             default_h: self.rect.h,
+            state: PlayerState::Ready,
             is_dashing: false,
             on_cooldown: false,
             dash_start_time: 0,
@@ -92,6 +93,8 @@ impl PlayerBuilder {
             dash_speed_multiplier: self.dash_speed_multiplier,
             dash_duration_ms: self.dash_duration_ms,
             dash_cooldown_ms: self.dash_cooldown_ms,
+            ghosts: Vec::new(),
+            last_ghost_spawn_time: 0,
         }
     }
 }
@@ -104,6 +107,7 @@ pub struct Player {
     pub default_w: i32,
     pub default_h: i32,
 
+    pub state: PlayerState,
     pub is_dashing: bool,
     pub on_cooldown: bool,
     pub dash_start_time: u32,
@@ -112,10 +116,16 @@ pub struct Player {
     pub dash_speed_multiplier: f32,
     pub dash_duration_ms: u32,
     pub dash_cooldown_ms: u32,
+
+    pub ghosts: Vec<Ghost>,
+    pub last_ghost_spawn_time: u32,
 }
 
 impl Player {
     pub const MIN_SIZE: i32 = 20;
+    pub const GHOST_LIFETIME_MS: u32 = 300;
+    pub const GHOST_SPAWN_INTERVAL_MS: u32 = 30;
+    pub const GHOST_INITIAL_ALPHA: u8 = 100;
 
     pub fn builder() -> PlayerBuilder {
         PlayerBuilder::new()
@@ -142,20 +152,60 @@ impl Player {
             .build()
     }
 
+    pub fn from_def(def: &PlayerDef) -> Self {
+        Self::builder()
+            .position(def.x, def.y)
+            .size(def.w, def.h)
+            .speed(def.speed)
+            .color(def.color)
+            .dash_settings(
+                def.dash_speed_multiplier,
+                def.dash_duration_ms,
+                def.dash_cooldown_ms,
+            )
+            .build()
+    }
+
     pub fn update(&mut self, current_time: u32) {
-        if self.is_dashing
-            && (current_time.saturating_sub(self.dash_start_time) >= self.dash_duration_ms)
-        {
-            self.is_dashing = false;
-            self.on_cooldown = true;
-            self.dash_cooldown_start_time = current_time;
+        match self.state {
+            PlayerState::Ready => {}
+            PlayerState::Dashing => {
+                if current_time.saturating_sub(self.dash_start_time) >= self.dash_duration_ms {
+                    self.state = PlayerState::Cooldown;
+                    self.is_dashing = false;
+                    self.on_cooldown = true;
+                    self.dash_cooldown_start_time = current_time;
+                    self.ghosts.clear();
+                }
+            }
+            PlayerState::Cooldown => {
+                if current_time.saturating_sub(self.dash_cooldown_start_time)
+                    >= self.dash_cooldown_ms
+                {
+                    self.state = PlayerState::Ready;
+                    self.is_dashing = false;
+                    self.on_cooldown = false;
+                }
+            }
         }
 
-        if self.on_cooldown
-            && (current_time.saturating_sub(self.dash_cooldown_start_time) >= self.dash_cooldown_ms)
+        self.update_ghosts(current_time);
+    }
+
+    pub fn update_ghosts(&mut self, current_time: u32) {
+        if self.state == PlayerState::Dashing
+            && (current_time.saturating_sub(self.last_ghost_spawn_time)
+                > Self::GHOST_SPAWN_INTERVAL_MS)
         {
-            self.on_cooldown = false;
+            self.ghosts.push(Ghost {
+                rect: self.rect,
+                creation_time: current_time,
+            });
+            self.last_ghost_spawn_time = current_time;
         }
+
+        self.ghosts
+            .retain(|g| current_time.saturating_sub(g.creation_time) <= Self::GHOST_LIFETIME_MS);
     }
 
     pub fn apply_input(
@@ -165,19 +215,21 @@ impl Player {
         screen_height: i32,
         current_time: u32,
     ) {
-        if input.dash && !self.is_dashing && !self.on_cooldown {
+        if input.dash && self.state == PlayerState::Ready {
+            self.state = PlayerState::Dashing;
             self.is_dashing = true;
+            self.on_cooldown = false;
             self.dash_start_time = current_time;
         }
 
-        let current_speed = if self.is_dashing {
+        let current_speed = if self.state == PlayerState::Dashing {
             (self.speed as f32 * self.dash_speed_multiplier) as i32
         } else {
             self.speed
         };
 
         let any_direction_pressed = input.left || input.right || input.up || input.down;
-        if self.is_dashing && !any_direction_pressed {
+        if self.state == PlayerState::Dashing && !any_direction_pressed {
             self.rect.x += current_speed;
         }
 
@@ -234,11 +286,23 @@ impl Player {
     }
 
     pub fn get_dash_cooldown_remaining(&self, current_time: u32) -> u32 {
-        if !self.on_cooldown {
+        if self.state != PlayerState::Cooldown {
             return 0;
         }
         let elapsed = current_time.saturating_sub(self.dash_cooldown_start_time);
         self.dash_cooldown_ms.saturating_sub(elapsed)
+    }
+}
+
+impl From<&PlayerDef> for Player {
+    fn from(def: &PlayerDef) -> Self {
+        Self::from_def(def)
+    }
+}
+
+impl From<PlayerDef> for Player {
+    fn from(def: PlayerDef) -> Self {
+        Self::from_def(&def)
     }
 }
 
@@ -357,5 +421,33 @@ mod tests {
         p.rect.x = 250;
         p.handle_input(false, true, false, false, false, 200, 200, 0);
         assert_eq!(p.rect.x, 200 - 40);
+    }
+
+    #[test]
+    fn test_player_ghosting_lifecycle() {
+        let mut p = create_test_player();
+        p.state = PlayerState::Dashing;
+        p.dash_start_time = 1000;
+        let mut t = 1000;
+
+        // Spawn first ghost
+        p.update_ghosts(t);
+        assert_eq!(p.ghosts.len(), 1);
+        assert_eq!(p.ghosts[0].creation_time, 1000);
+
+        // Before interval, no new ghost
+        t += Player::GHOST_SPAWN_INTERVAL_MS - 1;
+        p.update_ghosts(t);
+        assert_eq!(p.ghosts.len(), 1);
+
+        // After interval, second ghost
+        t += 2;
+        p.update_ghosts(t);
+        assert_eq!(p.ghosts.len(), 2);
+
+        // Ghosts expire after lifetime
+        p.state = PlayerState::Ready;
+        p.update_ghosts(t + Player::GHOST_LIFETIME_MS + 1);
+        assert!(p.ghosts.is_empty());
     }
 }

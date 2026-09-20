@@ -69,8 +69,23 @@
     "player_size_change_amount": 10,
     "score_boosts": {
       "dash_multiplier": 1.5,
-      "size_multiplier": 2.0,
-      "size_threshold_percent": 50
+      "tiers": [
+        {
+          "threshold_percent": 80,
+          "multiplier": 5.0,
+          "tier": "Perfect"
+        },
+        {
+          "threshold_percent": 50,
+          "multiplier": 2.0,
+          "tier": "Great"
+        },
+        {
+          "threshold_percent": 30,
+          "multiplier": 1.5,
+          "tier": "Good"
+        }
+      ]
     },
     "score_per_checkpoint": 500,
     "score_per_grow": 200,

@@ -1,6 +1,9 @@
 use crate::config::Config;
 use crate::scoreboard::ScoreboardManager;
-use crate::types::{GameOverAction, MainMenuAction, PauseMenuAction, SettingsMenuAction};
+use crate::types::{
+    GameColor, GameOverAction, MainMenuAction, PauseMenuAction, ScoreboardRenderData,
+    SettingsMenuAction, SizeBoostLevel,
+};
 use macroquad::prelude::*;
 
 pub fn get_level_text(
@@ -26,13 +29,64 @@ pub fn get_level_text(
 
 pub fn get_player_size_text(player_size: i32, gap_size: i32, config: &Config) -> String {
     if gap_size <= 0 {
-        return format!("{}N/A", config.player_size_prefix);
+        return format!("{}N/A", config.gap_size_prefix);
     }
-    let percentage = ((player_size as f64 / gap_size as f64) * 100.0) as i32;
+    let percentage = ((player_size as f64 / gap_size as f64) * 100.0).round() as i32;
     format!(
         "{}{}{}",
-        config.player_size_prefix, percentage, config.player_size_suffix
+        config.gap_size_prefix, percentage, config.gap_size_suffix
     )
+}
+
+pub fn get_color_for_size_boost_tier(
+    player_width: i32,
+    gap_size: i32,
+    config: &Config,
+) -> GameColor {
+    if gap_size <= 0 {
+        return config.ui_text_color;
+    }
+
+    let raw_size_percentage = (player_width as f64 / gap_size as f64) * 100.0;
+    let rounded_percentage = raw_size_percentage.round() as i32;
+
+    for tier in config.get_size_boost_tiers() {
+        if rounded_percentage >= tier.threshold_percent {
+            let level = tier.level();
+            if level != SizeBoostLevel::None {
+                return config.get_size_boost_tier_color(level);
+            }
+        }
+    }
+
+    config.ui_text_color
+}
+
+pub fn get_flash_color_for_boost_message(
+    level: SizeBoostLevel,
+    time_since_boost: u32,
+    config: &Config,
+) -> GameColor {
+    if level == SizeBoostLevel::Perfect {
+        let rainbow_colors = config.get_rainbow_colors();
+        if rainbow_colors.is_empty() {
+            return config.ui_text_color;
+        }
+        let rainbow_cycle_time = 50; // ms per color
+        let color_index = ((time_since_boost.saturating_sub(1) / rainbow_cycle_time) as usize)
+            % rainbow_colors.len();
+        rainbow_colors[color_index]
+    } else {
+        // For Good and Great, flash between tier color and default UI color
+        let flash_interval = 150; // ms
+        let use_tier_color = (time_since_boost / flash_interval).is_multiple_of(2);
+
+        if use_tier_color {
+            config.get_size_boost_tier_color(level)
+        } else {
+            config.ui_text_color
+        }
+    }
 }
 
 pub fn get_dash_status_text(on_cooldown: bool, cooldown_remaining: u32, config: &Config) -> String {
@@ -143,53 +197,64 @@ pub fn handle_settings_menu_key(
 
 // ── Rendering Helpers ──────────────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
-pub fn render_hud(
-    score: i32,
-    level: i32,
-    ui_next_checkpoint_gap_size: i32,
-    checkpoints_passed_in_level: i32,
-    checkpoints_per_level: i32,
-    player_width: i32,
-    on_cooldown: bool,
-    cooldown_remaining: u32,
-    config: &Config,
-    scale: f32,
-    offset: Vec2,
-) {
+pub fn render_hud(data: &ScoreboardRenderData, config: &Config, scale: f32, offset: Vec2) {
     let font_size = 20.0 * scale;
     let text_col = config.ui_text_color.to_macroquad();
 
-    let score_str = format!("{}{}", config.score_prefix, score);
+    let score_str = format!("{}{}", config.score_prefix, data.score);
     let level_str = get_level_text(
-        level,
-        checkpoints_passed_in_level,
-        checkpoints_per_level,
+        data.level,
+        data.checkpoints_passed,
+        data.checkpoints_per_level,
         config,
     );
-    let gap_str = format!("{}{}", config.gap_size_prefix, ui_next_checkpoint_gap_size);
-    let size_str = get_player_size_text(player_width, ui_next_checkpoint_gap_size, config);
+    let gap_str = get_player_size_text(data.player_size, data.current_gap_size, config);
+    let gap_col = get_color_for_size_boost_tier(data.player_size, data.current_gap_size, config)
+        .to_macroquad();
 
     let start_x = 16.0 * scale + offset.x;
     let mut cur_y = 28.0 * scale + offset.y;
     let line_gap = 22.0 * scale;
 
+    let score_dim = measure_text(&score_str, None, font_size as u16, 1.0);
     draw_text(&score_str, start_x, cur_y, font_size, text_col);
+
+    if data.dash_boost_active {
+        let dash_boost_col = get_flash_color_for_boost_message(
+            SizeBoostLevel::Perfect,
+            data.time_since_dash_boost,
+            config,
+        )
+        .to_macroquad();
+        let dash_boost_text = "Dash boost!";
+        let boost_x = start_x + score_dim.width + 10.0 * scale;
+        draw_text(dash_boost_text, boost_x, cur_y, font_size, dash_boost_col);
+    }
+
     cur_y += line_gap;
     draw_text(&level_str, start_x, cur_y, font_size, text_col);
     cur_y += line_gap;
-    draw_text(&gap_str, start_x, cur_y, font_size, text_col);
-    cur_y += line_gap;
-    draw_text(&size_str, start_x, cur_y, font_size, text_col);
+
+    let gap_dim = measure_text(&gap_str, None, font_size as u16, 1.0);
+    draw_text(&gap_str, start_x, cur_y, font_size, gap_col);
+
+    if data.last_boost_level != SizeBoostLevel::None {
+        let boost_col =
+            get_flash_color_for_boost_message(data.last_boost_level, data.time_since_boost, config)
+                .to_macroquad();
+        let boost_text = config.get_size_boost_text(data.last_boost_level);
+        let boost_x = start_x + gap_dim.width + 10.0 * scale;
+        draw_text(boost_text, boost_x, cur_y, font_size, boost_col);
+    }
 
     // Dash status in bottom left
-    let dash_text = get_dash_status_text(on_cooldown, cooldown_remaining, config);
+    let dash_text = get_dash_status_text(data.on_cooldown, data.cooldown_remaining, config);
     let bottom_y = (config.screen_height as f32 - 16.0) * scale + offset.y;
     let mut dash_text_x = start_x;
 
-    if on_cooldown && cooldown_remaining > 0 {
+    if data.on_cooldown && data.cooldown_remaining > 0 {
         let progress =
-            1.0 - (cooldown_remaining as f32 / config.dash_cooldown_ms as f32).clamp(0.0, 1.0);
+            1.0 - (data.cooldown_remaining as f32 / config.dash_cooldown_ms as f32).clamp(0.0, 1.0);
         let rad = config.cooldown_indicator_radius as f32 * scale;
         let circle_center = Vec2::new(start_x + rad, bottom_y - rad * 0.5);
 
@@ -225,7 +290,18 @@ pub fn render_hud(
         dash_text_x += rad * 2.0 + 10.0 * scale;
     }
 
-    draw_text(&dash_text, dash_text_x, bottom_y, font_size, text_col);
+    let dash_col = if data.dash_boost_active {
+        get_flash_color_for_boost_message(
+            SizeBoostLevel::Perfect,
+            data.time_since_dash_boost,
+            config,
+        )
+        .to_macroquad()
+    } else {
+        text_col
+    };
+
+    draw_text(&dash_text, dash_text_x, bottom_y, font_size, dash_col);
 }
 
 pub fn render_main_menu(config: &Config, scale: f32, offset: Vec2) {
@@ -540,10 +616,7 @@ mod tests {
     #[test]
     fn test_ui_player_size_formatter() {
         let config = Config::load("").unwrap_or_default();
-        assert_eq!(
-            get_player_size_text(40, 200, &config),
-            "Player Size: 20% of gap size"
-        );
+        assert_eq!(get_player_size_text(40, 200, &config), "Size-to-Gap: 20%");
     }
 
     #[test]

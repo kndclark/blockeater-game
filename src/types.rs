@@ -111,11 +111,96 @@ pub enum GameOverAction {
     Quit,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum SizeBoostLevel {
+    #[default]
+    None,
+    Good,
+    Great,
+    Perfect,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SizeBoostTier {
+    pub threshold_percent: i32,
+    pub multiplier: f32,
+    pub tier: String,
+}
+
+impl SizeBoostTier {
+    pub fn level(&self) -> SizeBoostLevel {
+        match self.tier.as_str() {
+            "Perfect" => SizeBoostLevel::Perfect,
+            "Great" => SizeBoostLevel::Great,
+            "Good" => SizeBoostLevel::Good,
+            _ => SizeBoostLevel::None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PlayerState {
+    #[default]
+    Ready,
+    Dashing,
+    Cooldown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Ghost {
+    pub rect: IntRect,
+    pub creation_time: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CheckpointDef {
+    pub screen_width: i32,
+    pub screen_height: i32,
+    pub speed: i32,
+    pub gap_height: i32,
+    pub points: i32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlayerDef {
+    pub x: i32,
+    pub y: i32,
+    pub w: i32,
+    pub h: i32,
+    pub speed: i32,
+    pub color: GameColor,
+    pub dash_speed_multiplier: f32,
+    pub dash_duration_ms: u32,
+    pub dash_cooldown_ms: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScoreboardRenderData {
+    pub score: i32,
+    pub level: i32,
+    pub current_gap_size: i32,
+    pub checkpoints_passed: i32,
+    pub checkpoints_per_level: i32,
+    pub player_size: i32,
+    pub on_cooldown: bool,
+    pub cooldown_remaining: u32,
+    pub last_boost_level: SizeBoostLevel,
+    pub time_since_boost: u32,
+    pub dash_boost_active: bool,
+    pub time_since_dash_boost: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ScoreCalculationResult {
     pub score: i32,
     pub dash_boost_applied: bool,
-    pub size_boost_applied: bool,
+    pub size_boost_level: SizeBoostLevel,
+}
+
+impl ScoreCalculationResult {
+    pub fn size_boost_applied(&self) -> bool {
+        self.size_boost_level != SizeBoostLevel::None
+    }
 }
 
 #[cfg(test)]
@@ -230,6 +315,7 @@ mod tests {
         let res = ScoreCalculationResult::default();
         assert_eq!(res.score, 0);
         assert!(!res.dash_boost_applied);
-        assert!(!res.size_boost_applied);
+        assert_eq!(res.size_boost_level, SizeBoostLevel::None);
+        assert!(!res.size_boost_applied());
     }
 }

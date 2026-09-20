@@ -1,4 +1,4 @@
-use crate::types::{GameColor, ObstacleSize, ObstacleType};
+use crate::types::{GameColor, ObstacleSize, ObstacleType, SizeBoostLevel, SizeBoostTier};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -51,6 +51,7 @@ pub struct Config {
     pub dash_boost_multiplier: f32,
     pub size_boost_threshold: f32,
     pub size_boost_multiplier: f32,
+    pub size_boost_tiers: Vec<SizeBoostTier>,
     pub checkpoints_per_level: i32,
     pub spawn_interval_ms: u32,
     pub checkpoint_interval_ms: u32,
@@ -80,8 +81,14 @@ pub struct Config {
     pub cooldown_indicator_radius: i32,
     pub cooldown_indicator_color: GameColor,
     pub gap_size_prefix: String,
+    pub gap_size_suffix: String,
     pub player_size_prefix: String,
     pub player_size_suffix: String,
+    pub size_boost_good_text: String,
+    pub size_boost_great_text: String,
+    pub size_boost_perfect_text: String,
+    pub size_boost_tier_colors: HashMap<SizeBoostLevel, GameColor>,
+    pub rainbow_colors: Vec<GameColor>,
     pub game_over_text: String,
     pub victory_text: String,
     pub game_over_instructions: String,
@@ -129,6 +136,23 @@ impl Default for Config {
             dash_boost_multiplier: 1.5,
             size_boost_threshold: 50.0,
             size_boost_multiplier: 2.0,
+            size_boost_tiers: vec![
+                SizeBoostTier {
+                    threshold_percent: 80,
+                    multiplier: 5.0,
+                    tier: "Perfect".to_string(),
+                },
+                SizeBoostTier {
+                    threshold_percent: 50,
+                    multiplier: 2.0,
+                    tier: "Great".to_string(),
+                },
+                SizeBoostTier {
+                    threshold_percent: 30,
+                    multiplier: 1.5,
+                    tier: "Good".to_string(),
+                },
+            ],
             checkpoints_per_level: 10,
             spawn_interval_ms: 1500,
             checkpoint_interval_ms: 10000,
@@ -155,9 +179,28 @@ impl Default for Config {
             dash_cooldown_suffix: "s)".to_string(),
             cooldown_indicator_radius: 12,
             cooldown_indicator_color: GameColor::new(255, 255, 255, 255),
-            gap_size_prefix: "Gap Size: ".to_string(),
+            gap_size_prefix: "Size-to-Gap: ".to_string(),
+            gap_size_suffix: "%".to_string(),
             player_size_prefix: "Player Size: ".to_string(),
             player_size_suffix: "% of gap size".to_string(),
+            size_boost_good_text: "Good size boost!".to_string(),
+            size_boost_great_text: "Great size boost!".to_string(),
+            size_boost_perfect_text: "Perfect size boost!".to_string(),
+            size_boost_tier_colors: {
+                let mut m = HashMap::new();
+                m.insert(SizeBoostLevel::Good, GameColor::new(0, 255, 0, 255));
+                m.insert(SizeBoostLevel::Great, GameColor::new(255, 200, 0, 255));
+                m.insert(SizeBoostLevel::Perfect, GameColor::new(255, 0, 0, 255));
+                m
+            },
+            rainbow_colors: vec![
+                GameColor::new(255, 0, 0, 255),
+                GameColor::new(255, 165, 0, 255),
+                GameColor::new(255, 255, 0, 255),
+                GameColor::new(0, 255, 0, 255),
+                GameColor::new(0, 0, 255, 255),
+                GameColor::new(75, 0, 130, 255),
+            ],
             game_over_text: "GAME OVER".to_string(),
             victory_text: "YOU WIN!".to_string(),
             game_over_instructions: "R = Restart | M = Menu | Q = Quit".to_string(),
@@ -382,6 +425,11 @@ impl Config {
                 {
                     self.size_boost_threshold = v as f32;
                 }
+                if let Some(tiers) = boosts.get("tiers") {
+                    if let Ok(t) = serde_json::from_value::<Vec<SizeBoostTier>>(tiers.clone()) {
+                        self.size_boost_tiers = t;
+                    }
+                }
             }
         }
 
@@ -435,11 +483,48 @@ impl Config {
                 if let Some(v) = ui.get("gap_size_prefix").and_then(|v| v.as_str()) {
                     self.gap_size_prefix = v.to_string();
                 }
+                if let Some(v) = ui.get("gap_size_suffix").and_then(|v| v.as_str()) {
+                    self.gap_size_suffix = v.to_string();
+                }
                 if let Some(v) = ui.get("player_size_prefix").and_then(|v| v.as_str()) {
                     self.player_size_prefix = v.to_string();
                 }
                 if let Some(v) = ui.get("player_size_suffix").and_then(|v| v.as_str()) {
                     self.player_size_suffix = v.to_string();
+                }
+                if let Some(v) = ui.get("size_boost_good_text").and_then(|v| v.as_str()) {
+                    self.size_boost_good_text = v.to_string();
+                }
+                if let Some(v) = ui.get("size_boost_great_text").and_then(|v| v.as_str()) {
+                    self.size_boost_great_text = v.to_string();
+                }
+                if let Some(v) = ui.get("size_boost_perfect_text").and_then(|v| v.as_str()) {
+                    self.size_boost_perfect_text = v.to_string();
+                }
+                if let Some(colors) = ui.get("size_boost_tier_colors") {
+                    if let Some(c) = colors.get("good") {
+                        if let Ok(color) = serde_json::from_value::<GameColor>(c.clone()) {
+                            self.size_boost_tier_colors
+                                .insert(SizeBoostLevel::Good, color);
+                        }
+                    }
+                    if let Some(c) = colors.get("great") {
+                        if let Ok(color) = serde_json::from_value::<GameColor>(c.clone()) {
+                            self.size_boost_tier_colors
+                                .insert(SizeBoostLevel::Great, color);
+                        }
+                    }
+                    if let Some(c) = colors.get("perfect") {
+                        if let Ok(color) = serde_json::from_value::<GameColor>(c.clone()) {
+                            self.size_boost_tier_colors
+                                .insert(SizeBoostLevel::Perfect, color);
+                        }
+                    }
+                }
+                if let Some(rc) = ui.get("rainbow_colors") {
+                    if let Ok(colors) = serde_json::from_value::<Vec<GameColor>>(rc.clone()) {
+                        self.rainbow_colors = colors;
+                    }
                 }
                 if let Some(v) = ui.get("dash_ready_text").and_then(|v| v.as_str()) {
                     self.dash_ready_text = v.to_string();
@@ -549,6 +634,30 @@ impl Config {
 
     pub fn get_level_config(&self, level: i32) -> Option<&LevelConfig> {
         self.level_configs.get(&level)
+    }
+
+    pub fn get_size_boost_text(&self, level: SizeBoostLevel) -> &str {
+        match level {
+            SizeBoostLevel::Good => &self.size_boost_good_text,
+            SizeBoostLevel::Great => &self.size_boost_great_text,
+            SizeBoostLevel::Perfect => &self.size_boost_perfect_text,
+            SizeBoostLevel::None => "",
+        }
+    }
+
+    pub fn get_size_boost_tier_color(&self, level: SizeBoostLevel) -> GameColor {
+        self.size_boost_tier_colors
+            .get(&level)
+            .copied()
+            .unwrap_or(self.ui_text_color)
+    }
+
+    pub fn get_rainbow_colors(&self) -> &[GameColor] {
+        &self.rainbow_colors
+    }
+
+    pub fn get_size_boost_tiers(&self) -> &[SizeBoostTier] {
+        &self.size_boost_tiers
     }
 }
 

@@ -1,6 +1,6 @@
 use blockeater_game::config::Config;
 use blockeater_game::obstacle::{determine_obstacle_type, prepare_obstacle_batches, Obstacle};
-use blockeater_game::types::{IntRect, ObstacleType};
+use blockeater_game::types::{CheckpointDef, IntRect, ObstacleType};
 
 #[test]
 fn test_obstacle_creation() {
@@ -19,7 +19,14 @@ fn test_obstacle_creation() {
 fn test_create_checkpoint() {
     let mut dummy_gap_y = 0;
     let nearby = Vec::new();
-    let o = Obstacle::create_checkpoint(800, 600, 3, 150, 50, &nearby, &mut dummy_gap_y);
+    let def = CheckpointDef {
+        screen_width: 800,
+        screen_height: 600,
+        speed: 3,
+        gap_height: 150,
+        points: 50,
+    };
+    let o = Obstacle::create_checkpoint_from_def(&def, &nearby, &mut dummy_gap_y);
     assert_eq!(o.obstacle_type, ObstacleType::Checkpoint);
     assert_eq!(o.points, 50);
     assert!(o.rect2.is_some());

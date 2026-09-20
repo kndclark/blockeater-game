@@ -1,5 +1,5 @@
 use blockeater_game::config::Config;
-use blockeater_game::types::{GameColor, ObstacleType};
+use blockeater_game::types::{GameColor, ObstacleType, SizeBoostLevel};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -95,4 +95,21 @@ fn test_fallback_on_partially_missing_keys() {
     // Other values fall back to defaults
     assert_eq!(config.player_speed, 5);
     assert_eq!(config.screen_width, 640);
+}
+
+#[test]
+fn test_loads_size_boost_ui_texts() {
+    let config = Config::load("").expect("Should load default configs");
+    assert_eq!(
+        config.get_size_boost_text(SizeBoostLevel::Good),
+        "Good size boost!"
+    );
+    assert_eq!(
+        config.get_size_boost_text(SizeBoostLevel::Great),
+        "Great size boost!"
+    );
+    assert_eq!(
+        config.get_size_boost_text(SizeBoostLevel::Perfect),
+        "Perfect size boost!"
+    );
 }

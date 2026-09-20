@@ -4,7 +4,7 @@ use blockeater_game::level::LevelManager;
 use blockeater_game::obstacle::Obstacle;
 use blockeater_game::score::ScoreManager;
 use blockeater_game::spawner::ObstacleSpawner;
-use blockeater_game::types::{IntRect, ObstacleType};
+use blockeater_game::types::{IntRect, ObstacleType, SizeBoostLevel};
 
 #[test]
 fn test_fps_calculation() {
@@ -75,7 +75,7 @@ fn test_collision_logic() {
             0,
         )];
         let initial_size = gs.player.rect.w;
-        let removed = gs.handle_collision_at(0);
+        let removed = gs.handle_collision_at(0, 0);
         assert!(removed);
         assert!(gs.running);
         assert_eq!(gs.score, 100);
@@ -98,7 +98,7 @@ fn test_collision_logic() {
             200,
         )];
         let initial_size = gs.player.rect.w;
-        let removed = gs.handle_collision_at(0);
+        let removed = gs.handle_collision_at(0, 0);
         assert!(removed);
         assert!(gs.running);
         assert_eq!(gs.score, 200);
@@ -124,7 +124,7 @@ fn test_collision_logic() {
             100,
         )];
         let initial_size = gs.player.rect.w;
-        let removed = gs.handle_collision_at(0);
+        let removed = gs.handle_collision_at(0, 0);
         assert!(removed);
         assert!(gs.running);
         assert_eq!(gs.score, 100);
@@ -146,8 +146,29 @@ fn test_collision_logic() {
             3,
             500,
         )];
-        gs.handle_collision_at(0);
+        gs.handle_collision_at(0, 0);
         assert!(!gs.running);
+    }
+
+    // Dashing through Grow obstacle triggers dash boost indicator
+    {
+        let mut gs = GameState::new(config.clone(), 800, 600);
+        gs.player.is_dashing = true;
+        gs.obstacles = vec![Obstacle::new_regular(
+            100,
+            100,
+            20,
+            20,
+            3,
+            ObstacleType::Grow,
+            200,
+        )];
+        let removed = gs.handle_collision_at(0, 500);
+        assert!(removed);
+        assert!(gs.dash_boost_active);
+        assert_eq!(gs.last_dash_boost_time, 500);
+        // Dash multiplier 1.5 * 200 = 300
+        assert_eq!(gs.score, 300);
     }
 }
 
@@ -156,44 +177,175 @@ fn test_score_manager_multipliers() {
     let config = Config::load("").unwrap_or_default();
     let base_score = 100;
     let gap_size = 200;
-    let player_width_at_threshold =
-        (gap_size as f32 * (config.size_boost_threshold / 100.0) + 0.1) as i32;
+    let dash_multiplier = config.dash_boost_multiplier;
+    let tiers = config.get_size_boost_tiers();
 
-    // 1. NoBoosts
-    let r1 = ScoreManager::calculate_score(base_score, false, 40, gap_size, &config);
-    assert_eq!(r1.score, 100);
-    assert!(!r1.dash_boost_applied);
-    assert!(!r1.size_boost_applied);
+    let perfect_mult = tiers[0].multiplier;
+    let great_mult = tiers[1].multiplier;
+    let good_mult = tiers[2].multiplier;
 
-    // 2. DashBoostOnly (1.5x)
-    let r2 = ScoreManager::calculate_score(base_score, true, 40, gap_size, &config);
-    assert_eq!(r2.score, 150);
-    assert!(r2.dash_boost_applied);
-    assert!(!r2.size_boost_applied);
+    let width_no_boost = (gap_size as f32 * 0.29) as i32;
+    let width_good_boost = (gap_size as f32 * 0.30) as i32;
+    let width_great_boost = (gap_size as f32 * 0.50) as i32;
+    let width_perfect_boost = (gap_size as f32 * 0.80) as i32;
 
-    // 3. SizeBoostOnly (2.0x)
-    let r3 = ScoreManager::calculate_score(
-        base_score,
-        false,
-        player_width_at_threshold,
-        gap_size,
-        &config,
-    );
-    assert_eq!(r3.score, 200);
-    assert!(!r3.dash_boost_applied);
-    assert!(r3.size_boost_applied);
+    struct Case {
+        is_dashing: bool,
+        player_width: i32,
+        obstacle_type: ObstacleType,
+        expected_score: i32,
+        desc: &'static str,
+    }
 
-    // 4. DashAndSizeBoost (1.5 * 2.0 = 3.0x)
-    let r4 = ScoreManager::calculate_score(
-        base_score,
-        true,
-        player_width_at_threshold,
-        gap_size,
-        &config,
-    );
-    assert_eq!(r4.score, 300);
-    assert!(r4.dash_boost_applied);
-    assert!(r4.size_boost_applied);
+    let cases = vec![
+        Case {
+            is_dashing: false,
+            player_width: width_no_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: base_score,
+            desc: "NoBoosts",
+        },
+        Case {
+            is_dashing: true,
+            player_width: width_no_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: (base_score as f32 * dash_multiplier) as i32,
+            desc: "DashBoostOnly",
+        },
+        Case {
+            is_dashing: false,
+            player_width: width_perfect_boost,
+            obstacle_type: ObstacleType::Grow,
+            expected_score: base_score,
+            desc: "NoSizeBoostOnGrow",
+        },
+        Case {
+            is_dashing: true,
+            player_width: width_perfect_boost,
+            obstacle_type: ObstacleType::Shrink,
+            expected_score: (base_score as f32 * dash_multiplier) as i32,
+            desc: "NoSizeBoostOnShrink_DashOnly",
+        },
+        Case {
+            is_dashing: false,
+            player_width: width_good_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: (base_score as f32 * good_mult) as i32,
+            desc: "GoodSizeBoostOnCheckpoint",
+        },
+        Case {
+            is_dashing: false,
+            player_width: width_great_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: (base_score as f32 * great_mult) as i32,
+            desc: "GreatSizeBoostOnCheckpoint",
+        },
+        Case {
+            is_dashing: false,
+            player_width: width_perfect_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: (base_score as f32 * perfect_mult) as i32,
+            desc: "PerfectSizeBoostOnCheckpoint",
+        },
+        Case {
+            is_dashing: true,
+            player_width: width_perfect_boost,
+            obstacle_type: ObstacleType::Checkpoint,
+            expected_score: (base_score as f32 * dash_multiplier * perfect_mult) as i32,
+            desc: "DashAndPerfectSizeBoostOnCheckpoint",
+        },
+    ];
+
+    for c in cases {
+        let res = ScoreManager::calculate_score(
+            base_score,
+            c.is_dashing,
+            c.player_width,
+            gap_size,
+            c.obstacle_type,
+            &config,
+        );
+        assert_eq!(res.score, c.expected_score, "Failed on: {}", c.desc);
+    }
+}
+
+#[test]
+fn test_returns_correct_boost_level() {
+    let config = Config::load("").unwrap_or_default();
+
+    struct LevelCase {
+        player_width: i32,
+        gap_size: i32,
+        expected_level: SizeBoostLevel,
+        desc: &'static str,
+    }
+
+    let cases = vec![
+        LevelCase {
+            player_width: 29,
+            gap_size: 100,
+            expected_level: SizeBoostLevel::None,
+            desc: "BelowGoodThreshold",
+        },
+        LevelCase {
+            player_width: 30,
+            gap_size: 100,
+            expected_level: SizeBoostLevel::Good,
+            desc: "AtGoodThreshold",
+        },
+        LevelCase {
+            player_width: 494,
+            gap_size: 1000,
+            expected_level: SizeBoostLevel::Good,
+            desc: "RoundsDownBelowGreat",
+        },
+        LevelCase {
+            player_width: 50,
+            gap_size: 100,
+            expected_level: SizeBoostLevel::Great,
+            desc: "AtGreatThreshold",
+        },
+        LevelCase {
+            player_width: 794,
+            gap_size: 1000,
+            expected_level: SizeBoostLevel::Great,
+            desc: "RoundsDownBelowPerfect",
+        },
+        LevelCase {
+            player_width: 799,
+            gap_size: 1000,
+            expected_level: SizeBoostLevel::Perfect,
+            desc: "RoundsUpToPerfect",
+        },
+        LevelCase {
+            player_width: 80,
+            gap_size: 100,
+            expected_level: SizeBoostLevel::Perfect,
+            desc: "AtPerfectThreshold",
+        },
+        LevelCase {
+            player_width: 100,
+            gap_size: 100,
+            expected_level: SizeBoostLevel::Perfect,
+            desc: "AtMaximumPercentage",
+        },
+    ];
+
+    for c in cases {
+        let res = ScoreManager::calculate_score(
+            100,
+            false,
+            c.player_width,
+            c.gap_size,
+            ObstacleType::Checkpoint,
+            &config,
+        );
+        assert_eq!(
+            res.size_boost_level, c.expected_level,
+            "Failed on: {}",
+            c.desc
+        );
+    }
 }
 
 #[test]
@@ -205,7 +357,6 @@ fn test_checkpoint_passing() {
         obstacle_x: i32,
         initially_passed: bool,
         initial_score: i32,
-        expected_score: i32,
         expected_passed: bool,
         is_checkpoint: bool,
         desc: &'static str,
@@ -217,7 +368,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 121,
             initially_passed: false,
             initial_score: 0,
-            expected_score: 0,
             expected_passed: false,
             is_checkpoint: true,
             desc: "PlayerBeforeCheckpoint",
@@ -227,7 +377,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 100,
             initially_passed: false,
             initial_score: 0,
-            expected_score: 500,
             expected_passed: true,
             is_checkpoint: true,
             desc: "PlayerPassesCheckpoint",
@@ -237,7 +386,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 100,
             initially_passed: false,
             initial_score: 500,
-            expected_score: 1000,
             expected_passed: true,
             is_checkpoint: true,
             desc: "PlayerPassesCheckpointWithScore",
@@ -247,7 +395,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 100,
             initially_passed: true,
             initial_score: 500,
-            expected_score: 500,
             expected_passed: true,
             is_checkpoint: true,
             desc: "PlayerPassesAlreadyPassedCheckpoint",
@@ -257,7 +404,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 100,
             initially_passed: false,
             initial_score: 0,
-            expected_score: 0,
             expected_passed: false,
             is_checkpoint: true,
             desc: "PlayerAtCheckpointEdge",
@@ -267,7 +413,6 @@ fn test_checkpoint_passing() {
             obstacle_x: 100,
             initially_passed: false,
             initial_score: 0,
-            expected_score: 0,
             expected_passed: false,
             is_checkpoint: false,
             desc: "DoesNotAffectNonCheckpoints",
@@ -293,9 +438,26 @@ fn test_checkpoint_passing() {
         obs.passed = c.initially_passed;
         gs.obstacles.push(obs);
 
-        gs.handle_checkpoint_passing(0);
+        gs.handle_checkpoint_passing(0, 1000);
 
-        assert_eq!(gs.score, c.expected_score, "{}: score mismatch", c.desc);
+        let should_change =
+            c.is_checkpoint && !c.initially_passed && c.player_x > c.obstacle_x + 20;
+        let expected_score = if should_change {
+            c.initial_score
+                + ScoreManager::calculate_score(
+                    config.score_per_checkpoint,
+                    false,
+                    60,
+                    gs.ui_next_checkpoint_gap_size,
+                    ObstacleType::Checkpoint,
+                    &config,
+                )
+                .score
+        } else {
+            c.initial_score
+        };
+
+        assert_eq!(gs.score, expected_score, "{}: score mismatch", c.desc);
         assert_eq!(
             gs.obstacles[0].passed, c.expected_passed,
             "{}: passed flag mismatch",
@@ -329,11 +491,12 @@ fn test_level_up() {
     );
     gs.obstacles.push(cp);
 
-    gs.handle_checkpoint_passing(0);
+    gs.handle_checkpoint_passing(0, 1000);
 
     assert_eq!(gs.checkpoints_passed_in_level, 0);
     assert_eq!(gs.level, 2);
     assert_eq!(gs.level_manager.effective_obstacle_speed, 4); // Level 2 speed is 4
+    assert_eq!(gs.level_manager.effective_checkpoints_per_level, 2);
 }
 
 #[test]

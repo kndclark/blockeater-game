@@ -3,6 +3,7 @@
 use crate::config::Config;
 use crate::game::GameState;
 use crate::particles::ParticleSystem;
+use crate::player::Player;
 use crate::scoreboard::ScoreboardManager;
 use crate::ui::*;
 use macroquad::prelude::*;
@@ -105,6 +106,22 @@ pub fn render_game_scene(
     // Draw Particles
     particle_system.draw(scale, Vec2::new(play_x, play_y));
 
+    // Draw Player Ghosts
+    if !game_state.player.ghosts.is_empty() {
+        for ghost in &game_state.player.ghosts {
+            let gx = ghost.rect.x as f32 * scale + play_x;
+            let gy = ghost.rect.y as f32 * scale + play_y;
+            let gw = ghost.rect.w as f32 * scale;
+            let gh = ghost.rect.h as f32 * scale;
+            let age_ratio = (sim_time_ms.saturating_sub(ghost.creation_time) as f32)
+                / Player::GHOST_LIFETIME_MS as f32;
+            let alpha = (Player::GHOST_INITIAL_ALPHA as f32 * (1.0 - age_ratio.min(1.0))) / 255.0;
+            let mut ghost_col = config.player_color.to_macroquad();
+            ghost_col.a = alpha;
+            draw_rectangle(gx, gy, gw, gh, ghost_col);
+        }
+    }
+
     // Draw Player
     let px = game_state.player.rect.x as f32 * scale + play_x;
     let py = game_state.player.rect.y as f32 * scale + play_y;
@@ -116,19 +133,8 @@ pub fn render_game_scene(
     draw_rectangle_lines(px, py, pw, ph, 2.0 * scale, WHITE);
 
     // Render HUD
-    render_hud(
-        game_state.score,
-        game_state.level,
-        game_state.ui_next_checkpoint_gap_size,
-        game_state.checkpoints_passed_in_level,
-        game_state.level_manager.effective_checkpoints_per_level,
-        game_state.player.rect.w,
-        game_state.player.on_cooldown,
-        game_state.player.get_dash_cooldown_remaining(sim_time_ms),
-        config,
-        scale,
-        viewport.offset,
-    );
+    let hud_data = game_state.get_scoreboard_render_data(sim_time_ms);
+    render_hud(&hud_data, config, scale, viewport.offset);
 
     // Pause overlay if paused
     if game_state.paused {

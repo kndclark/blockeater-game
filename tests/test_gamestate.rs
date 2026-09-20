@@ -32,4 +32,5 @@ fn test_game_state_initialization() {
     assert_eq!(game_state.level_manager.effective_grow_chance, 20);
     assert_eq!(game_state.level_manager.effective_shrink_chance, 50);
     assert_eq!(game_state.level_manager.effective_base_checkpoint_gap, 200);
+    assert_eq!(game_state.level_manager.effective_checkpoints_per_level, 5);
 }

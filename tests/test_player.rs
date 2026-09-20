@@ -1,5 +1,6 @@
 use blockeater_game::config::Config;
 use blockeater_game::player::Player;
+use blockeater_game::types::{PlayerDef, PlayerState};
 
 #[test]
 fn test_player_movement() {
@@ -329,4 +330,179 @@ fn test_player_grow_shrink_reset_size() {
     player.reset_size();
     assert_eq!(player.rect.w, 40);
     assert_eq!(player.rect.h, 40);
+}
+
+#[test]
+fn test_player_creation_from_def() {
+    let config = Config::load("").unwrap_or_default();
+    let def = PlayerDef {
+        x: 10,
+        y: 20,
+        w: 30,
+        h: 40,
+        speed: 5,
+        color: config.player_color,
+        dash_speed_multiplier: config.dash_speed_multiplier,
+        dash_duration_ms: config.dash_duration_ms,
+        dash_cooldown_ms: config.dash_cooldown_ms,
+    };
+    let player = Player::from_def(&def);
+    assert_eq!(player.rect.x, 10);
+    assert_eq!(player.rect.y, 20);
+    assert_eq!(player.rect.w, 30);
+    assert_eq!(player.rect.h, 40);
+    assert_eq!(player.speed, 5);
+}
+
+#[test]
+fn test_spawns_ghosts_while_dashing() {
+    let config = Config::load("").unwrap_or_default();
+    let mut player = Player::new(
+        100,
+        100,
+        40,
+        40,
+        10,
+        config.player_color,
+        config.dash_speed_multiplier,
+        config.dash_duration_ms,
+        config.dash_cooldown_ms,
+    );
+    player.state = PlayerState::Dashing;
+    let mut current_time = 1000;
+
+    // First spawn
+    player.update_ghosts(current_time);
+    assert_eq!(player.ghosts.len(), 1);
+    assert_eq!(player.ghosts.last().unwrap().rect.x, player.rect.x);
+    assert_eq!(player.ghosts.last().unwrap().creation_time, current_time);
+
+    // No spawn before interval
+    player.update_ghosts(current_time + Player::GHOST_SPAWN_INTERVAL_MS - 1);
+    assert_eq!(player.ghosts.len(), 1);
+
+    // Second spawn after interval
+    current_time += Player::GHOST_SPAWN_INTERVAL_MS + 1;
+    player.update_ghosts(current_time);
+    assert_eq!(player.ghosts.len(), 2);
+}
+
+#[test]
+fn test_does_not_spawn_ghosts_when_not_dashing() {
+    let config = Config::load("").unwrap_or_default();
+    let mut player = Player::new(
+        100,
+        100,
+        40,
+        40,
+        10,
+        config.player_color,
+        config.dash_speed_multiplier,
+        config.dash_duration_ms,
+        config.dash_cooldown_ms,
+    );
+    player.state = PlayerState::Ready;
+    let current_time = 1000;
+
+    player.update_ghosts(current_time);
+    assert!(player.ghosts.is_empty());
+
+    player.update_ghosts(current_time + Player::GHOST_SPAWN_INTERVAL_MS + 1);
+    assert!(player.ghosts.is_empty());
+}
+
+#[test]
+fn test_removes_old_ghosts() {
+    let config = Config::load("").unwrap_or_default();
+    let mut player = Player::new(
+        100,
+        100,
+        40,
+        40,
+        10,
+        config.player_color,
+        config.dash_speed_multiplier,
+        config.dash_duration_ms,
+        config.dash_cooldown_ms,
+    );
+    player.state = PlayerState::Dashing;
+    let spawn_time = 1000;
+
+    // Spawn a ghost
+    player.update_ghosts(spawn_time);
+    assert_eq!(player.ghosts.len(), 1);
+
+    // Update just before it expires
+    player.update_ghosts(spawn_time + Player::GHOST_SPAWN_INTERVAL_MS - 1);
+    assert_eq!(player.ghosts.len(), 1);
+
+    // Set state to not dashing to prevent new ghosts from spawning
+    player.state = PlayerState::Ready;
+
+    // Update just after it expires
+    player.update_ghosts(spawn_time + Player::GHOST_LIFETIME_MS + 1);
+    assert!(player.ghosts.is_empty());
+}
+
+#[test]
+fn test_spawns_and_removes_in_same_update() {
+    let config = Config::load("").unwrap_or_default();
+    let mut player = Player::new(
+        100,
+        100,
+        40,
+        40,
+        10,
+        config.player_color,
+        config.dash_speed_multiplier,
+        config.dash_duration_ms,
+        config.dash_cooldown_ms,
+    );
+    player.state = PlayerState::Dashing;
+    let first_spawn_time = 1000;
+
+    // 1. Spawn the first ghost.
+    player.update_ghosts(first_spawn_time);
+    assert_eq!(player.ghosts.len(), 1);
+    assert_eq!(
+        player.ghosts.first().unwrap().creation_time,
+        first_spawn_time
+    );
+
+    // 2. Simulate a long delay that is greater than both the spawn interval and the ghost lifetime.
+    let update_time = first_spawn_time + Player::GHOST_LIFETIME_MS + 1;
+    player.update_ghosts(update_time);
+
+    // 3. Assert that the old ghost was removed AND a new one was spawned.
+    assert_eq!(player.ghosts.len(), 1);
+    assert_ne!(
+        player.ghosts.first().unwrap().creation_time,
+        first_spawn_time
+    );
+    assert_eq!(player.ghosts.first().unwrap().creation_time, update_time);
+}
+
+#[test]
+fn test_clears_ghosts_when_dash_ends() {
+    let config = Config::load("").unwrap_or_default();
+    let mut player = Player::new(
+        100,
+        100,
+        40,
+        40,
+        10,
+        config.player_color,
+        config.dash_speed_multiplier,
+        config.dash_duration_ms,
+        config.dash_cooldown_ms,
+    );
+    player.state = PlayerState::Dashing;
+    player.update_ghosts(1000);
+    assert!(!player.ghosts.is_empty());
+
+    player.dash_start_time = 1000;
+    player.update(1000 + player.dash_duration_ms + 1);
+
+    assert_eq!(player.state, PlayerState::Cooldown);
+    assert!(player.ghosts.is_empty());
 }
