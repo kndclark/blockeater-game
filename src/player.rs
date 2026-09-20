@@ -1,5 +1,101 @@
 use crate::types::{GameColor, IntRect};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PlayerInput {
+    pub left: bool,
+    pub right: bool,
+    pub up: bool,
+    pub down: bool,
+    pub dash: bool,
+}
+
+impl PlayerInput {
+    pub const fn new(left: bool, right: bool, up: bool, down: bool, dash: bool) -> Self {
+        Self {
+            left,
+            right,
+            up,
+            down,
+            dash,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PlayerBuilder {
+    rect: IntRect,
+    speed: i32,
+    color: GameColor,
+    dash_speed_multiplier: f32,
+    dash_duration_ms: u32,
+    dash_cooldown_ms: u32,
+}
+
+impl Default for PlayerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PlayerBuilder {
+    pub fn new() -> Self {
+        Self {
+            rect: IntRect::new(0, 0, 30, 30),
+            speed: 5,
+            color: GameColor::new(255, 255, 255, 255),
+            dash_speed_multiplier: 2.0,
+            dash_duration_ms: 200,
+            dash_cooldown_ms: 1000,
+        }
+    }
+
+    pub fn position(mut self, x: i32, y: i32) -> Self {
+        self.rect.x = x;
+        self.rect.y = y;
+        self
+    }
+
+    pub fn size(mut self, w: i32, h: i32) -> Self {
+        self.rect.w = w;
+        self.rect.h = h;
+        self
+    }
+
+    pub fn speed(mut self, speed: i32) -> Self {
+        self.speed = speed;
+        self
+    }
+
+    pub fn color(mut self, color: GameColor) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn dash_settings(mut self, multiplier: f32, duration_ms: u32, cooldown_ms: u32) -> Self {
+        self.dash_speed_multiplier = multiplier;
+        self.dash_duration_ms = duration_ms;
+        self.dash_cooldown_ms = cooldown_ms;
+        self
+    }
+
+    pub fn build(self) -> Player {
+        Player {
+            rect: self.rect,
+            speed: self.speed,
+            color: self.color,
+            default_w: self.rect.w,
+            default_h: self.rect.h,
+            is_dashing: false,
+            on_cooldown: false,
+            dash_start_time: 0,
+            dash_cooldown_start_time: 0,
+            dash_speed_multiplier: self.dash_speed_multiplier,
+            dash_duration_ms: self.dash_duration_ms,
+            dash_cooldown_ms: self.dash_cooldown_ms,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Player {
     pub rect: IntRect,
@@ -21,6 +117,10 @@ pub struct Player {
 impl Player {
     pub const MIN_SIZE: i32 = 20;
 
+    pub fn builder() -> PlayerBuilder {
+        PlayerBuilder::new()
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         x: i32,
@@ -33,20 +133,13 @@ impl Player {
         dash_duration_ms: u32,
         dash_cooldown_ms: u32,
     ) -> Self {
-        Self {
-            rect: IntRect::new(x, y, w, h),
-            speed,
-            color,
-            default_w: w,
-            default_h: h,
-            is_dashing: false,
-            on_cooldown: false,
-            dash_start_time: 0,
-            dash_cooldown_start_time: 0,
-            dash_speed_multiplier,
-            dash_duration_ms,
-            dash_cooldown_ms,
-        }
+        Self::builder()
+            .position(x, y)
+            .size(w, h)
+            .speed(speed)
+            .color(color)
+            .dash_settings(dash_speed_multiplier, dash_duration_ms, dash_cooldown_ms)
+            .build()
     }
 
     pub fn update(&mut self, current_time: u32) {
@@ -65,6 +158,46 @@ impl Player {
         }
     }
 
+    pub fn apply_input(
+        &mut self,
+        input: &PlayerInput,
+        screen_width: i32,
+        screen_height: i32,
+        current_time: u32,
+    ) {
+        if input.dash && !self.is_dashing && !self.on_cooldown {
+            self.is_dashing = true;
+            self.dash_start_time = current_time;
+        }
+
+        let current_speed = if self.is_dashing {
+            (self.speed as f32 * self.dash_speed_multiplier) as i32
+        } else {
+            self.speed
+        };
+
+        let any_direction_pressed = input.left || input.right || input.up || input.down;
+        if self.is_dashing && !any_direction_pressed {
+            self.rect.x += current_speed;
+        }
+
+        if input.left {
+            self.rect.x -= current_speed;
+        }
+        if input.right {
+            self.rect.x += current_speed;
+        }
+        if input.up {
+            self.rect.y -= current_speed;
+        }
+        if input.down {
+            self.rect.y += current_speed;
+        }
+
+        self.rect.x = self.rect.x.clamp(0, (screen_width - self.rect.w).max(0));
+        self.rect.y = self.rect.y.clamp(0, (screen_height - self.rect.h).max(0));
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn handle_input(
         &mut self,
@@ -77,37 +210,12 @@ impl Player {
         screen_height: i32,
         current_time: u32,
     ) {
-        if shift && !self.is_dashing && !self.on_cooldown {
-            self.is_dashing = true;
-            self.dash_start_time = current_time;
-        }
-
-        let current_speed = if self.is_dashing {
-            (self.speed as f32 * self.dash_speed_multiplier) as i32
-        } else {
-            self.speed
-        };
-
-        let any_direction_pressed = left || right || up || down;
-        if self.is_dashing && !any_direction_pressed {
-            self.rect.x += current_speed;
-        }
-
-        if left {
-            self.rect.x -= current_speed;
-        }
-        if right {
-            self.rect.x += current_speed;
-        }
-        if up {
-            self.rect.y -= current_speed;
-        }
-        if down {
-            self.rect.y += current_speed;
-        }
-
-        self.rect.x = self.rect.x.clamp(0, (screen_width - self.rect.w).max(0));
-        self.rect.y = self.rect.y.clamp(0, (screen_height - self.rect.h).max(0));
+        self.apply_input(
+            &PlayerInput::new(left, right, up, down, shift),
+            screen_width,
+            screen_height,
+            current_time,
+        );
     }
 
     pub fn grow(&mut self, amount: i32) {
@@ -139,17 +247,42 @@ mod tests {
     use super::*;
 
     fn create_test_player() -> Player {
-        Player::new(
-            100,
-            100,
-            40,
-            40,
-            5,
-            GameColor::new(128, 0, 128, 255),
-            2.5,
-            500,
-            2000,
-        )
+        Player::builder()
+            .position(100, 100)
+            .size(40, 40)
+            .speed(5)
+            .color(GameColor::new(128, 0, 128, 255))
+            .dash_settings(2.5, 500, 2000)
+            .build()
+    }
+
+    #[test]
+    fn test_player_builder() {
+        let p = Player::builder()
+            .position(50, 60)
+            .size(25, 35)
+            .speed(7)
+            .color(GameColor::new(10, 20, 30, 255))
+            .dash_settings(3.0, 300, 1500)
+            .build();
+
+        assert_eq!(p.rect.x, 50);
+        assert_eq!(p.rect.y, 60);
+        assert_eq!(p.rect.w, 25);
+        assert_eq!(p.rect.h, 35);
+        assert_eq!(p.speed, 7);
+        assert_eq!(p.color, GameColor::new(10, 20, 30, 255));
+        assert_eq!(p.dash_speed_multiplier, 3.0);
+        assert_eq!(p.dash_duration_ms, 300);
+        assert_eq!(p.dash_cooldown_ms, 1500);
+    }
+
+    #[test]
+    fn test_player_input_struct() {
+        let mut p = create_test_player();
+        let input = PlayerInput::new(true, false, false, false, false);
+        p.apply_input(&input, 200, 200, 0);
+        assert_eq!(p.rect.x, 95);
     }
 
     #[test]

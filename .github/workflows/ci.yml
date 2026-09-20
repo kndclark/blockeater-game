@@ -90,10 +90,35 @@ jobs:
       - name: Install Linux Graphics / Audio Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y libasound2-dev libx11-dev libxi-dev libgl1-mesa-dev pkg-config xvfb
 
       - name: Build Release Binary
         run: cargo build --release
 
       - name: Run Headless Smoke Test
-        run: ./target/release/blockeater-game --headless-smoke-test
+        run: xvfb-run ./target/release/blockeater-game --headless-smoke-test
+
+  windows-build-and-test:
+    name: "Windows Build & Smoke Test"
+    needs: [test]
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Tests
+        run: cargo test --all --verbose
+
+      - name: Build Release Binary
+        run: cargo build --release
+
+      - name: Run Headless Smoke Test
+        run: .\target\release\blockeater-game.exe --headless-smoke-test
+

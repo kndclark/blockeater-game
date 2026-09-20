@@ -117,3 +117,119 @@ pub struct ScoreCalculationResult {
     pub dash_boost_applied: bool,
     pub size_boost_applied: bool,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_intrect_intersects_overlapping() {
+        let r1 = IntRect::new(10, 10, 20, 20);
+        let r2 = IntRect::new(15, 15, 20, 20);
+        assert!(r1.intersects(&r2));
+        assert!(r2.intersects(&r1));
+    }
+
+    #[test]
+    fn test_intrect_intersects_disjoint() {
+        let r1 = IntRect::new(10, 10, 20, 20);
+        let r2 = IntRect::new(40, 40, 20, 20);
+        assert!(!r1.intersects(&r2));
+        assert!(!r2.intersects(&r1));
+    }
+
+    #[test]
+    fn test_intrect_adjacent_touching_does_not_intersect() {
+        let r1 = IntRect::new(10, 10, 20, 20);
+        let r2 = IntRect::new(30, 10, 20, 20); // Right edge of r1 touches left edge of r2
+        assert!(!r1.intersects(&r2));
+        assert!(!r2.intersects(&r1));
+    }
+
+    #[test]
+    fn test_gamecolor_conversion_and_from_array() {
+        let arr = [255, 128, 64, 200];
+        let gc = GameColor::from(arr);
+        assert_eq!(gc.r, 255);
+        assert_eq!(gc.g, 128);
+        assert_eq!(gc.b, 64);
+        assert_eq!(gc.a, 200);
+
+        let mq = gc.to_macroquad();
+        assert!((mq.r - 1.0).abs() < 0.001);
+        assert!((mq.g - (128.0 / 255.0)).abs() < 0.001);
+        assert!((mq.b - (64.0 / 255.0)).abs() < 0.001);
+        assert!((mq.a - (200.0 / 255.0)).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_gamecolor_serde_default_alpha() {
+        let json = r#"{"r": 100, "g": 150, "b": 200}"#;
+        let gc: GameColor = serde_json::from_str(json).unwrap();
+        assert_eq!(gc.r, 100);
+        assert_eq!(gc.g, 150);
+        assert_eq!(gc.b, 200);
+        assert_eq!(gc.a, 255);
+    }
+
+    #[test]
+    fn test_intrect_fully_contained() {
+        let outer = IntRect::new(0, 0, 100, 100);
+        let inner = IntRect::new(20, 20, 30, 30);
+        assert!(outer.intersects(&inner));
+        assert!(inner.intersects(&outer));
+    }
+
+    #[test]
+    fn test_intrect_corner_touching_does_not_intersect() {
+        let r1 = IntRect::new(0, 0, 10, 10);
+        let r2 = IntRect::new(10, 10, 10, 10);
+        assert!(!r1.intersects(&r2));
+        assert!(!r2.intersects(&r1));
+    }
+
+    #[test]
+    fn test_intrect_vertical_and_horizontal_separation() {
+        let r1 = IntRect::new(50, 50, 20, 20);
+        let r_above = IntRect::new(50, 10, 20, 20);
+        let r_below = IntRect::new(50, 90, 20, 20);
+        let r_left = IntRect::new(10, 50, 20, 20);
+        let r_right = IntRect::new(90, 50, 20, 20);
+
+        assert!(!r1.intersects(&r_above));
+        assert!(!r1.intersects(&r_below));
+        assert!(!r1.intersects(&r_left));
+        assert!(!r1.intersects(&r_right));
+    }
+
+    #[test]
+    fn test_intrect_zero_dimensions() {
+        let r1 = IntRect::new(10, 10, 0, 0);
+        let r2 = IntRect::new(10, 10, 20, 20);
+        assert!(!r1.intersects(&r2));
+        assert!(!r2.intersects(&r1));
+    }
+
+    #[test]
+    fn test_obstacle_type_serde_roundtrip() {
+        let types = [
+            ObstacleType::Hurt,
+            ObstacleType::Grow,
+            ObstacleType::Shrink,
+            ObstacleType::Checkpoint,
+        ];
+        for ot in types {
+            let serialized = serde_json::to_string(&ot).unwrap();
+            let deserialized: ObstacleType = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(ot, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_score_calculation_result_default() {
+        let res = ScoreCalculationResult::default();
+        assert_eq!(res.score, 0);
+        assert!(!res.dash_boost_applied);
+        assert!(!res.size_boost_applied);
+    }
+}

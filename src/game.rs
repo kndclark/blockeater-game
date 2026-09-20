@@ -36,17 +36,20 @@ pub struct GameState {
 
 impl GameState {
     pub fn new(config: Config, screen_width: i32, screen_height: i32) -> Self {
-        let player = Player::new(
-            config.player_initial_x,
-            screen_height / 2 - config.player_height / 2,
-            config.player_width,
-            config.player_height,
-            config.player_speed,
-            config.player_color,
-            config.dash_speed_multiplier,
-            config.dash_duration_ms,
-            config.dash_cooldown_ms,
-        );
+        let player = Player::builder()
+            .position(
+                config.player_initial_x,
+                screen_height / 2 - config.player_height / 2,
+            )
+            .size(config.player_width, config.player_height)
+            .speed(config.player_speed)
+            .color(config.player_color)
+            .dash_settings(
+                config.dash_speed_multiplier,
+                config.dash_duration_ms,
+                config.dash_cooldown_ms,
+            )
+            .build();
 
         let level_manager = LevelManager::new(&config);
         let spawner = ObstacleSpawner::new(

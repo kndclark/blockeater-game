@@ -46,6 +46,7 @@ name = "blockeater-game"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "libc",
  "macroquad",
  "rand",
  "serde",
