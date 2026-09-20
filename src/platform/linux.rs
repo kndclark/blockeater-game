@@ -117,7 +117,8 @@ pub unsafe fn toggle_fullscreen_x11() -> bool {
     );
 
     if prop_status == 0 && !prop_return.is_null() && nitems > 0 {
-        let windows = std::slice::from_raw_parts(prop_return as *const libc::c_ulong, nitems as usize);
+        let windows =
+            std::slice::from_raw_parts(prop_return as *const libc::c_ulong, nitems as usize);
         for &w in windows {
             let mut name_ptr: *mut libc::c_char = std::ptr::null_mut();
             if x_fetch_name(display, w, &mut name_ptr) != 0 && !name_ptr.is_null() {
